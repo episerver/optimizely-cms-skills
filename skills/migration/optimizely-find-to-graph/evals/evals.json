@@ -1,0 +1,93 @@
+{
+  "skill_name": "optimizely-find-to-graph",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I'm migrating my CMS 12 project to CMS 13 and I have a bunch of EPiServer.Find queries throughout the codebase. Can you help me migrate them to the Graph SDK?",
+      "expected_output": "Should follow the 10-step migration workflow: Step 1 detect Find usage (scan for EPiServer.Find references, IClient, .Search<T>()), Step 2 add Graph SDK packages (Optimizely.Graph.Cms and Optimizely.Graph.Cms.Query), Step 3 register Graph services (AddContentGraph and AddGraphContentClient plus appsettings.json config), Step 4 migrate search queries (IClient.Search<T>() to IGraphContentClient.QueryContent<T>(), .For() to .SearchFor()), Step 5 migrate filter expressions (.Filter() to .Where() with LINQ lambdas), Step 6 migrate faceting (.TermsFacetFor() to .Facet()), Step 7 migrate pagination and sorting (.Take() to .Limit(), .OrderBy() with OrderDirection), Step 8 migrate result handling (.GetContentResult() to await .GetAsContentAsync(), sync to async), Step 9 remove Find packages, Step 10 verify migration with dotnet build. MUST mention that Graph SDK is async-only. MUST include the CRITICAL note about missing AddContentGraph() causing silent empty results. MUST NOT skip the verification step.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Follows 10-step workflow",
+          "check": "Output includes all 10 steps covering detection through verification"
+        },
+        {
+          "name": "Includes DI registration",
+          "check": "Mentions AddContentGraph() and AddGraphContentClient() as required registrations"
+        },
+        {
+          "name": "Covers async migration",
+          "check": "Explains that Graph SDK is async-only and methods require await"
+        },
+        {
+          "name": "Includes build verification",
+          "check": "Ends with dotnet build check and runtime smoke test"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "How do I replace MatchContained from Find in Graph SDK? I use it to filter on properties of items in a collection.",
+      "expected_output": "MUST explain that MatchContained has no direct method equivalent in Graph SDK. MUST explain the workaround: use .Where() with LINQ lambda expressions that navigate through nested properties. MUST provide a before/after code example showing Find's .MatchContained() and Graph SDK's .Where() with nested property access. SHOULD reference the find-to-graph-mapping.md reference for additional filter migration details. SHOULD NOT dump the entire 10-step migration workflow — stay focused on this specific method.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies correct mapping",
+          "check": "Explains MatchContained maps to Where with nested property navigation"
+        },
+        {
+          "name": "Provides code example",
+          "check": "Shows before/after code for MatchContained to Where migration"
+        },
+        {
+          "name": "Stays focused",
+          "check": "Answers the specific question without dumping the entire migration guide"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I replaced Find with Graph SDK but my queries aren't returning any results. The code compiles fine but searches always come back empty.",
+      "expected_output": "MUST check for missing AddContentGraph() and AddGraphContentClient() service registration as the most likely cause — these are required and missing either one causes silent empty results. MUST check for missing appsettings.json configuration under the Optimizely:ContentGraph section (GatewayAddress, AppKey, Secret, SingleKey). SHOULD check that the developer is awaiting async calls (forgetting await returns a Task, not results). SHOULD provide the correct service registration code. SHOULD NOT suggest reinstalling EPiServer.Find as a fix.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies registration as likely cause",
+          "check": "Mentions missing AddContentGraph() or AddGraphContentClient() as the primary suspect"
+        },
+        {
+          "name": "Checks configuration",
+          "check": "Mentions checking appsettings.json for Optimizely:ContentGraph section"
+        },
+        {
+          "name": "Provides registration code",
+          "check": "Shows the correct services.AddContentGraph() and services.AddGraphContentClient() calls"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "My Find queries use FilterHits to filter results without affecting facet counts. How do I do this in Graph SDK?",
+      "expected_output": "MUST explain that Graph SDK has no direct FilterHits equivalent. MUST explain that in Graph SDK, .Where() always affects both results AND facet counts — there is no way to filter results independently of facets in a single query. MUST suggest using separate queries as the workaround: one query with .Where() for filtered results, and another query without the filter to get unfiltered facet counts. SHOULD NOT claim that a direct equivalent exists or suggest using a method that mimics FilterHits behavior.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies capability gap",
+          "check": "Clearly states FilterHits has no direct Graph SDK equivalent"
+        },
+        {
+          "name": "Explains behavior difference",
+          "check": "Explains that Graph Where affects both results and facets"
+        },
+        {
+          "name": "Provides workaround",
+          "check": "Suggests using separate queries for filtered results and unfiltered facets"
+        },
+        {
+          "name": "Honest about limitation",
+          "check": "Does not claim a direct equivalent exists"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,157 @@
+{
+  "skill_name": "optimizely-cms11-to-12",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I have an Optimizely CMS 11 project running on .NET Framework 4.7.2. Help me migrate to CMS 12.",
+      "expected_output": "Should follow the 10-step migration workflow: Step 1 assess the project (detect CMS version, scan for removed features, scan for third-party packages, categorize effort), Step 2 run the Upgrade Assistant, Step 3 update NuGet packages (EPiServer.Cms.AspNet split into AspNetCore packages, remove StructureMap, remove Log4Net), Step 4 migrate DI (StructureMap to built-in DI), Step 5 migrate configuration (web.config to appsettings.json), Step 6 migrate routing (ASP.NET to endpoint routing), Step 7 fix breaking API changes (BlockController to BlockComponent, VPP to IFileProvider), Step 8 handle removed features (WebForms, XForms, Dynamic Content, etc.), Step 9 update authentication (Membership to ASP.NET Identity), Step 10 verify migration with dotnet build and runtime smoke test. MUST NOT skip the verification step. MUST mention the Upgrade Assistant tool.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Follows 10-step workflow",
+          "check": "Output includes all 10 steps in sequential order"
+        },
+        {
+          "name": "Includes Upgrade Assistant",
+          "check": "Mentions running the Upgrade Assistant tool with dotnet tool install"
+        },
+        {
+          "name": "Includes verification step",
+          "check": "Ends with dotnet build check and runtime smoke test"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "After upgrading to CMS 12, I get a compilation error saying EPiServer.ServiceLocation.StructureMap package is not found. How do I fix this?",
+      "expected_output": "Should identify that EPiServer.ServiceLocation.StructureMap has been removed in CMS 12 because ASP.NET Core has built-in dependency injection via Microsoft.Extensions.DependencyInjection. MUST provide before/after code showing StructureMap Registry replaced with Startup.ConfigureServices() registrations. MUST mention service lifetime mapping: HttpContext/Hybrid to Scoped. SHOULD reference breaking-changes-dotnet.md. SHOULD NOT suggest installing a different version of the StructureMap package.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies package removal",
+          "check": "Explains StructureMap package is removed in CMS 12 and ASP.NET Core has built-in DI"
+        },
+        {
+          "name": "Provides before/after code",
+          "check": "Shows CMS 11 StructureMap code and CMS 12 built-in DI replacement"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "After upgrading to CMS 12, I get a build error saying IInitializableHttpModule does not exist. I used it for custom request filtering.",
+      "expected_output": "Should identify that IInitializableHttpModule is removed in CMS 12 because ASP.NET Core replaces HTTP modules with middleware. MUST explain the middleware pattern (class with Invoke/InvokeAsync method). MUST provide before/after code showing IInitializableHttpModule replaced with ASP.NET Core middleware registered in Startup.Configure(). SHOULD mention that the middleware is registered using app.UseMiddleware<T>(). SHOULD NOT suggest finding an alternative HTTP module package.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies HTTP module removal",
+          "check": "Explains IInitializableHttpModule is removed and replaced by middleware"
+        },
+        {
+          "name": "Provides middleware example",
+          "check": "Shows ASP.NET Core middleware class with Invoke/InvokeAsync pattern"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Can you analyze my CMS 11 project and tell me what it would take to migrate to CMS 12? I have WebForms pages, XForms for contact forms, and use Dynamic Content blocks.",
+      "expected_output": "Should perform a pre-migration assessment without making changes. MUST identify WebForms as completely removed in CMS 12 (ASP.NET Core does not support WebForms) requiring full rewrite to MVC/Razor views. MUST identify XForms as removed, recommending Optimizely Forms as replacement. MUST identify Dynamic Content as removed, recommending Blocks (Content Areas) as replacement. MUST categorize this migration as 'significant effort' due to multiple removed features. SHOULD list detection patterns for finding all affected code. SHOULD NOT start making migration changes — assessment only.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Assessment only, no changes",
+          "check": "Reports findings without modifying code"
+        },
+        {
+          "name": "Identifies significant effort",
+          "check": "Categorizes migration as significant due to removed features"
+        },
+        {
+          "name": "Covers all three removed features",
+          "check": "Addresses WebForms removal, XForms removal, AND Dynamic Content removal"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "I have a simple CMS 11 MVC project with standard page types, no WebForms, and no custom plugins. How hard would it be to migrate to CMS 12?",
+      "expected_output": "Should perform a pre-migration assessment and categorize as 'minimal effort'. MUST explain that without removed features or complex customizations, the migration primarily involves: running the Upgrade Assistant, updating NuGet packages, migrating StructureMap DI to built-in DI, migrating web.config to appsettings.json, and fixing minor API changes (BlockController to BlockComponent if used). SHOULD mention that even 'minimal' is moderate work due to the ASP.NET Framework to ASP.NET Core platform shift. MUST still mention the verification step.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies minimal effort",
+          "check": "Categorizes migration as minimal"
+        },
+        {
+          "name": "Focuses on applicable changes",
+          "check": "Does not list removed feature warnings for features not in use"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "How do I migrate my web.config settings to CMS 12? I have connection strings, custom app settings, and EPiServer configuration sections.",
+      "expected_output": "Should explain the migration from web.config (XML) to appsettings.json (JSON). MUST provide before/after examples for connection strings (XML connectionStrings element to JSON ConnectionStrings object). MUST mention environment-specific files (appsettings.Development.json, appsettings.Production.json). SHOULD mention _ViewImports.cshtml for Razor namespace imports that were previously in web.config. SHOULD mention the optional EPiServer.CMS.AspNetCore.Migration package for .NET 5 only. SHOULD reference configuration-migration.md.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Provides before/after config",
+          "check": "Shows XML web.config and JSON appsettings.json examples"
+        },
+        {
+          "name": "Mentions environment files",
+          "check": "Explains environment-specific appsettings files"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "After migrating to CMS 12, my content URLs are returning 404 errors. The site starts fine but pages aren't routing correctly.",
+      "expected_output": "Should identify this as a routing migration issue. MUST explain that CMS 12 uses ASP.NET Core endpoint routing instead of ASP.NET routing. MUST check for: partial router registration (must register IPartialRouter in DI, not via RouteTable.Routes.RegisterPartialRouter()), content route registration (must implement IContentRouteRegister), and proper endpoint routing setup. SHOULD mention that Html.ActionLink() must be replaced with Html.ContentLink(). SHOULD mention the behavioral change that user is NOT authenticated during routing. SHOULD reference routing-migration.md.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies routing migration issue",
+          "check": "Explains ASP.NET to ASP.NET Core endpoint routing change"
+        },
+        {
+          "name": "Covers partial router registration",
+          "check": "Mentions IPartialRouter DI registration replacing RouteTable.Routes.RegisterPartialRouter()"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "My CMS 11 project uses ImageResizer for image processing. Can I still use it with CMS 12?",
+      "expected_output": "Should clearly state that ImageResizer is NOT compatible with ASP.NET Core and cannot be used with CMS 12. MUST recommend SixLabors ImageSharp as the replacement via the EPiServer.ImageLibrary.ImageSharp package. SHOULD mention that CMS 12.17+ requires ImageSharp explicitly. SHOULD mention the two versions: v1 (ImageSharp v2) and v2 (ImageSharp v3, recommended). SHOULD provide the package reference: EPiServer.ImageLibrary.ImageSharp version 2.0.6+. SHOULD NOT suggest finding a .NET Core version of ImageResizer.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "States ImageResizer incompatible",
+          "check": "Clearly says ImageResizer is not compatible with ASP.NET Core"
+        },
+        {
+          "name": "Recommends ImageSharp",
+          "check": "Mentions EPiServer.ImageLibrary.ImageSharp as replacement"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "My templates that were tagged with 'Preview' in CMS 11 are not showing up in edit mode after migrating to CMS 12. What happened?",
+      "expected_output": "Should identify this as the template selection behavior change in CMS 12. MUST explain that CMS 11 searched templates in order: Edit → No Tag → Preview, but CMS 12 searches: Edit → No Tag only. The 'Preview' tag is no longer searched. MUST recommend adding the 'Edit' tag to templates that were previously tagged only with 'Preview'. SHOULD mention this is documented in the breaking changes reference.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies template selection change",
+          "check": "Explains Preview tag is no longer searched in CMS 12 template resolution"
+        },
+        {
+          "name": "Provides fix",
+          "check": "Recommends adding Edit tag to templates previously tagged only with Preview"
+        }
+      ]
+    }
+  ]
+}

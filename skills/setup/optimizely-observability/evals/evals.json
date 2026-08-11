@@ -1,0 +1,23 @@
+{
+  "skill_name": "optimizely-observability",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "How do I add monitoring to my Optimizely app? I want to see what's happening under the hood when content is fetched. We're using Next.js 14 with the App Router.",
+      "expected_output": "Should recommend installing @opentelemetry/sdk-node and @opentelemetry/api. Should explain creating an instrumentation.ts file in the project root using Next.js auto-loading. Should show the register() function pattern with NEXT_RUNTIME check. Should emphasize that the file must be imported FIRST before any SDK imports. Should mention ConsoleSpanExporter for quick debugging. Should list key spans like optimizely.content.get_by_path and optimizely.graph.request. Should mention experimental.instrumentationHook for Next.js versions before 15.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "What metrics does the Optimizely SDK track? I want to set up dashboards for our Grafana instance to monitor content delivery performance.",
+      "expected_output": "Should list all available histograms: fragment.generation.duration, query.generation.duration, http.request.duration, content.fetch.duration, component.resolve.duration. Should explain each metric's purpose and units (ms). Should also list the instrumented spans and their attributes. Should explain cache-aware telemetry and how it reduces volume by ~95%. Should recommend OTLP exporter for Grafana integration.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "I set up OpenTelemetry but I'm not seeing any spans from the Optimizely SDK. I have the NodeSDK configured with a ConsoleSpanExporter and I can see spans from other libraries but nothing with the optimizely prefix.",
+      "expected_output": "Should identify import order as the most common cause. Should explain that the OpenTelemetry SDK must be initialized BEFORE any Optimizely SDK imports. For Next.js, should verify instrumentation.ts is in the project root and uses the register() export. Should recommend restarting the dev server. Should check that NEXT_RUNTIME check is correct. Should mention that some spans are conditional (query.create and fragment.create only on cache miss). Should suggest triggering a cache miss to verify spans appear.",
+      "files": []
+    }
+  ]
+}

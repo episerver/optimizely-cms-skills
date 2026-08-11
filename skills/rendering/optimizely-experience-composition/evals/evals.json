@@ -1,0 +1,29 @@
+{
+  "skill_name": "optimizely-experience-composition",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I want to create a page where editors can drag and drop components using the visual page builder. The page should have a fixed title at the top and then a flexible area where editors can add whatever sections and elements they want. We're using Next.js 14 App Router with the Optimizely SDK. How do I set this up?",
+      "expected_output": "Should create an experience content type with baseType: '_experience' and a title property. Should create a React component that uses OptimizelyComposition to render the dynamic composition nodes from content.composition.nodes. Should show the static title rendered with preview attributes via pa('title'), followed by <OptimizelyComposition nodes={content.composition.nodes ?? []} />. Should explain that _experience is the base type for visual page builder pages. Should mention registering with both initContentTypeRegistry and initReactComponentRegistry. Should remind about config push.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "How do I customize the row and column layout in my experience? I want rows to have a custom CSS class and columns to have padding. We're already using OptimizelyGridSection in our section components but the default grid layout doesn't match our design system.",
+      "expected_output": "Should show how to create custom row and column components using StructureContainerProps which provides children and node. Should demonstrate passing these as row and column props to OptimizelyGridSection. The custom row component should receive StructureContainerProps and render children inside a div with custom className. The custom column component should receive StructureContainerProps and render children with padding. Should show the complete pattern: function CustomRow({ children, node }: StructureContainerProps) and function CustomColumn({ children, node }: StructureContainerProps), then <OptimizelyGridSection content={content} row={CustomRow} column={CustomColumn} />.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "What's the difference between sectionEnabled and elementEnabled in Optimizely CMS? I'm creating components for the visual builder and I'm not sure which compositionBehavior to use for each one.",
+      "expected_output": "Should explain that sectionEnabled makes a component act as a section - a vertical chunk of a page with grid layout that can contain elements and other sections. Sections use OptimizelyGridSection to render their grid structure with rows and columns. Should explain that elementEnabled makes a component act as an element - the smallest building block that gets placed inside section grid cells by editors. Should mention that components can have both behaviors: compositionBehaviors: ['sectionEnabled', 'elementEnabled'] to be usable in both contexts. Should explain that _section baseType automatically implies section behavior. Should provide examples of each type with content type definitions showing the compositionBehaviors array.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "I need a section component with a background color setting. The editor should be able to pick from white, light gray, or dark blue. The section should render its grid contents on top of whatever background color is chosen. How do I model and render this?",
+      "expected_output": "Should create a content type with baseType: '_section' and a backgroundColor property using type: 'string' with format: 'selectOne' and enum values for white, light-gray, and dark-blue. Should create a React component that wraps OptimizelyGridSection inside a <section> element, applying the backgroundColor from content.backgroundColor as a style or className. Should use getPreviewUtils for preview attributes. Should show OptimizelyGridSection receiving the content prop: <OptimizelyGridSection content={content} />. Should mention registering both the content type and React component.",
+      "files": []
+    }
+  ]
+}
