@@ -1,0 +1,29 @@
+{
+  "skill_name": "optimizely-cli-workflows",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "How do I sync my content types to the CMS? I've defined several content types in TypeScript and now I want to push them to our Optimizely CMS instance. We have everything set up with the SDK already.",
+      "expected_output": "Should explain the config push command: npx @optimizely/cms-cli@latest config push. Should mention it reads from optimizely.config.mjs by default. Should explain the --force flag for overwriting existing types (with data loss warning). Should mention the CLI validates content area constraints and warns about missing allowedTypes/restrictedTypes. Should advise checking login first if unsure about authentication.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "I want to pull existing content types from our CMS and generate TypeScript files. We have a large site with many types and I'd like them organized by category (pages, components, etc.) in our src/components directory.",
+      "expected_output": "Should recommend config pull with --group and --output flags: npx @optimizely/cms-cli@latest config pull --group --output ./src/components. Should explain that --group organizes files by base type into subdirectories (page/, component/, section/). Should mention alternative output options: --single-file for one manifest, --individual for one file per type. Should mention --json for piping to scripts. Should mention --include-read-only for PaaS environments with C#/.NET types.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "My config push is failing with authentication errors. I get a 401 when trying to push content types. I've set OPTIMIZELY_CMS_URL but I'm not sure what else I need.",
+      "expected_output": "Should guide user to check all required environment variables: OPTIMIZELY_CMS_CLIENT_ID, OPTIMIZELY_CMS_CLIENT_SECRET, and OPTIMIZELY_CMS_URL. Should recommend running login --verbose to debug the auth flow. Should explain where to create API keys in CMS (Settings > API Keys > Create API key). Should mention that test environments need OPTIMIZELY_CMS_API_URL instead of OPTIMIZELY_CMS_URL. Should suggest verifying the API key has correct permissions.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "How do I integrate the Optimizely CLI into our CI/CD pipeline? We're using GitHub Actions and want to automatically push content type changes when we deploy.",
+      "expected_output": "Should explain non-interactive mode with --force flag for CI/CD: npx @optimizely/cms-cli@latest config push --force. Should recommend storing OPTIMIZELY_CMS_CLIENT_ID, OPTIMIZELY_CMS_CLIENT_SECRET, and OPTIMIZELY_CMS_URL as CI/CD secrets. Should show how to set environment variables in CI. Should mention --json flag for validation scripts. Should recommend running config push as a deployment step after build succeeds. Should warn against hardcoding credentials in code.",
+      "files": []
+    }
+  ]
+}

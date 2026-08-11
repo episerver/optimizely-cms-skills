@@ -1,18 +1,9 @@
 # Optimizely CMS Agent Skills
 
 [![Agent Skills](https://img.shields.io/badge/Agent%20Skills-Compatible-blue)](https://agentskills.io)
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../../LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 A collection of [Agent Skills](https://agentskills.io) that teach AI coding agents how to work with Optimizely CMS. Compatible with Claude Code, Cursor, GitHub Copilot, and others.
-
-## What's Included
-
-This package contains 4 Agent Skills:
-
-- **optimizely-model** - Model content types, display templates, and contracts with TypeScript
-- **optimizely-model-react** - Generate React components for content types and display templates
-- **optimizely-preview** - Set up or troubleshoot live preview in React applications
-- **optimizely-setup** - Set up the Optimizely CMS JavaScript SDK from scratch
 
 ## Quick Start
 
@@ -20,37 +11,83 @@ This package contains 4 Agent Skills:
 
 ```
 # In Claude Code, add the marketplace
-/plugin marketplace add episerver/content-js-sdk
+/plugin marketplace add episerver/optimizely-cms-skills
 
 # Install the plugin (installs all skills)
-/plugin install optimizely-cms-skills@episerver-content-js-sdk
+/plugin install optimizely-cms-skills@episerver-optimizely-cms-skills
 ```
 
 ### Option 2: GitHub CLI
 
 ```bash
 # Install individual skills
-gh skill install episerver/content-js-sdk optimizely-model --agent claude-code
-gh skill install episerver/content-js-sdk optimizely-model-react --agent claude-code
-gh skill install episerver/content-js-sdk optimizely-preview --agent claude-code
-gh skill install episerver/content-js-sdk optimizely-setup --agent claude-code
+gh skill install episerver/optimizely-cms-skills optimizely-model --agent claude-code
+gh skill install episerver/optimizely-cms-skills optimizely-model-react --agent claude-code
+gh skill install episerver/optimizely-cms-skills optimizely-preview --agent claude-code
+gh skill install episerver/optimizely-cms-skills optimizely-setup --agent claude-code
 ```
 
 ### Option 3: Manual Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/episerver/content-js-sdk.git
+git clone https://github.com/episerver/optimizely-cms-skills.git
 
 # Copy skills to your agent's skills directory
-cp -r content-js-sdk/packages/optimizely-cms-skills/skills/* ~/.claude/skills/
+cp -r optimizely-cms-skills/skills/* ~/.claude/skills/
 ```
 
-## Documentation
+## Skills
 
-- **[Skills Documentation](./skills/README.md)** - Detailed information about each skill
-- **[Complete Guide](../../docs/13-agent-skills.md)** - Full guide with usage examples and workflows
-- **[Main SDK Documentation](../../README.md)** - Optimizely CMS JavaScript SDK
+### Setup
+
+| Skill | Description |
+|-------|-------------|
+| [optimizely-setup](./skills/setup/optimizely-setup/) | Set up and configure the Optimizely CMS JavaScript SDK |
+| [optimizely-project-scaffold](./skills/setup/optimizely-project-scaffold/) | Scaffold a new Optimizely CMS project from starter templates |
+| [optimizely-cli-workflows](./skills/setup/optimizely-cli-workflows/) | CLI commands for syncing content types with the CMS |
+| [optimizely-observability](./skills/setup/optimizely-observability/) | Add OpenTelemetry tracing and monitoring to the SDK |
+
+### Modeling
+
+| Skill | Description |
+|-------|-------------|
+| [optimizely-model](./skills/modeling/optimizely-model/) | Create content types, contracts, and display templates |
+| [optimizely-display-templates](./skills/modeling/optimizely-display-templates/) | Create display templates and visual variants for components |
+
+### Rendering
+
+| Skill | Description |
+|-------|-------------|
+| [optimizely-model-react](./skills/rendering/optimizely-model-react/) | Generate React components for Optimizely content types |
+| [optimizely-richtext-rendering](./skills/rendering/optimizely-richtext-rendering/) | Render and customize rich text content |
+| [optimizely-dam-assets](./skills/rendering/optimizely-dam-assets/) | Render images, videos, and files from Optimizely DAM |
+| [optimizely-experience-composition](./skills/rendering/optimizely-experience-composition/) | Build visual page builder experiences with sections and elements |
+
+### Data
+
+| Skill | Description |
+|-------|-------------|
+| [optimizely-content-fetching](./skills/data/optimizely-content-fetching/) | Fetch content by path, GUID, or key using the SDK |
+| [optimizely-content-navigation](./skills/data/optimizely-content-navigation/) | Build breadcrumbs, navigation menus, and page hierarchies |
+| [optimizely-graphql-optimization](./skills/data/optimizely-graphql-optimization/) | Optimize GraphQL queries, fragments, and caching |
+| [optimizely-multisite-locale](./skills/data/optimizely-multisite-locale/) | Configure multi-site, multi-language, and locale filtering |
+| [optimizely-schema-validation](./skills/data/optimizely-schema-validation/) | Validate content data at runtime with schema parsing |
+
+### Editing
+
+| Skill | Description |
+|-------|-------------|
+| [optimizely-preview](./skills/editing/optimizely-preview/) | Set up live preview and on-page editing in React |
+| [optimizely-troubleshoot-graph](./skills/editing/optimizely-troubleshoot-graph/) | Debug and troubleshoot Content Graph API errors |
+
+### Migration
+
+| Skill | Description |
+|-------|-------------|
+| [optimizely-cms11-to-12](./skills/migration/optimizely-cms11-to-12/) | Migrate Optimizely CMS 11 (ASP.NET Framework) to CMS 12 (ASP.NET Core) |
+| [optimizely-cms12-to-13](./skills/migration/optimizely-cms12-to-13/) | Migrate Optimizely CMS 12 to CMS 13 (.NET 10, breaking API changes) |
+| [optimizely-find-to-graph](./skills/migration/optimizely-find-to-graph/) | Migrate from Optimizely Find to Content Graph |
 
 ## Usage Example
 
@@ -64,7 +101,7 @@ Agent: [Uses optimizely-model skill]
 
 You: "Now create the React component"
 
-Agent: [Uses optimizely-model-react skill]  
+Agent: [Uses optimizely-model-react skill]
 - Generates React component
 - Adds preview attributes
 - Handles rich text rendering
@@ -80,4 +117,4 @@ Agent: [Uses optimizely-model-react skill]
 
 ## License
 
-Apache 2.0 - See [LICENSE](../../LICENSE) for details.
+Apache 2.0 - See [LICENSE](LICENSE) for details.

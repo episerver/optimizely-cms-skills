@@ -1,0 +1,157 @@
+{
+  "skill_name": "optimizely-cms12-to-13",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I have an Optimizely CMS 12 project running on .NET 8. Help me migrate to CMS 13.",
+      "expected_output": "Should follow the 10-step migration workflow: Step 1 assess the project (detect CMS version, scan for removed features, scan for third-party packages, categorize effort), Step 2 upgrade .NET runtime to 10.0, Step 3 update NuGet packages, Step 4 handle third-party packages (remove incompatible, upgrade compatible), Step 5 fix breaking API changes (PageReference to ContentReference, ServiceLocator removal, IConfigurableModule removal, etc.), Step 6 handle removed features, Step 7 update service registration namespace, Step 8 update configuration (UI URL, HTML parsing, routing), Step 9 JS/TS SDK updates if applicable, Step 10 verify migration with dotnet build and runtime smoke test. MUST NOT skip the verification step. MUST mention the service registration namespace change from Microsoft.Extensions.DependencyInjection to EPiServer.DependencyInjection.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Follows 10-step workflow",
+          "check": "Output includes all 10 steps in sequential order"
+        },
+        {
+          "name": "Includes .NET 10 upgrade",
+          "check": "Mentions updating TargetFramework to net10.0 and global.json"
+        },
+        {
+          "name": "Includes verification step",
+          "check": "Ends with dotnet build check and runtime smoke test"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "After upgrading to CMS 13, I get a compilation error saying PageReference type doesn't exist. How do I fix this?",
+      "expected_output": "Should identify this as the PageReference to ContentReference breaking change in CMS 13. MUST provide before/after code showing PageReference replaced with ContentReference. MUST mention that PageData.ContentLink, ParentLink, and ArchiveLink now return ContentReference instead of PageReference. MUST mention that ContentReference.StartPage, RootPage, and WasteBasket replaced the PageReference equivalents. Should suggest using find-and-replace across the codebase. SHOULD reference the breaking-changes-dotnet.md reference file for the complete list.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies correct breaking change",
+          "check": "Mentions PageReference to ContentReference migration"
+        },
+        {
+          "name": "Provides before/after code",
+          "check": "Shows CMS 12 code with PageReference and CMS 13 code with ContentReference"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I upgraded my CMS packages to version 13 but Visitor Groups aren't working anymore. They were working fine on CMS 12.",
+      "expected_output": "Should identify that Visitor Groups are no longer enabled by default in CMS 13. MUST explain that the EPiServer.Cms composition package no longer includes Visitor Groups as a dependency. MUST provide the two registration calls needed: services.AddVisitorGroupsMvc() for MVC services and services.AddVisitorGroupsUI() for UI services. SHOULD mention adding the EPiServer.Personalization.VisitorGroups NuGet package explicitly if not already present. SHOULD NOT suggest reinstalling packages or clearing caches as the primary fix.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies opt-in requirement",
+          "check": "Explains Visitor Groups are no longer enabled by default"
+        },
+        {
+          "name": "Provides registration calls",
+          "check": "Shows AddVisitorGroupsMvc() and AddVisitorGroupsUI() calls"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Can you analyze my CMS 12 project and tell me what it would take to migrate to CMS 13? I use Dynamic Properties extensively and have several custom PlugIn attributes for scheduled jobs.",
+      "expected_output": "Should perform a pre-migration assessment without making changes. MUST identify Dynamic Properties as completely removed in CMS 13 with no direct replacement, requiring redesign using regular content properties or settings content types. MUST identify the PlugIn system as removed, with ScheduledPlugInAttribute now requiring ScheduledJobBase inheritance and ScheduledJobAttribute. MUST categorize this migration as 'significant effort' due to removed feature usage. SHOULD list detection patterns for finding all affected code. SHOULD recommend alternatives for each removed feature. SHOULD NOT start making migration changes — assessment only.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Assessment only, no changes",
+          "check": "Reports findings without modifying code"
+        },
+        {
+          "name": "Identifies significant effort",
+          "check": "Categorizes migration as significant due to removed features"
+        },
+        {
+          "name": "Covers both removed features",
+          "check": "Addresses Dynamic Properties removal AND PlugIn system removal"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "I have a simple CMS 12 blog with standard page types and no custom plugins or dynamic properties. How hard would it be to migrate to CMS 13?",
+      "expected_output": "Should perform a pre-migration assessment and categorize as 'minimal effort'. MUST explain that without removed features or complex customizations, the migration involves: updating .NET runtime to 10.0, updating NuGet packages, and minor namespace/API changes. SHOULD mention the service registration namespace change as a required code change. SHOULD mention checking for PageReference usage. SHOULD NOT overwhelm with the full 60+ breaking changes list — focus on what actually applies to a simple project. MUST still mention the verification step.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies minimal effort",
+          "check": "Categorizes migration as minimal"
+        },
+        {
+          "name": "Focuses on applicable changes",
+          "check": "Does not list removed feature warnings for features not in use"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "I upgraded to CMS 13 and now I get a TypeLoadException at runtime from Geta.NotFoundHandler.Optimizely. The build succeeds but the app crashes on startup.",
+      "expected_output": "Should identify that Geta.NotFoundHandler.Optimizely 6.0.x is not compatible with CMS 13 due to using the removed SortIndex attribute property. MUST recommend removing the package from .csproj. MUST recommend removing service registration (services.AddNotFoundHandler()) and middleware (app.UseNotFoundHandler()). SHOULD mention that the user needs to implement custom 404 handling if needed. SHOULD reference third-party-compatibility.md. SHOULD mention checking for other incompatible Geta packages. SHOULD NOT suggest downgrading CMS version.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies package incompatibility",
+          "check": "Explains Geta.NotFoundHandler is not compatible with CMS 13"
+        },
+        {
+          "name": "Provides removal steps",
+          "check": "Shows removing package reference and service registration"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "My CMS 12 project uses EPiServer.Find.Cms for search. Can I still use it after migrating to CMS 13?",
+      "expected_output": "Should clearly state that EPiServer.Find.Cms has no CMS 13-compatible version and must be completely removed. MUST recommend removing the package, service registrations (services.AddFind()), and all dependent code. SHOULD recommend migrating to Optimizely Graph as the replacement. SHOULD mention the optimizely-find-to-graph migration skill. SHOULD warn about transitive Newtonsoft.Json dependency — may need explicit package reference if other code depends on it. SHOULD NOT suggest waiting for a CMS 13 compatible Find version.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "States Find is not compatible",
+          "check": "Clearly says EPiServer.Find.Cms has no CMS 13 version"
+        },
+        {
+          "name": "Recommends Graph migration",
+          "check": "Mentions Optimizely Graph as replacement and/or optimizely-find-to-graph skill"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "After upgrading to CMS 13, I get compilation errors saying ServiceLocator.Current doesn't exist and IConfigurableModule is not found. These are used throughout my project.",
+      "expected_output": "Should identify both as removed APIs in CMS 13. MUST explain that ServiceLocator.Current, ServiceLocationHelper, and all EPiServer.ServiceLocation helper classes are removed — replace with constructor injection using Microsoft.Extensions.DependencyInjection. MUST explain that IConfigurableModule is removed — move all service registration from ConfigureContainer() to Startup.ConfigureServices() or Program.cs. SHOULD provide before/after code for both patterns. SHOULD mention searching for ServiceConfigurationContext as another indicator. SHOULD NOT suggest adding compatibility shims.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Covers ServiceLocator removal",
+          "check": "Explains ServiceLocator.Current is removed and shows constructor injection replacement"
+        },
+        {
+          "name": "Covers IConfigurableModule removal",
+          "check": "Explains IConfigurableModule is removed and shows Startup.cs migration"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "I'm getting a compilation error: 'LanguageBranch does not contain a definition for ValidateLanguageEdititingAccessRights'. This method definitely existed in CMS 12.",
+      "expected_output": "Should identify this as a spelling correction in the CMS 13 public API. MUST explain that the method was renamed from ValidateLanguageEdititingAccessRights (with typo) to ValidateLanguageEditingAccessRights (corrected). SHOULD mention that CMS 13 fixed several misspelled API names. SHOULD list other common spelling corrections: GetDescendents to GetDescendants, includeDecendents to includeDescendants, StatisticsPersistanceInterval to StatisticsPersistenceInterval. SHOULD reference breaking-changes-dotnet.md section 14.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies spelling correction",
+          "check": "Explains the method name was corrected from the misspelled version"
+        },
+        {
+          "name": "Lists other spelling fixes",
+          "check": "Mentions at least one other spelling correction in CMS 13"
+        }
+      ]
+    }
+  ]
+}

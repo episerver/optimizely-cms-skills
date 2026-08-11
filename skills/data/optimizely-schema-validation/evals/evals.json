@@ -1,0 +1,23 @@
+{
+  "skill_name": "optimizely-schema-validation",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "We have a webhook endpoint that receives content change notifications from Optimizely CMS. The payload includes the content data but we want to validate it matches our Article content type before processing. How do we validate the webhook data using the SDK?",
+      "expected_output": "Should import toSchema from @optimizely/cms-sdk/schema and the ArticleContentType definition. Should use toSchema(ArticleContentType) to generate a validation schema. Should use safeParse on the webhook payload content and check result.success. Should return 400 with error details if validation fails. Should process the validated result.data if successful. Should recommend strict mode for webhook data to catch unexpected properties. Should NOT suggest using GraphClient for webhook validation.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "We're using Apollo Client instead of the SDK's GraphClient to fetch content from Optimizely Content Graph. How can we ensure the data we get back matches our content type definitions? I want type safety similar to what the built-in client provides.",
+      "expected_output": "Should import toSchema from @optimizely/cms-sdk/schema. Should generate a schema from the content type definition using toSchema(ContentType). Should show using safeParse on the Apollo query result data to validate it. Should explain that default passthrough mode is appropriate here since GraphQL responses may include _metadata and other extra fields. Should show error handling when validation fails. Should mention this is specifically needed because Apollo does not use the SDK's type-safe fetching.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "What's the difference between strict mode and default mode in toSchema? When should I use each one? I'm getting validation errors with strict mode but the data looks correct.",
+      "expected_output": "Should explain that default mode (passthrough) accepts extra properties beyond what the content type defines, while strict mode ({ strict: true }) rejects any unknown properties. Should explain that passthrough is useful when data includes additional fields like _metadata from GraphQL responses. Should explain that strict mode is useful for external data (webhooks, user input) where unexpected properties indicate a problem. Should recommend passthrough for Apollo/urql responses and strict for webhook payloads and user-submitted data.",
+      "files": []
+    }
+  ]
+}
