@@ -22,6 +22,12 @@ handle every third-party package **before** upgrading the core CMS packages.
 | `Geta.Optimizely.Categories` | 1.1.x | Not compatible | Remove; await update |
 | `Gulla.Episerver.SqlStudio` | 3.0.1 | Upgrade required | Upgrade to 3.0.2+ |
 | `Stott.Optimizely.RobotsHandler` | Various | Not compatible | Remove; await update |
+| `EPiServer.ContentDeliveryApi.*` | Various | Not compatible | Remove; migrate to Graph |
+| `EPiServer.ContentManagementApi` | Various | Not compatible | Remove; migrate to Graph |
+| `EPiServer.ContentDefinitionsApi` | Various | Not compatible | Remove |
+| `EPiServer.Marketing.Testing` | Various | Not compatible | Remove |
+| `EPiServer.MarketingAutomationIntegration.*` | Various | Not compatible | Remove |
+| `EPiServer.Labs.*` (all) | Various | Not compatible | Remove |
 
 ---
 
@@ -53,19 +59,30 @@ handle every third-party package **before** upgrading the core CMS packages.
 
 ## EPiServer.Forms
 
-**Status**: Upgrade to version 6.0.0 for CMS 13 compatibility.
+**Status**: Check the Optimizely NuGet feed for a CMS 13-compatible version.
+Version 6.0.0+ targets CMS 13 when available. If no compatible version exists
+at migration time, remove the package.
 
 **Detection**:
 - `EPiServer.Forms` in `.csproj`
-- Version below 6.0.0
+- `EPiServer.Forms.Core`, `EPiServer.Forms.UI`, `EPiServer.Forms.Samples` in `.csproj`
+- `services.AddForms()` in service registration
 
-**Migration steps**:
+**Migration steps** (if CMS 13 compatible version exists):
 1. Update package version:
    ```shell
    dotnet add package EPiServer.Forms --version 6.*
    ```
 2. Verify form submissions still work after upgrade
 3. Test form rendering in both edit and view modes
+
+**Migration steps** (if no compatible version available):
+1. Remove all Forms packages (`EPiServer.Forms`, `Forms.Core`,
+   `Forms.UI`, `Forms.Samples`, `Forms.ServiceApi`,
+   `Forms.Crypto.AzureKeyVault`)
+2. Remove service registrations and middleware
+3. Implement form functionality using standard ASP.NET Core forms or
+   a third-party form builder
 
 ---
 
@@ -229,6 +246,86 @@ changes cause failure.
 2. Remove service registration and middleware calls
 3. Implement custom robots.txt handling if needed
 4. Await CMS 13-compatible version
+
+---
+
+## EPiServer.ContentDeliveryApi / ContentManagementApi / ContentDefinitionsApi
+
+**Status**: Not compatible. These content API packages reference types
+removed or restructured in CMS 13.
+
+**Detection**:
+- `EPiServer.ContentDeliveryApi` in `.csproj`
+- `EPiServer.ContentManagementApi` in `.csproj`
+- `EPiServer.ContentDefinitionsApi` in `.csproj`
+- `services.AddContentDeliveryApi()` in service registration
+- `services.AddContentManagementApi()` in service registration
+- `IContentDeliveryClient` in code
+
+**Migration steps**:
+1. Remove all Content API package references from `.csproj`
+2. Remove service registrations (`AddContentDeliveryApi()`,
+   `AddContentManagementApi()`, `AddContentDefinitionsApi()`)
+3. Remove associated middleware configuration
+4. **Migrate to Optimizely Graph** — Content Delivery API consumers
+   should migrate to Graph-backed implementations:
+   - Install `Optimizely.Graph.Cms` and `Optimizely.Graph.Cms.Query`
+     (or `Optimizely.Graph.Cms.Querying`)
+   - Register with `services.AddContentGraph()` and
+     `services.AddGraphContentClient()`
+   - Rewrite content delivery endpoints to use
+     `IGraphContentClient.QueryContent<T>()` fluent API
+   - Preserve existing response contracts where possible — use the
+     Graph query result to build the same response shapes consumed by
+     frontend clients
+   - See the `optimizely-find-to-graph` skill for detailed query
+     migration patterns
+
+**Important**: If external clients depend on Content Delivery API
+response shapes, plan a staged migration with feature flags to allow
+gradual client-side cutover. Do not hard-cut without a rollback path.
+
+---
+
+## EPiServer.Marketing.Testing / MarketingAutomationIntegration
+
+**Status**: Not compatible. These packages depend on APIs removed in CMS 13.
+
+**Detection**:
+- `EPiServer.Marketing.Testing` in `.csproj`
+- `EPiServer.MarketingAutomationIntegration` in `.csproj`
+- `services.AddMarketingTesting()` in service registration
+- `using EPiServer.Marketing.Testing`
+
+**Migration steps**:
+1. Remove all Marketing Testing and Marketing Automation package references
+2. Remove service registrations
+3. Remove associated `using` directives
+4. A/B testing functionality must be replaced with third-party tools or
+   custom implementations
+
+---
+
+## EPiServer Labs Packages
+
+**Status**: Not compatible. All experimental Labs packages are incompatible
+with CMS 13.
+
+**Known packages**:
+- `EPiServer.Labs.BlockEnhancements`
+- `EPiServer.Labs.ContentManager`
+- `EPiServer.Labs.GridView`
+- `EPiServer.Labs.LinkItemProperty`
+- `EPiServer.Labs.ProjectEnhancements`
+- `EPiServer.Labs.LanguageManager`
+
+**Detection**:
+- `EPiServer.Labs` in `.csproj` PackageReference
+
+**Migration steps**:
+1. Remove all `EPiServer.Labs.*` package references
+2. Remove associated service registrations
+3. Await CMS 13-compatible versions
 
 ---
 

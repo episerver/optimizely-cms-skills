@@ -14,7 +14,7 @@ A collection of [Agent Skills](https://agentskills.io) that teach AI coding agen
 /plugin marketplace add episerver/optimizely-cms-skills
 
 # Install the plugin (installs all skills)
-/plugin install optimizely-cms-skills@episerver-optimizely-cms-skills
+/plugin install optimizely-cms-skills@optimizely-cms
 ```
 
 ### Option 2: GitHub CLI

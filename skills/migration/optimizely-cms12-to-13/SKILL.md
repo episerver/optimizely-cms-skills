@@ -81,14 +81,32 @@ Before making changes, scan the project to understand migration scope.
    - `PublicString`, `PublicLongString` — removed; use `String`, `LongString`
    - `IContentRouteEvents` — removed; use `IContentUrlGeneratorEvents`/
      `IContentUrlResolverEvents`
+   - `Injected<T>` — removed; use constructor injection
+   - `IContentAreaLoader.Get()` — renamed to `LoadContent()`
+   - `SoftLink.LinkStatus` — renamed to `SoftLink.HttpStatusCode`
+   - `RenderSettings.CustomTag` — renamed to `CustomTagName`
+   - `RenderSettings.ChildrenCustomTag` — renamed to `ChildrenCustomTagName`
+   - `IContentTypeRepository<T>` (generic) — removed; use
+     non-generic `IContentTypeRepository`
+   - `ContentCoreData` — renamed to `ContentNode`
+   - `IContentCoreDataLoader` — renamed to `IContentNodeLoader`
+   - `[DojoWidget]` — removed; use `[CriterionPropertyEditor]`
+   - `.PageLink` — renamed to `.ContentLink`
 
 5. **Scan for third-party packages** — check `.csproj` for packages with
    known CMS 13 incompatibilities:
    - `EPiServer.Find.Cms` — no CMS 13 version; must remove
+   - `EPiServer.ContentDeliveryApi.*` — not compatible; must remove
+   - `EPiServer.ContentManagementApi` — not compatible; must remove
+   - `EPiServer.ContentDefinitionsApi` — not compatible; must remove
    - `EPiServer.Cms.WelcomeIntegration.UI` — replaced by
      `EPiServer.Cms.DamIntegration.UI`
    - `Geta.*` packages — most not compatible; must remove
    - `Advanced.CMS.AdvancedReviews` — not compatible; must remove
+   - EPiServer Labs packages (BlockEnhancements, ContentManager,
+     GridView, etc.) — not compatible; must remove
+   - `EPiServer.Marketing.Testing` — not compatible; must remove
+   - `EPiServer.MarketingAutomationIntegration.*` — not compatible; must remove
    - See `references/third-party-compatibility.md` for the complete list
 
 6. **Scan for spelling corrections** — CMS 13 fixes misspellings in the
@@ -145,6 +163,18 @@ CMS 13 requires .NET 10.0.
    <Nullable>enable</Nullable>
    ```
 
+5. **Update Docker images** (if using Docker):
+   ```dockerfile
+   # Before
+   FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+   FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+
+   # After
+   FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+   FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+   ```
+   Search for: `dotnet/sdk:8`, `dotnet/aspnet:8`, `dotnet/runtime:8`
+
 ### Step 3: Update NuGet Packages
 
 See `references/package-mapping.md` for the complete package mapping.
@@ -174,10 +204,26 @@ Key changes:
    dotnet add package EPiServer.Personalization.VisitorGroups
    ```
 
-5. **Remove Newtonsoft.Json** (if only used transitively via CMS):
+5. **Add ASP.NET Identity explicitly** (if used):
+   ```shell
+   dotnet add package EPiServer.CMS.UI.AspNetIdentity
+   ```
+   This was transitive in CMS 12 via the `EPiServer.Cms` metapackage
+   but is now a separate package.
+
+6. **Add other extracted packages** (if used):
+   - `EPiServer.Geolocation` — if using geolocation APIs
+   - `EPiServer.Events.ChangeNotification` — if using change notifications
+   - `EPiServer.Blobs` — if using blob storage APIs directly
+   - `EPiServer.Cache` — if using cache APIs directly
+
+7. **Remove Newtonsoft.Json** (if only used transitively via CMS):
    ```shell
    dotnet remove package Newtonsoft.Json
    ```
+
+8. **Verify nuget.config** — ensure the Optimizely NuGet feed is
+   configured. Required for resolving CMS 13 packages.
 
 ### Step 4: Handle Third-Party Packages
 
@@ -189,6 +235,10 @@ packages to avoid cascading build failures.
 1. **Remove incompatible packages with no CMS 13 version**:
    ```shell
    dotnet remove package EPiServer.Find.Cms
+   dotnet remove package EPiServer.ContentDeliveryApi.Cms
+   dotnet remove package EPiServer.ContentManagementApi
+   dotnet remove package EPiServer.ContentDefinitionsApi
+   dotnet remove package EPiServer.Marketing.Testing
    dotnet remove package Advanced.CMS.AdvancedReviews
    dotnet remove package Geta.NotFoundHandler.Optimizely
    dotnet remove package Geta.Optimizely.Sitemaps
@@ -197,16 +247,24 @@ packages to avoid cascading build failures.
    dotnet remove package Geta.Optimizely.Categories
    dotnet remove package Stott.Optimizely.RobotsHandler
    ```
+   Also remove all `EPiServer.MarketingAutomationIntegration.*` and
+   `EPiServer.Labs.*` packages.
 
 2. **Remove service registrations** for removed packages from
    `Startup.cs` / `Program.cs` (e.g., `services.AddFind()`,
-   `services.AddNotFoundHandler()`, `services.AddAdvancedReviews()`)
+   `services.AddContentDeliveryApi()`, `services.AddContentManagementApi()`,
+   `services.AddNotFoundHandler()`, `services.AddAdvancedReviews()`,
+   `services.AddMarketingTesting()`)
 
 3. **Replace packages with alternatives**:
    - `EPiServer.Cms.WelcomeIntegration.UI` → `EPiServer.Cms.DamIntegration.UI`
    - `EPiServer.Find.Cms` → Optimizely Graph (see `optimizely-find-to-graph` skill)
+   - `EPiServer.ContentDeliveryApi.*` → Optimizely Graph (install
+     `Optimizely.Graph.Cms` + `Optimizely.Graph.Cms.Query`, register with
+     `services.AddContentGraph()` + `services.AddGraphContentClient()`,
+     rewrite delivery endpoints using `IGraphContentClient.QueryContent<T>()`)
 
-4. **Upgrade compatible packages**:
+4. **Upgrade compatible packages** (verify CMS 13 version availability first):
    ```shell
    dotnet add package EPiServer.Forms --version 6.*
    dotnet add package Gulla.Episerver.SqlStudio --version 3.0.2
@@ -332,6 +390,45 @@ _urlResolverEvents.ResolvedUrl += OnResolvedUrl;
 Detection: Search for `IContentRouteEvents`, `CreatingVirtualPath`,
 `RoutedContent`
 
+**Injected<T> → Constructor Injection**:
+```csharp
+// Before (CMS 12)
+public class MyController : PageController<StandardPage>
+{
+    private Injected<IContentRepository> _repo;
+    public ActionResult Index(StandardPage page)
+    {
+        var content = _repo.Service.Get<PageData>(page.ContentLink);
+        return View(content);
+    }
+}
+
+// After (CMS 13) — inject via constructor
+public class MyController : PageController<StandardPage>
+{
+    private readonly IContentRepository _repo;
+    public MyController(IContentRepository repo) { _repo = repo; }
+    public ActionResult Index(StandardPage page)
+    {
+        var content = _repo.Get<PageData>(page.ContentLink);
+        return View(content);
+    }
+}
+```
+Detection: Search for `Injected<`, `_injected`, `.Service`
+
+**[DojoWidget] → [CriterionPropertyEditor]** (Visitor Group criteria):
+```csharp
+// Before (CMS 12)
+[DojoWidget("myapp/editors/CustomCriterionEditor")]
+public string EditorValue { get; set; }
+
+// After (CMS 13)
+[CriterionPropertyEditor("myapp/editors/CustomCriterionEditor")]
+public string EditorValue { get; set; }
+```
+Detection: Search for `DojoWidget`
+
 ### Step 6: Handle Removed Features
 
 See `references/removed-features.md` for detailed guidance on each.
@@ -350,6 +447,10 @@ See `references/removed-features.md` for detailed guidance on each.
 
 4. **Mirroring**: Completely removed. Use Content Transfer API or
    third-party deployment tools. Search for: `MirroringImporting`
+
+5. **Telemetry**: Completely removed. Remove `using
+   EPiServer.Shell.Telemetry` and any `services.Configure<TelemetryOptions>()`
+   calls. Search for: `TelemetryOptions`, `EPiServer.Shell.Telemetry`
 
 ### Step 7: Update Service Registration
 
@@ -468,14 +569,24 @@ See `references/breaking-changes-sdk.md` for detailed guidance.
 
 ### Step 10: Verify Migration
 
-1. **Build check**:
+1. **Database prerequisites** (before first CMS 13 startup):
+   - CMS 13 may create or alter database indexes on first startup.
+     Conflicting indexes from CMS 12 may cause errors. If startup fails
+     with index-related SQL errors, drop the conflicting indexes manually
+     and restart.
+   - Clean orphaned scheduled jobs from removed add-ons (Settings >
+     Scheduled Jobs in admin UI after successful startup).
+   - Clean orphaned content types from removed packages. Add stub classes
+     or delete from database to prevent "could not create instance" errors.
+
+2. **Build check**:
    ```shell
    dotnet build
    ```
    Fix any remaining compilation errors. Most will be straightforward
    type/namespace changes documented in the references.
 
-2. **Runtime smoke test**:
+3. **Runtime smoke test**:
    - Start the application
    - Access CMS admin at `/Optimizely` (not `/EPiServer`)
    - Create or edit a page — verify save works
@@ -484,7 +595,7 @@ See `references/breaking-changes-sdk.md` for detailed guidance.
    - Test content with ContentArea properties renders correctly
    - Verify HTML content saves without ScriptParser exceptions
 
-3. **If using JS/TS SDK**:
+4. **If using JS/TS SDK**:
    ```shell
    npx tsc --noEmit
    ```
@@ -566,6 +677,36 @@ and the runtime smoke test passes.
 18. **Preview tokens no longer carry content reference** —
     `PreviewToken.ContentReference` is removed. Frontend preview route
     handlers that validate content from the token must be updated.
+
+19. **Injected<T> won't compile** — The `Injected<T>` property injection
+    pattern is removed. Replace all `Injected<IService>` properties with
+    constructor-injected fields. Search for `Injected<`.
+
+20. **Docker images use wrong .NET version** — Docker base images must be
+    updated from `dotnet/sdk:8.0` and `dotnet/aspnet:8.0` to their 10.0
+    equivalents. Search for `dotnet/sdk:8` and `dotnet/aspnet:8` in
+    Dockerfiles.
+
+21. **EPiServer.CMS.UI.AspNetIdentity missing** — This package was
+    transitive in CMS 12 via the metapackage but is now separate. If
+    using ASP.NET Identity, add an explicit package reference.
+
+22. **Content Delivery API not compatible** — `EPiServer.ContentDeliveryApi`
+    and related API packages have no CMS 13 version. Remove before
+    upgrading.
+
+23. **Database index conflicts on first startup** — CMS 13 may fail to
+    start if conflicting indexes exist from CMS 12. Drop conflicting
+    indexes manually if startup fails with SQL errors.
+
+24. **ClientEditorAttribute JSON rejected** — `EditorConfiguration` now
+    requires strict RFC 8259 JSON. Single-quoted keys, unquoted keys, and
+    trailing commas are no longer accepted.
+
+25. **Telemetry configuration won't compile** —
+    `services.Configure<TelemetryOptions>()` and `using
+    EPiServer.Shell.Telemetry` must be removed. Telemetry is entirely
+    removed in CMS 13.
 
 ## Related Skills
 

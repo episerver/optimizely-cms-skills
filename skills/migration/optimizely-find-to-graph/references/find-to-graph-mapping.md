@@ -44,6 +44,13 @@ Alphabetical index of all Find methods covered in this reference.
 | [`.TermsFacetFor(expr)`](#termsfacetfor) | [Faceting](#faceting) |
 | [`.TermsFacetForWordsIn(expr)`](#termsfacetforwordsin) | [Faceting](#faceting) |
 | [`.UnifiedSearch()` / `.UnifiedSearchFor()`](#unifiedsearch) | [Specialized](#specialized) |
+| [`.UsingSynonyms()`](#usingsynonyms) | [Specialized](#specialized) |
+| [`.Track()`](#track) | [Specialized](#specialized) |
+| [`.Select(expr)`](#select) | [Specialized](#specialized) |
+| [`SearchClient.Instance`](#searchclient-instance) | [Specialized](#specialized) |
+| [`Statistics().GetAutocompleteAsync()`](#statistics-autocomplete) | [Specialized](#specialized) |
+| [`.WithHighlight()`](#withhighlight) | [Search](#search) |
+| [`.OrFilter()`](#orfilter) | [Filtering](#filtering) |
 
 ---
 
@@ -1408,6 +1415,120 @@ includes severity and recommended workaround.
 | **Severity** | **Manageable** |
 | **Workaround** | Use multiple `.UsingField(expr)` calls. Graph SDK unifies both methods into a single repeatable `.UsingField()` call with optional boost parameter. Functionally equivalent. |
 
+### Gap: `.UsingSynonyms()` query-wide synonyms {#usingsynonyms}
+
+| | |
+|---|---|
+| **Find feature** | `.UsingSynonyms()` |
+| **Description** | Applies synonym expansion to the entire query. A single call enables synonyms for all terms. |
+| **Severity** | **Manageable** |
+| **Workaround** | Graph SDK applies synonyms per-filter via `SynonymSlot`, not query-wide. Use `.Match("value", SynonymSlot.One)` on individual filter expressions. The query must be restructured to attach synonyms to specific filters. If `.UsingSynonyms()` is used without a specific filter to attach to, the code requires manual architectural rework. |
+
+### Gap: `.Track()` analytics tracking {#track}
+
+| | |
+|---|---|
+| **Find feature** | `.Track()` |
+| **Description** | Enables analytics tracking for the query, recording search terms and click-through behavior for the Find statistics dashboard. |
+| **Severity** | **Manageable** |
+| **Workaround** | Remove `.Track()`. Graph SDK does not support tracking. Optionally add `.WithName("queryName")` for query identification in logs. Analytics must be handled by an external system. |
+
+### Gap: `.Select()` anonymous projections {#select}
+
+| | |
+|---|---|
+| **Find feature** | `.Select(x => new { x.Title, x.StartPublish })` |
+| **Description** | Projects search results into anonymous types, selecting only specific fields. |
+| **Severity** | **Manageable** |
+| **Workaround** | Use `.Fields<TProjection>(x => x.Title, x => x.StartPublish)` where `TProjection` is a POCO class. Graph SDK does not support anonymous types — you must define a named class. TProjection must NOT implement `IContentData`. Do NOT combine `.Fields()` with `.GetAsContentAsync()` — use `.GetAsync()` instead. |
+
+**Before (Find):**
+
+```csharp
+var results = _findClient.Search<ArticlePage>()
+    .For("news")
+    .Select(x => new { x.Title, x.StartPublish })
+    .GetResult();
+```
+
+**After (Graph SDK):**
+
+```csharp
+public class ArticleProjection
+{
+    public string Title { get; set; }
+    public DateTime? StartPublish { get; set; }
+}
+
+var results = await _graphClient.QueryContent<ArticlePage>()
+    .SearchFor("news")
+    .Fields<ArticleProjection>(x => x.Title, x => x.StartPublish)
+    .GetAsync();
+```
+
+### Gap: `SearchClient.Instance` static singleton {#searchclient-instance}
+
+| | |
+|---|---|
+| **Find feature** | `SearchClient.Instance` |
+| **Description** | Static singleton for accessing the Find client without dependency injection. Common in older codebases, scheduled jobs, and non-DI contexts. |
+| **Severity** | **Significant** |
+| **Workaround** | Replace with constructor-injected `IGraphContentClient`. This may require architectural changes to introduce DI into classes that previously used the static singleton. For scheduled jobs, use the job's constructor injection. For code in non-DI contexts, refactor to accept the client as a parameter. |
+
+### Gap: `Statistics().GetAutocompleteAsync()` {#statistics-autocomplete}
+
+| | |
+|---|---|
+| **Find feature** | `Statistics().GetAutocompleteAsync("prefix", maxItems)` |
+| **Description** | Returns autocomplete suggestions based on search statistics and indexed content terms. |
+| **Severity** | **Manageable** |
+| **Workaround** | Use `.Autocomplete(x => x.Title, "prefix", limit: 5)` on a `QueryContent<T>()` call. `Statistics().GetDidYouMeanAsync()` has no equivalent — consider `.Autocomplete()` as a partial replacement. The Statistics REST API endpoints (`_autocomplete`, `_stats`) are Find-specific and do not exist in Graph SDK. |
+
+### Gap: `.OrFilter()` filter composition {#orfilter}
+
+| | |
+|---|---|
+| **Find feature** | `.Filter(filterA).OrFilter(filterB).OrFilter(filterC)` |
+| **Description** | Combines multiple filter expressions with OR logic in a method chain. |
+| **Severity** | **Manageable** |
+| **Workaround** | Use `BuildFilter<T>()` to compose an OR filter: `_graphClient.BuildFilter<T>().Or(x => filterA).Or(x => filterB)`, then pass the combined filter to `.Filter(filter)`. |
+
+### Gap: `.WithHighlight()` result highlighting {#withhighlight}
+
+| | |
+|---|---|
+| **Find feature** | `.WithHighlight(spec)` |
+| **Description** | Highlights matching terms in search result fields with configurable tags. |
+| **Severity** | **Manageable** |
+| **Workaround** | Use `.UsingFullText(highlightTag: "<mark>")` to highlight matching terms. The highlight tag is configurable. |
+
+### Gap: `ContentIndexer.Instance` manual indexing
+
+| | |
+|---|---|
+| **Find feature** | `ContentIndexer.Instance.IndexAsync()` / `.DeleteAsync()` |
+| **Description** | Manually triggers content indexing or deletion from the Find index. |
+| **Severity** | **Manageable** |
+| **Workaround** | Graph SDK handles indexing automatically through content synchronization events. The explicit manual indexing API may be obsolete. For force-reindexing, use the Content Graph admin tools. |
+
+### Gap: `ISearchProvider` custom implementations
+
+| | |
+|---|---|
+| **Find feature** | Custom `ISearchProvider` implementations |
+| **Description** | Custom search provider implementations that hook into the CMS search UI. |
+| **Severity** | **Significant** |
+| **Workaround** | No Graph SDK equivalent. Requires architectural redesign. Custom search provider logic must be reimplemented as standard search services or controllers using `IGraphContentClient`. |
+
+### Gap: `.FilterFacet()` boolean count facets
+
+| | |
+|---|---|
+| **Find feature** | `.FilterFacet("name", expr)` |
+| **Description** | Named boolean facets that count documents matching a filter expression. |
+| **Severity** | **Manageable** |
+| **Workaround** | No direct equivalent. Restructure as a standard facet with a filter, or issue a separate query with `.Limit(0)` and `.IncludeTotal()` to get the count for a specific filter condition. |
+
 ---
 
 ## 4. DI Registration Migration
@@ -1669,9 +1790,12 @@ public class SearchController : Controller
 
 | Find Package | Action | Graph SDK Package |
 |-------------|--------|-------------------|
-| `EPiServer.Find` | Replace | `Optimizely.ContentGraph.Sdk` |
-| `EPiServer.Find.Cms` | Replace | `Optimizely.ContentGraph.Sdk` |
+| `EPiServer.Find` | Replace | `Optimizely.Graph.Cms` + `Optimizely.Graph.Cms.Query` |
+| `EPiServer.Find.Cms` | Replace | `Optimizely.Graph.Cms` + `Optimizely.Graph.Cms.Query` |
 | `EPiServer.Find.UI` | Remove | (no equivalent; use Content Graph UI in Optimizely portal) |
+
+**CRITICAL**: `Optimizely.Graph.Cms.Query` version must match the CMS
+version exactly. Check `EPiServer.CMS` version in `.csproj` first.
 
 **Migration commands:**
 
@@ -1681,8 +1805,9 @@ dotnet remove package EPiServer.Find
 dotnet remove package EPiServer.Find.Cms
 dotnet remove package EPiServer.Find.UI
 
-# Add Graph SDK package
-dotnet add package Optimizely.ContentGraph.Sdk
+# Add Graph SDK packages (both required)
+dotnet add package Optimizely.Graph.Cms
+dotnet add package Optimizely.Graph.Cms.Query
 ```
 
 ---
@@ -1691,11 +1816,14 @@ dotnet add package Optimizely.ContentGraph.Sdk
 
 | Find Namespace | Graph SDK Namespace |
 |----------------|---------------------|
-| `EPiServer.Find` | `Optimizely.ContentGraph.Sdk` |
-| `EPiServer.Find.Api` | `Optimizely.ContentGraph.Sdk.Queries` |
-| `EPiServer.Find.Cms` | `Optimizely.ContentGraph.Sdk` |
+| `EPiServer.Find` | `Optimizely.Graph.Cms.Query` |
+| `EPiServer.Find.Api` | `Optimizely.Graph.Cms.Query.Abstractions` |
+| `EPiServer.Find.Cms` | `Optimizely.Graph.Cms.Query` |
 | `EPiServer.Find.UnifiedSearch` | (use `IContentData` as type parameter) |
-| `EPiServer.Find.Framework` | `Optimizely.ContentGraph.Sdk.DependencyInjection` |
+| `EPiServer.Find.Framework` | `Optimizely.Graph.DependencyInjection` |
+| `EPiServer.Find.Api.Facets` | `Optimizely.Graph.Cms.Query.Filtering` |
+| (DI registration extensions) | `Optimizely.Cms.DependencyInjection` (for `AddContentGraph()`) |
+| (DI registration extensions) | `Optimizely.Graph.DependencyInjection` (for `AddGraphContentClient()`) |
 
 ---
 
@@ -1703,17 +1831,32 @@ dotnet add package Optimizely.ContentGraph.Sdk
 
 | Concern | Find | Graph SDK |
 |---------|------|-----------|
-| Entry point | `IClient` | `IGraphContentClient` |
+| Entry point | `IClient` / `SearchClient.Instance` | `IGraphContentClient` (DI only) |
 | Registration | `services.AddFind()` | `services.AddContentGraph(config)` + `services.AddGraphContentClient()` |
 | Config section | `EPiServer:Find` | `Optimizely:ContentGraph` |
-| Query builder | `_client.Search<T>()` | `_client.QueryContent<T>()` |
+| Query builder | `_client.Search<T>()` | `_client.QueryContent<T>()` (T : IContentData) / `_client.Query<T>()` |
 | Free-text search | `.For(query)` | `.SearchFor(query)` |
+| Field search | `.InField(expr)` / `.AndInField(expr)` | `.UsingField(expr, boost)` |
+| All fields | `.InAllField()` | `.UsingFullText()` |
 | Filter | `.Filter(expr)` | `.Where(expr)` |
+| OR filter | `.OrFilter(expr)` | `BuildFilter<T>().Or(x => ...)` |
+| Synonyms | `.UsingSynonyms()` (query-wide) | `.Match("val", SynonymSlot.One)` (per-filter) |
 | Page size | `.Take(n)` | `.Limit(n)` |
 | Sort ascending | `.OrderBy(expr)` | `.OrderBy(expr, OrderDirection.Ascending)` |
 | Sort descending | `.OrderByDescending(expr)` | `.OrderBy(expr, OrderDirection.Descending)` |
 | Facets | `.TermsFacetFor(expr)` | `.Facet(expr)` |
-| Caching | `.StaticallyCacheFor(ts)` | `.WithCacheOptions(opts => ...)` |
+| Facet results | `result.TermsFacetFor(expr)` | `result.Facets.GetFacet(expr)` |
+| Projection | `.Select(x => new { ... })` | `.Fields<TProjection>(x => x.Prop)` |
+| Caching | `.StaticallyCacheFor(ts)` | `.WithCacheOptions(opts => ...)` / `.WithoutCache()` |
+| Best bets | `.ApplyBestBets()` | `.WithPinned(phrase, collectionId)` |
+| Language | `.Language(lang)` | `.SetLocale("code")` |
+| Tracking | `.Track()` | Remove (use `.WithName("name")` for identification) |
+| Display filters | Automatic | `.WithDisplayFilters()` (explicit opt-in) |
+| Autocomplete | `Statistics().GetAutocompleteAsync()` | `.Autocomplete(x => x.Prop, prefix, limit)` |
 | Sync result | `.GetResult()` | `.GetAsync()` (async) |
 | Content result | `.GetContentResult()` | `.GetAsContentAsync()` (async) |
+| Result items | `result.Hits` / `hit.Document` | `result.Items` (direct content) |
+| Total count | `result.TotalMatching` | `result.Total` (nullable; requires `.IncludeTotal()`) |
 | Execution model | Synchronous | **Async only** (`await`) |
+| Generic constraint | `where T : IContentData` | `where T : class, IContentData` |
+| Exception types | `ClientException` / `ServiceException` | `Exception` / `HttpRequestException` |

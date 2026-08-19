@@ -196,3 +196,54 @@ The features listed below are **completely removed** in Optimizely CMS 13. They 
 **Recommended alternative**: Use `System.IO` directly or `Microsoft.Extensions.FileProviders`.
 
 **Migration effort**: Minimal.
+
+---
+
+## Telemetry
+
+**What it was**: Telemetry subsystem for collecting CMS usage analytics.
+
+**Removed types/configuration**:
+- `EPiServer.Shell.Telemetry.TelemetryOptions`
+- All types in `EPiServer.Shell.Telemetry` namespace
+
+**Detection patterns**:
+- `using EPiServer.Shell.Telemetry`
+- `TelemetryOptions`
+- `services.Configure<TelemetryOptions>`
+
+**Recommended alternative**: None needed. Telemetry is fully removed with no replacement.
+
+**Migration effort**: Minimal — remove `using` statements and `Configure<TelemetryOptions>()` calls.
+
+---
+
+## SearchProvidersManager
+
+**What it was**: Public class for managing search providers.
+
+**Status**: Made internal. No public replacement.
+
+**Detection patterns**:
+- `SearchProvidersManager`
+
+**Recommended alternative**: Use the built-in content search services or Optimizely Graph.
+
+**Migration effort**: Moderate — depends on extent of direct usage.
+
+---
+
+## Injected<T> Property Injection
+
+**What it was**: `Injected<T>` was a property injection helper that allowed lazy service resolution without constructor injection.
+
+**Removed types**:
+- `EPiServer.ServiceLocation.Injected<T>`
+
+**Detection patterns**:
+- `Injected<`
+- `\.Service\.` (on Injected properties)
+
+**Recommended alternative**: Constructor injection via Microsoft DI.
+
+**Migration effort**: Moderate — requires adding constructor parameters to every class using `Injected<T>`. Search-and-replace alone is insufficient; each usage must be restructured.
