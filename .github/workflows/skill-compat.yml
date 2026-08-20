@@ -1,0 +1,122 @@
+name: Skill Compatibility Check
+
+on:
+  pull_request:
+    paths:
+      - 'skills/**/SKILL.md'
+      - 'skill-deps.json'
+      - '.claude-plugin/plugin.json'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check-skill-hashes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check skill hashes
+        id: check
+        run: |
+          set +e
+          REPORT=$(node scripts/check-skill-hashes.js --json)
+          EXIT_CODE=$?
+          echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+          echo "report<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$REPORT" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Update hashes if mismatched
+        if: steps.check.outputs.exit_code != '0'
+        run: node scripts/update-skill-hashes.js
+
+      - name: Report affected evals
+        if: steps.check.outputs.exit_code != '0'
+        id: evals
+        run: |
+          EVAL_REPORT=$(node scripts/run-skill-evals.js)
+          echo "eval_report<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$EVAL_REPORT" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Commit updated hashes
+        if: steps.check.outputs.exit_code != '0'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add skill-deps.json
+          git diff --staged --quiet && exit 0
+          git commit -m "chore: update skill-deps.json hashes [skip ci]"
+          git push
+
+      - name: Post PR comment
+        if: steps.check.outputs.exit_code != '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const report = JSON.parse(process.env.REPORT);
+            const evalReport = process.env.EVAL_REPORT;
+
+            let body = '## Skill Compatibility Report\n\n';
+
+            if (report.changed.length > 0) {
+              body += '### Changed Skills\n';
+              for (const s of report.changed) {
+                body += `- \`${s.name}\` (${s.path})\n`;
+              }
+              body += '\n';
+            }
+
+            if (report.added.length > 0) {
+              body += '### New Skills\n';
+              for (const s of report.added) {
+                body += `- \`${s.name}\` (${s.path})\n`;
+              }
+              body += '\n';
+            }
+
+            if (report.removed.length > 0) {
+              body += '### Removed Skills\n';
+              for (const s of report.removed) {
+                body += `- \`${s.name}\` (${s.path})\n`;
+              }
+              body += '\n';
+            }
+
+            if (report.transitivelyAffected.length > 0) {
+              body += '### Transitively Affected\n';
+              body += 'These skills depend on changed skills and may need re-evaluation:\n';
+              for (const name of report.transitivelyAffected.sort()) {
+                body += `- \`${name}\`\n`;
+              }
+              body += '\n';
+            }
+
+            if (evalReport) {
+              body += '### Eval Status\n';
+              body += '```\n' + evalReport + '\n```\n';
+            }
+
+            body += '\n`skill-deps.json` has been auto-updated in this PR.';
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+        env:
+          REPORT: ${{ steps.check.outputs.report }}
+          EVAL_REPORT: ${{ steps.evals.outputs.eval_report }}
