@@ -326,7 +326,30 @@ public class ContentAreaHelper
 - Search for: `\.FilteredItems`
 - Search for: `contentArea\.Tag`
 
-### 3.4 ContentAreaItem Constructor No Longer Accepts ContentFragment
+### 3.4 ContentArea.FilteredItems → Items and IContentAreaLoader.Get → LoadContent
+
+`ContentArea.FilteredItems` is removed (use `Items`). `IContentAreaLoader.Get()` is renamed to `LoadContent()`.
+
+**Before (CMS 12):**
+
+```csharp
+var filtered = contentArea.FilteredItems;
+var items = _contentAreaLoader.Get(contentArea);
+```
+
+**After (CMS 13):**
+
+```csharp
+var items = contentArea.Items;
+var loadedItems = _contentAreaLoader.LoadContent(contentArea);
+```
+
+**Detection:**
+- Search for: `\.FilteredItems`
+- Search for: `_contentAreaLoader\.Get\(`
+- Search for: `IContentAreaLoader\.Get\(`
+
+### 3.5 ContentAreaItem Constructor No Longer Accepts ContentFragment
 
 The `ContentAreaItem` constructor that accepted a `ContentFragment` parameter has been removed.
 
@@ -580,6 +603,121 @@ public class MyBlob : Blob
 - Search for: `new Blob\(`
 - Search for: `: BlobProvider`
 - Search for: `class.*: Blob`
+
+---
+
+### 3.12 .PageLink → .ContentLink
+
+The `PageLink` property on `PageData` is renamed to `ContentLink`.
+
+**Before (CMS 12):**
+
+```csharp
+ContentReference link = page.PageLink;
+```
+
+**After (CMS 13):**
+
+```csharp
+ContentReference link = page.ContentLink;
+```
+
+**Detection:**
+- Search for: `\.PageLink`
+
+### 3.13 ContentCoreData → ContentNode
+
+`ContentCoreData` is renamed to `ContentNode`. `IContentCoreDataLoader` is renamed to `IContentNodeLoader`.
+
+**Before (CMS 12):**
+
+```csharp
+using EPiServer.Core;
+
+ContentCoreData coreData = _coreDataLoader.Get(contentLink);
+```
+
+**After (CMS 13):**
+
+```csharp
+using EPiServer.Core;
+
+ContentNode node = _nodeLoader.Get(contentLink);
+```
+
+**Detection:**
+- Search for: `ContentCoreData`
+- Search for: `IContentCoreDataLoader`
+
+### 3.14 SoftLink.LinkStatus → HttpStatusCode
+
+`SoftLink.LinkStatus` is renamed to `SoftLink.HttpStatusCode`.
+
+**Before (CMS 12):**
+
+```csharp
+var status = softLink.LinkStatus;
+```
+
+**After (CMS 13):**
+
+```csharp
+var status = softLink.HttpStatusCode;
+```
+
+**Detection:**
+- Search for: `\.LinkStatus`
+
+### 3.15 RenderSettings.CustomTag → CustomTagName
+
+`RenderSettings.CustomTag` is renamed to `CustomTagName`. `ChildrenCustomTag` is renamed to `ChildrenCustomTagName`.
+
+**Before (CMS 12):**
+
+```csharp
+settings.CustomTag = "div";
+settings.ChildrenCustomTag = "span";
+```
+
+**After (CMS 13):**
+
+```csharp
+settings.CustomTagName = "div";
+settings.ChildrenCustomTagName = "span";
+```
+
+**Detection:**
+- Search for: `\.CustomTag[^N]`
+- Search for: `\.ChildrenCustomTag[^N]`
+
+### 3.16 IContentTypeRepository<T> (Generic) → IContentTypeRepository
+
+The generic `IContentTypeRepository<T>` is removed. Use the non-generic `IContentTypeRepository`.
+
+**Before (CMS 12):**
+
+```csharp
+private readonly IContentTypeRepository<BlockType> _blockTypeRepo;
+
+public MyService(IContentTypeRepository<BlockType> blockTypeRepo)
+{
+    _blockTypeRepo = blockTypeRepo;
+}
+```
+
+**After (CMS 13):**
+
+```csharp
+private readonly IContentTypeRepository _contentTypeRepo;
+
+public MyService(IContentTypeRepository contentTypeRepo)
+{
+    _contentTypeRepo = contentTypeRepo;
+}
+```
+
+**Detection:**
+- Search for: `IContentTypeRepository<`
 
 ---
 
@@ -2133,7 +2271,55 @@ public class MyController : Controller
 - Search for: `IServiceLocator`
 - Search for: `using EPiServer.ServiceLocation`
 
-### 13.2 Static Instance Properties Obsoleted
+### 13.2 Injected<T> Pattern Removed
+
+The `Injected<T>` property injection pattern is removed. Use constructor injection.
+
+**Before (CMS 12):**
+
+```csharp
+using EPiServer.ServiceLocation;
+
+public class MyController : PageController<StandardPage>
+{
+    private Injected<IContentRepository> _repo;
+    private Injected<IUrlResolver> _urlResolver;
+
+    public ActionResult Index(StandardPage page)
+    {
+        var content = _repo.Service.Get<PageData>(page.ContentLink);
+        return View(content);
+    }
+}
+```
+
+**After (CMS 13):**
+
+```csharp
+public class MyController : PageController<StandardPage>
+{
+    private readonly IContentRepository _repo;
+    private readonly IUrlResolver _urlResolver;
+
+    public MyController(IContentRepository repo, IUrlResolver urlResolver)
+    {
+        _repo = repo;
+        _urlResolver = urlResolver;
+    }
+
+    public ActionResult Index(StandardPage page)
+    {
+        var content = _repo.Get<PageData>(page.ContentLink);
+        return View(content);
+    }
+}
+```
+
+**Detection:**
+- Search for: `Injected<`
+- Search for: `\.Service\.`
+
+### 13.3 Static Instance Properties Obsoleted
 
 Static `Instance` properties on various classes are removed. Use dependency injection.
 
@@ -2760,7 +2946,48 @@ var contextData = await _contextStore.GetAsync("myContext");
 - Search for: `_contextStore\.Get\(`
 - Search for: `ContextStore\.Get\(`
 
-### 17.5 MenuHelper Methods Removed
+### 17.5 [DojoWidget] → [CriterionPropertyEditor]
+
+The `[DojoWidget]` attribute for visitor group criteria is replaced by `[CriterionPropertyEditor]`.
+
+**Before (CMS 12):**
+
+```csharp
+using EPiServer.Personalization.VisitorGroups;
+
+public class MyCriterion : CriterionBase<MyCriterionModel>
+{
+    // ...
+}
+
+public class MyCriterionModel : CriterionModelBase
+{
+    [DojoWidget("myapp/editors/CustomEditor")]
+    public string CustomValue { get; set; }
+}
+```
+
+**After (CMS 13):**
+
+```csharp
+using EPiServer.Personalization.VisitorGroups;
+
+public class MyCriterion : CriterionBase<MyCriterionModel>
+{
+    // ...
+}
+
+public class MyCriterionModel : CriterionModelBase
+{
+    [CriterionPropertyEditor("myapp/editors/CustomEditor")]
+    public string CustomValue { get; set; }
+}
+```
+
+**Detection:**
+- Search for: `DojoWidget`
+
+### 17.6 MenuHelper Methods Removed
 
 Various `MenuHelper` methods have been removed.
 
@@ -3072,7 +3299,55 @@ public class MyIndexService
 - Search for: `TextIndexer`
 - Search for: `TextIndexer\.Instance`
 
-### 18.9 PropertyData.Clear() No Longer Virtual
+### 18.9 Telemetry Removed
+
+The telemetry subsystem is completely removed. Remove all references.
+
+**Before (CMS 12):**
+
+```csharp
+using EPiServer.Shell.Telemetry;
+
+services.Configure<TelemetryOptions>(options =>
+{
+    options.Enabled = false;
+});
+```
+
+**After (CMS 13):**
+
+```csharp
+// Remove the using statement and configuration entirely
+// Telemetry is no longer part of CMS 13
+```
+
+**Detection:**
+- Search for: `EPiServer.Shell.Telemetry`
+- Search for: `TelemetryOptions`
+
+### 18.10 ClientEditorAttribute.EditorConfiguration Requires Strict JSON
+
+`EditorConfiguration` now requires RFC 8259 compliant JSON (double-quoted property names, no trailing commas, no single quotes).
+
+**Before (CMS 12):**
+
+```csharp
+[ClientEditor(EditorConfiguration = "{ 'maxLength': 500, 'rows': 5, }")]
+public virtual string Description { get; set; }
+```
+
+**After (CMS 13):**
+
+```csharp
+[ClientEditor(EditorConfiguration = "{\"maxLength\":500,\"rows\":5}")]
+public virtual string Description { get; set; }
+```
+
+**Detection:**
+- Search for: `EditorConfiguration`
+- Search for: `ClientEditor`
+
+### 18.11 PropertyData.Clear() No Longer Virtual
 
 Override `ClearImplementation()` instead of `Clear()`.
 
@@ -3150,3 +3425,13 @@ public class MyProperty : PropertyString
 | `SaveAction\.DelayedPublish` | 18.2 |
 | `PageEditing\.PageIsInEditMode` | 18.7 |
 | `TextIndexer` | 18.8 |
+| `TelemetryOptions` | 18.9 |
+| `EditorConfiguration` | 18.10 |
+| `Injected<` | 13.2 |
+| `DojoWidget` | 17.5 |
+| `\.PageLink` | 3.12 |
+| `ContentCoreData` | 3.13 |
+| `\.LinkStatus` | 3.14 |
+| `\.CustomTag[^N]` | 3.15 |
+| `IContentTypeRepository<` | 3.16 |
+| `IContentAreaLoader\.Get\(` | 3.4 |

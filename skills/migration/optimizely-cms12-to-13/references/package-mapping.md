@@ -16,6 +16,23 @@ reference maps every affected package.
 | EPiServer.Cms.HealthCheck | Remove | (none) | Consolidated into EPiServer.Data |
 | EPiServer.Data.Cache | Remove | (none) | Integrated into EPiServer.Data |
 | EPiServer.Cms (composition) | Update | EPiServer.Cms | No longer includes Visitor Groups dependency or EPiServer.Cms.UI.AspNetIdentity |
+| EPiServer.Data | Update | EPiServer.Data | Absorbs EPiServer.Cms.HealthCheck and EPiServer.Data.Cache |
+| EPiServer.Hosting | Update | EPiServer.Hosting | Update to 13.x |
+| EPiServer.CMS.TinyMce | Update | EPiServer.CMS.TinyMce | Update to 13.x |
+| EPiServer.CloudPlatform.Cms | Update | EPiServer.CloudPlatform.Cms | Update to 13.x (if using Optimizely DXP) |
+| EPiServer.ContentDeliveryApi.* | Remove | (none) | Not compatible with CMS 13 |
+| EPiServer.ContentManagementApi | Remove | (none) | Not compatible with CMS 13 |
+| EPiServer.ContentDefinitionsApi | Remove | (none) | Not compatible with CMS 13 |
+
+## Extracted Packages (Previously Transitive)
+
+These packages were included transitively via `EPiServer.Cms` in CMS 12 but
+must be referenced explicitly in CMS 13 if your code uses them:
+
+| Package | Contains | When to Add |
+|---------|----------|-------------|
+| EPiServer.CMS.UI.AspNetIdentity | ASP.NET Identity integration for CMS | If using `AddCmsAspNetIdentity<T>()` or `EPiServer.Cms.UI.AspNetIdentity` namespace |
+| EPiServer.CMS.UI.VisitorGroups | Visitor Groups MVC + UI | If using visitor groups criteria or `AddVisitorGroupsMvc()` / `AddVisitorGroupsUI()` |
 
 ## New Separate Packages
 
