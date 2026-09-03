@@ -107,11 +107,6 @@ jobs:
               body += '\n';
             }
 
-            if (evalReport) {
-              body += '### Eval Status\n';
-              body += '```\n' + evalReport + '\n```\n';
-            }
-
             body += '\n`skill-deps.json` has been auto-updated in this PR.';
 
             await github.rest.issues.createComment({
