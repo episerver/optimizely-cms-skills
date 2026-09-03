@@ -1,0 +1,173 @@
+{
+  "$schema": "./scripts/skill-deps.schema.json",
+  "version": 1,
+  "generated": "2026-09-03T18:46:18.643Z",
+  "releaseHash": "sha256:c8dadaf4fb4656fa55ce90f4f0fda2dec8284b4795c0c278efcd0f84dda59e53",
+  "skills": {
+    "optimizely-setup": {
+      "path": "./skills/setup/optimizely-setup",
+      "hash": "sha256:49fc49797b47bd43fec0ef2ed965b8a9d66db5a3dc567775e6e8188c5893ed79",
+      "dependencies": []
+    },
+    "optimizely-project-scaffold": {
+      "path": "./skills/setup/optimizely-project-scaffold",
+      "hash": "sha256:75cb5ebb598f05be176bd37e229e61382070b940cb076b60b0e1fc1ae8315678",
+      "dependencies": [
+        "optimizely-cli-workflows",
+        "optimizely-model",
+        "optimizely-setup"
+      ]
+    },
+    "optimizely-cli-workflows": {
+      "path": "./skills/setup/optimizely-cli-workflows",
+      "hash": "sha256:a55ff433db5270c517daf287fd4d3472c29a92183cfc580769cb91905104b2f0",
+      "dependencies": [
+        "optimizely-model",
+        "optimizely-project-scaffold",
+        "optimizely-setup"
+      ]
+    },
+    "optimizely-observability": {
+      "path": "./skills/setup/optimizely-observability",
+      "hash": "sha256:fcad93459dc69408170bae3f2b1f3648d02f96aeb50b483cac3d9920f7bbbea4",
+      "dependencies": [
+        "optimizely-setup",
+        "optimizely-troubleshoot-graph"
+      ]
+    },
+    "optimizely-model": {
+      "path": "./skills/modeling/optimizely-model",
+      "hash": "sha256:774a2dc732832edc9f04dc2b75ac13933164c693d7c829d30b204901f161b875",
+      "dependencies": [
+        "optimizely-model-react",
+        "optimizely-setup"
+      ]
+    },
+    "optimizely-display-templates": {
+      "path": "./skills/modeling/optimizely-display-templates",
+      "hash": "sha256:4a91d1706ba5a4144ecbf981345f8549d415536c584ce718e54e8c8e0ee4f495",
+      "dependencies": [
+        "optimizely-model",
+        "optimizely-model-react",
+        "optimizely-setup"
+      ]
+    },
+    "optimizely-model-react": {
+      "path": "./skills/rendering/optimizely-model-react",
+      "hash": "sha256:8e1ed7916af2b6f56d66757aa4bbded90fda4b53fc10f856e55e8e3a5b872771",
+      "dependencies": [
+        "optimizely-model"
+      ]
+    },
+    "optimizely-richtext-rendering": {
+      "path": "./skills/rendering/optimizely-richtext-rendering",
+      "hash": "sha256:450e4dc2c8016540bdc0a9e5fda01f2f1572f8c6099bc8b7dfab39c0ded103b8",
+      "dependencies": [
+        "optimizely-experience-composition",
+        "optimizely-model",
+        "optimizely-model-react"
+      ]
+    },
+    "optimizely-dam-assets": {
+      "path": "./skills/rendering/optimizely-dam-assets",
+      "hash": "sha256:b03664ae51ffb693b84de4d039e05a9e4d8890fd748301ef4877fa76ecc543f9",
+      "dependencies": [
+        "optimizely-model",
+        "optimizely-model-react",
+        "optimizely-richtext-rendering"
+      ]
+    },
+    "optimizely-experience-composition": {
+      "path": "./skills/rendering/optimizely-experience-composition",
+      "hash": "sha256:63340a85c3a6696a829c8e1128db7aa088a947da349389487498f0ca442238c3",
+      "dependencies": [
+        "optimizely-model",
+        "optimizely-model-react",
+        "optimizely-setup"
+      ]
+    },
+    "optimizely-content-fetching": {
+      "path": "./skills/data/optimizely-content-fetching",
+      "hash": "sha256:6a2532dfdc63c2042eb8b15d18d837444d8770a6f28ad95daa7f555a7e76daef",
+      "dependencies": [
+        "optimizely-model",
+        "optimizely-multisite-locale",
+        "optimizely-preview",
+        "optimizely-setup"
+      ]
+    },
+    "optimizely-content-navigation": {
+      "path": "./skills/data/optimizely-content-navigation",
+      "hash": "sha256:4d5d5872a2d01e8ceaae007a961435b783d41d1f29ca7eb441ffb122f98f4b76",
+      "dependencies": [
+        "optimizely-content-fetching",
+        "optimizely-model",
+        "optimizely-multisite-locale"
+      ]
+    },
+    "optimizely-graphql-optimization": {
+      "path": "./skills/data/optimizely-graphql-optimization",
+      "hash": "sha256:538ca5b8c99448a9c1b592ccca85e5e1433a276c4774d8124a887b3ee5dadf5c",
+      "dependencies": [
+        "optimizely-content-fetching",
+        "optimizely-model",
+        "optimizely-multisite-locale"
+      ]
+    },
+    "optimizely-multisite-locale": {
+      "path": "./skills/data/optimizely-multisite-locale",
+      "hash": "sha256:1866f28d5a9c423cf3ef47bec63216476afa55118648bd3b90937d88fe024187",
+      "dependencies": [
+        "optimizely-content-fetching",
+        "optimizely-content-navigation",
+        "optimizely-setup"
+      ]
+    },
+    "optimizely-schema-validation": {
+      "path": "./skills/data/optimizely-schema-validation",
+      "hash": "sha256:77c621174c18b44cf42a9a60f43cd2e4ef7042def291bfd448fd204a673c3ebe",
+      "dependencies": [
+        "optimizely-content-fetching",
+        "optimizely-model"
+      ]
+    },
+    "optimizely-preview": {
+      "path": "./skills/editing/optimizely-preview",
+      "hash": "sha256:55839768a4ac5dd3ca80e7cc309f5ca3a14ec5f9c60f3634f6233ce51578d846",
+      "dependencies": []
+    },
+    "optimizely-troubleshoot-graph": {
+      "path": "./skills/editing/optimizely-troubleshoot-graph",
+      "hash": "sha256:83de4ab82449f95ee462f3f0a432112a0df6a92280484dcd9384647a9534e7ed",
+      "dependencies": [
+        "optimizely-cli-workflows",
+        "optimizely-model",
+        "optimizely-observability"
+      ]
+    },
+    "optimizely-cms11-to-12": {
+      "path": "./skills/migration/optimizely-cms11-to-12",
+      "hash": "sha256:9b6d0b678db22dbf9f9680e845e830cba054ce4ea7abdb7b699fd78fa5545f0c",
+      "dependencies": [
+        "optimizely-model",
+        "optimizely-setup"
+      ]
+    },
+    "optimizely-cms12-to-13": {
+      "path": "./skills/migration/optimizely-cms12-to-13",
+      "hash": "sha256:c39e4ac7b0670dbca43f2843c635bc87af3e573a15493d35ac6d2e07890f18f2",
+      "dependencies": [
+        "optimizely-find-to-graph",
+        "optimizely-model",
+        "optimizely-setup"
+      ]
+    },
+    "optimizely-find-to-graph": {
+      "path": "./skills/migration/optimizely-find-to-graph",
+      "hash": "sha256:fa2e31a8f916ebbf0cb68f7fb5177c12509d760386e1dd2ba92ed3dcfc1f2d91",
+      "dependencies": [
+        "optimizely-setup"
+      ]
+    }
+  }
+}

@@ -16,7 +16,7 @@
         "source": "git-subdir",
         "url": "https://github.com/episerver/optimizely-cms-skills.git",
         "path": "./",
-        "ref": "main"
+        "ref": "latest"
       },
       "category": "development",
       "homepage": "https://github.com/episerver/optimizely-cms-skills",
