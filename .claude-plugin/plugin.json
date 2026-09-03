@@ -1,6 +1,6 @@
 {
   "name": "optimizely-cms-skills",
-  "version": "0.1.0-rc1",
+  "version": "0.1.0-rc.1",
   "description": "Agent Skills for Optimizely CMS development",
   "author": {
     "name": "Optimizely",
