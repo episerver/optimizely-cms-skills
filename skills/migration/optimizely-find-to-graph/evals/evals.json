@@ -88,6 +88,102 @@
           "check": "Does not claim a direct equivalent exists"
         }
       ]
+    },
+    {
+      "id": 5,
+      "prompt": "After migrating from Find to Graph SDK, I'm getting CS0266 errors like 'Cannot implicitly convert type ISearchFieldContentQuery to ISearchableContentQuery'. My code assigns the query to a variable and adds methods conditionally.",
+      "expected_output": "MUST identify this as the query chain type difference between Find and Graph SDK. MUST explain that in Find, every chained method returns the same type (ITypeSearch<T>), but in Graph SDK each method returns a different interface type (ISearchableContentQuery, ISearchFieldContentQuery, IContentQuery). MUST provide the fix: declare the variable as IContentQuery<T> and chain .SearchFor() in the initializer. SHOULD show before/after code demonstrating the pattern. SHOULD NOT suggest downgrading packages or using dynamic types.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies query chain type issue",
+          "check": "Explains that Graph SDK returns different interface types at each chain stage"
+        },
+        {
+          "name": "Provides correct fix",
+          "check": "Shows using IContentQuery<T> as the declared variable type"
+        },
+        {
+          "name": "Shows before/after code",
+          "check": "Demonstrates both the broken pattern and the fixed pattern"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "I'm trying to install Optimizely.Graph.Cms.Query but I get error NU1107 saying the package version is incompatible. My CMS is version 13.0.0 but I installed Graph.Cms.Query version 13.2.0.",
+      "expected_output": "MUST explain that Optimizely.Graph.Cms.Query version must exactly match the CMS version. MUST explain that version 13.2.0 with CMS 13.0.0 causes NU1107 dependency resolution failures. MUST recommend checking the installed CMS version first (grep EPiServer.CMS in .csproj) and then installing the matching Graph version. SHOULD NOT suggest downgrading CMS or using a different package.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies version mismatch",
+          "check": "Explains that Graph.Cms.Query version must match CMS version exactly"
+        },
+        {
+          "name": "Provides resolution",
+          "check": "Recommends checking CMS version and installing matching Graph version"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "My Find code uses SearchClient.Instance throughout several helper classes and scheduled jobs that don't use dependency injection. How do I migrate these to Graph SDK?",
+      "expected_output": "MUST explain that SearchClient.Instance static singleton does not exist in Graph SDK. MUST explain that IGraphContentClient requires constructor injection via DI. MUST provide guidance on introducing DI: add constructor parameters, add private readonly fields, replace all SearchClient.Instance calls with the injected field. SHOULD mention that scheduled jobs in CMS 13 support constructor injection. SHOULD mention that non-DI contexts require architectural changes to accept the client as a parameter. SHOULD NOT suggest creating a static wrapper or service locator as a replacement.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies static singleton removal",
+          "check": "Explains SearchClient.Instance does not exist in Graph SDK"
+        },
+        {
+          "name": "Provides DI migration path",
+          "check": "Shows how to introduce constructor injection for IGraphContentClient"
+        },
+        {
+          "name": "No anti-patterns",
+          "check": "Does not suggest static wrappers or service locator as replacements"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "I have a generic search service with 'where T : IContentData' constraint. After migrating to Graph SDK, I get CS0311 saying T cannot be used as type parameter. What's wrong?",
+      "expected_output": "MUST explain that Graph SDK's IContentQuery<T> requires T : class constraint. MUST explain that IContentData is an interface, so the class constraint must be added explicitly. MUST provide the fix: change 'where T : IContentData' to 'where T : class, IContentData'. MUST warn NOT to add class before concrete types like PageData (causes CS0450). SHOULD show before/after code for the generic constraint change.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies class constraint requirement",
+          "check": "Explains Graph SDK requires T : class and IContentData alone is insufficient"
+        },
+        {
+          "name": "Provides correct fix",
+          "check": "Shows adding class to constraint: where T : class, IContentData"
+        },
+        {
+          "name": "Warns about CS0450",
+          "check": "Warns not to add class before concrete types like PageData"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "My Find code uses .Select(x => new { x.Title, x.StartPublish }) to project search results. How do I do projections in Graph SDK?",
+      "expected_output": "MUST explain that .Select() with anonymous types is replaced by .Fields<TProjection>(). MUST explain that TProjection must be a POCO class, not an anonymous type. MUST explain that TProjection must NOT implement IContentData. MUST warn that .Fields() cannot be combined with .GetAsContentAsync() — use .GetAsync() instead. SHOULD provide a before/after code example showing the Find .Select() and Graph SDK .Fields<TProjection>() patterns.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies Fields as replacement",
+          "check": "Explains .Select() maps to .Fields<TProjection>()"
+        },
+        {
+          "name": "POCO requirement",
+          "check": "States TProjection must be a POCO, not IContentData"
+        },
+        {
+          "name": "GetAsync requirement",
+          "check": "Warns to use GetAsync not GetAsContentAsync with projections"
+        }
+      ]
     }
   ]
 }

@@ -33,7 +33,7 @@ Before using these skills, ensure you have:
 /plugin marketplace add episerver/optimizely-cms-skills
 
 # Install the plugin (installs all skills at once)
-/plugin install optimizely-cms-skills@episerver-optimizely-cms-skills
+/plugin install optimizely-cms-skills@optimizely-cms
 ```
 
 This installs all skills automatically and keeps them updated.
@@ -152,7 +152,7 @@ Skills reference each other and work together. For example, `optimizely-content-
 ### Claude Code Plugin
 
 ```
-/plugin update optimizely-cms-skills@episerver-optimizely-cms-skills
+/plugin update optimizely-cms-skills@optimizely-cms
 ```
 
 ### GitHub CLI

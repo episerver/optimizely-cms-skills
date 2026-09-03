@@ -45,8 +45,12 @@ Look for:
 - Package references to `EPiServer.Find` or `EPiServer.Find.Cms`
 - `using EPiServer.Find;` statements
 - `IClient` injection via constructor or property
+- `SearchClient.Instance` static singleton access
 - `.Search<T>()` query entry points
 - `.For()`, `.Filter()`, `.TermsFacetFor()`, `.GetContentResult()` calls
+- `.UsingSynonyms()`, `.ApplyBestBets()`, `.Track()`, `.StaticallyCacheFor()`
+- `.Select(x => new { ... })` projections
+- `Statistics()` API calls (autocomplete, did-you-mean)
 
 **If user only asked about a specific method**: Skip to the relevant step
 and reference `references/find-to-graph-mapping.md` for the full mapping
@@ -64,6 +68,15 @@ content indexing and synchronization. `Optimizely.Graph.Cms.Query` provides
 the fluent query API (`QueryContent<T>`, `Where`, `Facet`, etc.). Installing
 only one package results in either missing query methods or missing content
 sync.
+
+**CRITICAL**: The `Optimizely.Graph.Cms.Query` version must match the
+CMS version exactly. A version mismatch (e.g., CMS `13.0.0` + Graph
+`13.1.0`) causes `NU1107` dependency resolution failures. Check the
+installed CMS version first:
+```shell
+grep "EPiServer.CMS" *.csproj
+```
+Then install the matching Graph version.
 
 ### Step 3: Register Graph Services
 
@@ -113,11 +126,38 @@ var results = await _graphClient.QueryContent<ArticlePage>()
 
 Key mappings:
 - `IClient` -> `IGraphContentClient`
-- `.Search<T>()` -> `.QueryContent<T>()`
+- `.Search<T>()` -> `.QueryContent<T>()` (when T implements `IContentData`)
+- `.Search<T>()` -> `.Query<T>()` (when T does NOT implement `IContentData`)
 - `.For("term")` -> `.SearchFor("term")`
 - `.InField(x => x.Title)` -> `.UsingField(x => x.Title)`
+- `.AndInField(x => x.Prop)` -> `.UsingField(x => x.Prop)`
+- `.InAllField()` -> `.UsingFullText()`
 
-Detection: Search for `.Search<` and `.For(`
+**`SearchClient.Instance` replacement**: If the project uses the static
+singleton `SearchClient.Instance` instead of injected `IClient`, replace
+with constructor-injected `IGraphContentClient`. This requires
+introducing DI if the class does not already use it.
+
+```csharp
+// Before (Find — static singleton)
+var results = SearchClient.Instance.Search<ArticlePage>()
+    .For("news")
+    .GetContentResult();
+
+// After (Graph SDK — constructor injection)
+private readonly IGraphContentClient _graphClient;
+
+public MyService(IGraphContentClient graphClient)
+{
+    _graphClient = graphClient;
+}
+
+var results = await _graphClient.QueryContent<ArticlePage>()
+    .SearchFor("news")
+    .GetAsContentAsync();
+```
+
+Detection: Search for `.Search<`, `.For(`, `SearchClient.Instance`
 
 ### Step 5: Migrate Filter Expressions
 
@@ -153,6 +193,141 @@ SDK `.Where()` always affects both results and facets. If you need
 independent facet counts, use separate queries.
 
 Detection: Search for `.Filter(`, `.Match(`, `.FilterHits(`
+
+**Runtime-composed filters** — use `BuildFilter<T>()` for conditional
+filter composition:
+```csharp
+// Before (Find) — chained .Filter() calls
+var search = _client.Search<ProductPage>().For(query);
+if (hasCategory)
+    search = search.Filter(x => x.Category.Match(category));
+if (hasRating)
+    search = search.Filter(x => x.Rating.GreaterThan(minRating));
+var results = search.GetContentResult();
+
+// After (Graph SDK) — BuildFilter for composition
+var filter = _graphClient.BuildFilter<ProductPage>();
+if (hasCategory)
+    filter = filter.And(x => x.Category == category);
+if (hasRating)
+    filter = filter.And(x => x.Rating >= minRating);
+var results = await _graphClient.QueryContent<ProductPage>()
+    .SearchFor(query)
+    .Filter(filter)
+    .GetAsContentAsync();
+```
+
+Detection: Search for conditional `.Filter(` chains, `FilterBuilder`
+
+### Step 5b: Handle Query Chain Type Differences
+
+**CRITICAL**: In Find, every chained method returns the same type
+(`ITypeSearch<T>`). In Graph SDK, each method returns a **different
+interface type**. You cannot reassign across chain stages.
+
+```csharp
+// Find SDK — same type throughout
+ITypeSearch<T> query = _client.Search<T>();
+query = query.For(text);    // still ITypeSearch<T>
+query = query.Filter(...);  // still ITypeSearch<T>
+
+// Graph SDK — BREAKS: different return types per stage
+var query = _graphClient.QueryContent<T>();      // ISearchableContentQuery<T>
+query = query.SearchFor(text);                    // ISearchFieldContentQuery<T> ← CS0266!
+query = query.Where(...);                         // IContentQuery<T> ← CS0266!
+
+// FIX: Declare with the base type from the start
+IContentQuery<T> query = _graphClient
+    .QueryContent<T>()
+    .SearchFor(text);
+query = query.Where(...);   // OK — IContentQuery<T> accepted
+```
+
+If you see `CS0266` errors mentioning `ISearchableContentQuery` or
+`IContentQuery`, this is the cause.
+
+### Step 5c: Migrate Language/Locale
+
+```csharp
+// Before (Find)
+var results = _client.Search<ArticlePage>()
+    .Language(Language.Swedish)
+    .For("test")
+    .GetContentResult();
+
+// After (Graph SDK)
+var results = await _graphClient.QueryContent<ArticlePage>()
+    .SetLocale("sv")
+    .SearchFor("test")
+    .GetAsContentAsync();
+```
+
+Key mappings:
+- `.Language(lang)` -> `.SetLocale("code")`
+- `.InLanguageBranch()` -> `.SetLocale()`
+
+Detection: Search for `.Language(`, `.InLanguageBranch(`
+
+### Step 5d: Update Generic Constraints
+
+Graph SDK's `IContentQuery<T>` requires `T : class`. If your Find code
+uses generic methods constrained to interfaces, add the `class` constraint:
+
+```csharp
+// Before (Find — interface constraint only)
+public IEnumerable<T> Search<T>(string query) where T : IContentData
+{
+    return _client.Search<T>().For(query).GetContentResult();
+}
+
+// After (Graph SDK — class constraint required)
+public async Task<IEnumerable<T>> SearchAsync<T>(string query)
+    where T : class, IContentData
+{
+    return await _graphClient.QueryContent<T>()
+        .SearchFor(query)
+        .GetAsContentAsync();
+}
+```
+
+Rules:
+- `where T : IContentData` -> `where T : class, IContentData`
+- `where T : PageData` -> leave as-is (PageData is already a class;
+  adding `class,` causes CS0450)
+- `where T : IContent` -> `where T : class, IContent`
+
+Detection: Search for `where T : IContentData`, `where T : IContent`
+
+### Step 5e: Migrate Projections
+
+Find's `.Select()` anonymous projections become `.Fields<TProjection>()`:
+
+```csharp
+// Before (Find)
+var results = _client.Search<ArticlePage>()
+    .For("news")
+    .Select(x => new { x.Title, x.StartPublish })
+    .GetResult();
+
+// After (Graph SDK)
+var results = await _graphClient.QueryContent<ArticlePage>()
+    .SearchFor("news")
+    .Fields<ArticleProjection>(x => x.Title, x => x.StartPublish)
+    .GetAsync();
+
+// TProjection must be a POCO — NOT IContentData
+public class ArticleProjection
+{
+    public string Title { get; set; }
+    public DateTime? StartPublish { get; set; }
+}
+```
+
+**CRITICAL**: Do NOT use `.Fields()` with `.GetAsContentAsync()`. Use
+`.GetAsync()` for projection queries. TProjection must be a plain POCO
+class — it must NOT implement `IContentData`.
+
+Detection: Search for `.Select(x => new`
 
 ### Step 6: Migrate Faceting
 
@@ -263,7 +438,94 @@ Key mappings:
 - `.Hits` -> `.Items`
 - `.TotalMatching` -> `.Total`
 
+**Result type distinction**:
+- `GetAsync()` returns `IQueryResult<T>` — access items via `result.Items`
+  and facets via `result.Facets.GetFacet()`. Use when you need facet data
+  or raw metadata.
+- `GetAsContentAsync()` returns `IGetAsContentResult<T>` which IS
+  `IEnumerable<T>` — iterate directly (no `.Items` property). Use when
+  you only need content objects.
+
+**`result.Total` is nullable** (`int?`). Use null-coalescing:
+```csharp
+int total = result.Total ?? 0;
+```
+Also requires `.IncludeTotal()` on the query (see Step 7).
+
 Detection: Search for `GetResult`, `GetContentResult`
+
+### Step 8b: Migrate Remaining Patterns
+
+**Autocomplete**:
+```csharp
+// Before (Find — Statistics API)
+var suggestions = await _client.Statistics()
+    .GetAutocompleteAsync("opt", maxItems: 5);
+
+// After (Graph SDK)
+var suggestions = await _graphClient.QueryContent<ArticlePage>()
+    .Autocomplete(x => x.Title, "opt", limit: 5)
+    .GetAsync();
+```
+
+`Statistics().GetDidYouMeanAsync()` has no direct equivalent. Consider
+`.Autocomplete()` as a partial replacement for suggestion features.
+
+**Best Bets**:
+- `.ApplyBestBets()` -> `.WithPinned()`
+- Custom `IBestBetSelector` implementations have no Graph equivalent —
+  flag for manual review.
+
+**Caching**:
+```csharp
+// Before (Find)
+.StaticallyCacheFor(TimeSpan.FromMinutes(10))
+
+// After (Graph SDK) — only if non-default duration
+.WithCacheOptions(o => {
+    o.AbsoluteExpiration = TimeSpan.FromMinutes(10);
+})
+// To disable caching:
+.WithoutCache()
+```
+
+Graph SDK defaults to 5-minute cache. Remove `.StaticallyCacheFor()`
+calls that use the default 5-minute duration.
+
+**Tracking**:
+- `.Track()` -> Remove entirely. Graph SDK does not support tracking.
+  Optionally add `.WithName("queryName")` for analytics identification.
+
+**Synonyms**:
+```csharp
+// Before (Find — query-wide)
+var results = _client.Search<ArticlePage>()
+    .For("optimizely")
+    .UsingSynonyms()
+    .GetContentResult();
+
+// After (Graph SDK — per-filter, not query-wide)
+var results = await _graphClient.QueryContent<ArticlePage>()
+    .SearchFor("optimizely")
+    .Where(x => x.Category.Match("CMS", SynonymSlot.One))
+    .GetAsContentAsync();
+```
+
+**IMPORTANT**: Graph SDK applies synonyms per-filter via `SynonymSlot`,
+not query-wide. If the original code uses `.UsingSynonyms()` without a
+specific filter to attach to, the query must be restructured.
+
+**Exception types**:
+- `ClientException` / `ServiceException` -> `Exception` or
+  `HttpRequestException` (Find-specific exception types do not exist
+  in Graph SDK)
+
+**Display filters and auth**:
+- `.WithDisplayFilters()` for published/access filtering
+- `.AsUser(principal)` and `.WithAuth(options)` for access control
+
+Detection: Search for `.ApplyBestBets(`, `.StaticallyCacheFor(`,
+`.Track(`, `.UsingSynonyms(`, `ClientException`, `ServiceException`
 
 ### Step 9: Remove Find Packages
 
@@ -334,6 +596,53 @@ and the runtime smoke test passes.
 8. **Sync-to-async method signature changes** — Calling methods must become
    `async Task<>` throughout the entire call chain. This often cascades
    through controllers, services, and view models.
+
+9. **Missing `.WithDisplayFilters()`** — Graph queries do not apply
+   published/access filters by default. Add `.WithDisplayFilters()` to apply
+   display logic (published status, access rights) equivalent to what Find
+   did automatically.
+
+10. **Default page size is 10** — Graph SDK returns only 10 items if
+    `.Limit()` is not specified. Always call `.Skip()` and `.Limit()`
+    explicitly for paginated queries. Never filter or page in memory after
+    `GetAsContentAsync()`.
+
+11. **MultiSearch has no equivalent** — Find's `.DynamicMultiSearch()` must
+    be split into parallel queries using `Task.WhenAll()`.
+
+12. **`.IncludeTotal()` required for pagination metadata** — Graph SDK does
+    not include total count by default. Add `.IncludeTotal()` before
+    `.GetAsContentAsync()` to get total result counts for pagination.
+
+13. **Query chain type mismatch (CS0266)** — Graph SDK returns different
+    interface types at each chain stage. If Find code assigns to a
+    variable and reassigns after each method, use `IContentQuery<T>` as
+    the declared type (see Step 5b).
+
+14. **NuGet version mismatch (NU1107)** — `Optimizely.Graph.Cms.Query`
+    version must exactly match the CMS version. A mismatch causes
+    `NU1107` dependency resolution failure (see Step 2).
+
+15. **Missing `class` constraint (CS0311)** — Generic methods with
+    `where T : IContentData` need `where T : class, IContentData` for
+    Graph SDK. But do NOT add `class,` before concrete types like
+    `PageData` — that causes CS0450 (see Step 5d).
+
+16. **`.Fields()` with `GetAsContentAsync()`** — Using projection with
+    content resolution does not work. Use `.GetAsync()` for projection
+    queries. TProjection must be a POCO, not `IContentData`.
+
+17. **`IContentResult<T>` is not covariant** — Passing
+    `IContentResult<SpecificPage>` to a method expecting
+    `IContentResult<PageData>` fails. Fix: make the consuming method
+    generic, or use `result.Items.Cast<PageData>().ToList()`.
+
+18. **`IGetAsContentResult<T>` vs `IContentResult<T>`** —
+    `GetAsContentAsync()` returns `IGetAsContentResult<T>` which IS
+    `IEnumerable<T>` (iterate directly). `GetAsync()` returns
+    `IContentResult<T>` which has `.Items` (NOT iterable directly).
+    Do not use `.Items` on `IGetAsContentResult` or LINQ on
+    `IContentResult`.
 
 ## Related Skills
 
