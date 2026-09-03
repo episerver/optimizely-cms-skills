@@ -1,6 +1,6 @@
 {
   "name": "optimizely-cms-skills",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -9,6 +9,7 @@
   "scripts": {
     "check-hashes": "node scripts/check-skill-hashes.js",
     "update-hashes": "node scripts/update-skill-hashes.js",
-    "affected-evals": "node scripts/run-skill-evals.js"
+    "affected-evals": "node scripts/run-skill-evals.js",
+    "changelog": "node scripts/generate-changelog.js"
   }
 }

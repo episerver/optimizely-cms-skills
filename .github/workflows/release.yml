@@ -1,0 +1,136 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 0.1.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate version format
+        id: version
+        run: |
+          VERSION="${{ inputs.version }}"
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
+            echo "::error::Version must be in semver format (e.g. 0.1.0 or 0.1.0-rc.1)"
+            exit 1
+          fi
+          if echo "$VERSION" | grep -qE '-'; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Update skill hashes and release hash
+        run: node scripts/update-skill-hashes.js
+
+      - name: Bump version in package.json and plugin.json
+        run: |
+          node --input-type=module -e "
+            import { readFileSync, writeFileSync } from 'node:fs';
+            const version = '${{ inputs.version }}';
+            for (const file of ['package.json', '.claude-plugin/plugin.json']) {
+              const pkg = JSON.parse(readFileSync(file, 'utf-8'));
+              pkg.version = version;
+              writeFileSync(file, JSON.stringify(pkg, null, 2) + '\n');
+            }
+          "
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          CHANGELOG=$(node scripts/generate-changelog.js "${{ inputs.version }}")
+          echo "changelog<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$CHANGELOG" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Commit release changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json .claude-plugin/plugin.json skill-deps.json
+          git diff --staged --quiet && echo "No changes to commit" || \
+            git commit -m "chore: release v${{ inputs.version }}"
+
+      - name: Check for existing tag
+        run: |
+          if git rev-parse "v${{ inputs.version }}" >/dev/null 2>&1; then
+            echo "::error::Tag v${{ inputs.version }} already exists"
+            exit 1
+          fi
+
+      - name: Create version tag
+        run: git tag "v${{ inputs.version }}"
+
+      - name: Move latest tag
+        if: steps.version.outputs.prerelease == 'false'
+        run: |
+          git tag -f latest
+          git push origin --delete latest 2>/dev/null || true
+
+      - name: Push commit and tags
+        run: |
+          git push origin HEAD
+          git push origin "v${{ inputs.version }}"
+          if [ "${{ steps.version.outputs.prerelease }}" = "false" ]; then
+            git push origin latest
+          fi
+
+      - name: Create draft GitHub Release
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const changelog = process.env.CHANGELOG;
+            const version = '${{ inputs.version }}';
+
+            const body = [
+              changelog,
+              '',
+              '---',
+              '',
+              '### Installation',
+              '',
+              '```',
+              '/install optimizely-cms-skills',
+              '```',
+              '',
+              '### Updating',
+              '',
+              '```',
+              '/plugin update optimizely-cms-skills',
+              '```',
+            ].join('\n');
+
+            const isPrerelease = version.includes('-');
+
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: `v${version}`,
+              name: `v${version}`,
+              body,
+              draft: true,
+              prerelease: isPrerelease,
+            });
+
+            core.notice(`Draft release v${version} created. Edit and publish when ready.`);
+        env:
+          CHANGELOG: ${{ steps.changelog.outputs.changelog }}

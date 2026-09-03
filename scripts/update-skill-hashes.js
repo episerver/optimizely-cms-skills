@@ -6,6 +6,7 @@ import {
   scanSkillDependencies,
   loadManifest,
   writeManifest,
+  computeReleaseHash,
 } from './lib/manifest.js';
 
 const args = process.argv.slice(2);
@@ -55,10 +56,13 @@ const timestamp = skillsChanged
   ? new Date().toISOString()
   : (existing?.generated ?? new Date().toISOString());
 
+const releaseHash = computeReleaseHash(skills);
+
 const manifest = {
   $schema: './scripts/skill-deps.schema.json',
   version: 1,
   generated: timestamp,
+  releaseHash,
   skills,
 };
 

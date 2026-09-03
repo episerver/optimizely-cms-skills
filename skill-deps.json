@@ -2,6 +2,7 @@
   "$schema": "./scripts/skill-deps.schema.json",
   "version": 1,
   "generated": "2026-08-20T20:01:50.922Z",
+  "releaseHash": "sha256:503ba863d3506c695590680da848e90d914466149f1866a4155d068c2b358c1b",
   "skills": {
     "optimizely-setup": {
       "path": "./skills/setup/optimizely-setup",

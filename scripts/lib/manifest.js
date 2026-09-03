@@ -168,4 +168,17 @@ export function computeAffectedSkills(skills, changedSkills) {
   return visited;
 }
 
+/**
+ * Compute a composite release hash from all individual skill hashes.
+ * Sorts skills alphabetically by name, concatenates their hashes,
+ * and produces a single SHA-256 digest.
+ */
+export function computeReleaseHash(skills) {
+  const sortedHashes = Object.keys(skills)
+    .sort()
+    .map((name) => skills[name].hash)
+    .join('\n');
+  return 'sha256:' + createHash('sha256').update(sortedHashes, 'utf-8').digest('hex');
+}
+
 export { ROOT, MANIFEST_PATH };
