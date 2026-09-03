@@ -26,11 +26,10 @@ The git tag is the source of truth. The release workflow writes the version from
    - Validate the version format
    - Update skill hashes and compute the release hash
    - Bump version in `package.json` and `plugin.json`
-   - Generate a changelog from commits since the last tag
    - Commit the changes
    - Create the semver tag (`v0.1.0`)
    - Move the `latest` tag to the release commit
-   - Create a **draft** GitHub Release with structured notes
+   - Create a **draft** GitHub Release with auto-generated notes
 5. Go to **Releases** → edit the draft
 6. Review and polish the release notes
 7. **Publish** the release
@@ -61,17 +60,9 @@ Best-effort [Conventional Commits](https://www.conventionalcommits.org/):
 
 Conventional prefixes improve auto-generated changelogs but are not enforced.
 
-## Release Notes Template
+## Release Notes
 
-The auto-generated draft includes these sections when applicable:
-
-- **New Skills** — skills added since the last release
-- **Changed Skills** — skills with content updates
-- **Breaking Changes** — removed or renamed skills
-- **Commits** — categorized by type
-- **Migration Notes** — upgrade instructions
-
-Edit the draft before publishing to add context, highlight important changes, or clarify migration steps for customers.
+GitHub auto-generates release notes from PR titles and commit messages. Edit the draft before publishing to add context, highlight important changes, or clarify migration steps for customers.
 
 ## Distribution
 

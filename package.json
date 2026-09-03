@@ -9,7 +9,6 @@
   "scripts": {
     "check-hashes": "node scripts/check-skill-hashes.js",
     "update-hashes": "node scripts/update-skill-hashes.js",
-    "affected-evals": "node scripts/run-skill-evals.js",
-    "changelog": "node scripts/generate-changelog.js"
+    "affected-evals": "node scripts/run-skill-evals.js"
   }
 }
