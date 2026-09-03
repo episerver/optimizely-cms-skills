@@ -1,8 +1,8 @@
 {
   "$schema": "./scripts/skill-deps.schema.json",
   "version": 1,
-  "generated": "2026-08-20T20:01:50.922Z",
-  "releaseHash": "sha256:503ba863d3506c695590680da848e90d914466149f1866a4155d068c2b358c1b",
+  "generated": "2026-09-03T18:46:18.643Z",
+  "releaseHash": "sha256:c8dadaf4fb4656fa55ce90f4f0fda2dec8284b4795c0c278efcd0f84dda59e53",
   "skills": {
     "optimizely-setup": {
       "path": "./skills/setup/optimizely-setup",
@@ -155,7 +155,7 @@
     },
     "optimizely-cms12-to-13": {
       "path": "./skills/migration/optimizely-cms12-to-13",
-      "hash": "sha256:3ef7fcdad9f8a07b99c64f423b9acf8e17acc2d03a9a577f054ca71a7eb2514b",
+      "hash": "sha256:c39e4ac7b0670dbca43f2843c635bc87af3e573a15493d35ac6d2e07890f18f2",
       "dependencies": [
         "optimizely-find-to-graph",
         "optimizely-model",
@@ -164,7 +164,7 @@
     },
     "optimizely-find-to-graph": {
       "path": "./skills/migration/optimizely-find-to-graph",
-      "hash": "sha256:36130ea2ae894dbf51c7ab66bce933826bc4458bd2676730bba2f411fad259f7",
+      "hash": "sha256:fa2e31a8f916ebbf0cb68f7fb5177c12509d760386e1dd2ba92ed3dcfc1f2d91",
       "dependencies": [
         "optimizely-setup"
       ]
