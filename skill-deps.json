@@ -179,10 +179,18 @@
         "optimizely-setup"
       ]
     },
+    "optimizely-cms12-to-13-assessment": {
+      "path": "./skills/migration/optimizely-cms12-to-13-assessment",
+      "hash": "",
+      "dependencies": [
+        "optimizely-find-to-graph"
+      ]
+    },
     "optimizely-cms12-to-13": {
       "path": "./skills/migration/optimizely-cms12-to-13",
-      "hash": "sha256:c39e4ac7b0670dbca43f2843c635bc87af3e573a15493d35ac6d2e07890f18f2",
+      "hash": "",
       "dependencies": [
+        "optimizely-cms12-to-13-assessment",
         "optimizely-find-to-graph",
         "optimizely-model",
         "optimizely-setup"
