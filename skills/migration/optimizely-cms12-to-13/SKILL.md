@@ -558,7 +558,10 @@ services.AddXmlLocalizationProvider(options =>
 
 ### Step 8: Update Configuration
 
-1. **UI URL changed**: `/EPiServer` → `/Optimizely`
+1. **UI URL changed** — the new path depends on auth configuration:
+   - **DXP with Opti ID**: `/ui/CMS`
+   - **Self-hosted (ASP.NET Identity)**: `/Optimizely/CMS`
+   - The old `/EPiServer` path no longer works in either mode
    - Update bookmarks, admin links, documentation
    - Search for: `/EPiServer/` in config files and code
    - Module paths also changed:
@@ -710,7 +713,9 @@ passes and all frontend queries return expected data.
 
 4. **Runtime smoke test**:
    - Start the application
-   - Access CMS admin at `/Optimizely` (not `/EPiServer`)
+   - Access CMS admin: `/ui/CMS` (DXP with Opti ID) or
+     `/Optimizely/CMS` (self-hosted with ASP.NET Identity) — the old
+     `/EPiServer` path no longer works
    - Create or edit a page — verify save works
    - Check scheduled jobs run correctly
    - Verify Visitor Groups work (if used and registered)
@@ -755,8 +760,9 @@ and the runtime smoke test passes.
 8. **IPropertyDefinitionRepository.Save won't compile** — Must modify
    ContentType.PropertyDefinitions collection then save the ContentType.
 
-9. **Admin panel at /EPiServer returns 404** — URL changed to
-   `/Optimizely`.
+9. **Admin panel at /EPiServer returns 404** — URL depends on auth
+   mode: `/ui/CMS` (DXP with Opti ID) or `/Optimizely/CMS`
+   (self-hosted with ASP.NET Identity).
 
 10. **Dynamic Properties code won't compile** — Feature completely
     removed. No drop-in replacement; requires redesign.
