@@ -160,18 +160,18 @@ Before making changes, scan the project to understand migration scope.
      validation, property name corrections, ContentArea schema
      restructuring, block type resolution changes) that will break live
      headless frontends the moment the CMS database migrates.
-   - Recommend: complete the code migration (Steps 2–9) on a branch,
+   - Recommend: complete the code migration (Steps 3–10) on a branch,
      deploy CMS 13 to a staging instance, validate the frontend against
-     the new schema in Step 10, then cut over to production. The CMS 12
+     the new schema in Step 11, then cut over to production. The CMS 12
      instance continues serving production until cutover.
    - List the specific packages that triggered the "Frontend: Present"
      classification so the developer understands why.
 
 10. **When both Find and headless frontend packages are detected** —
     provide explicit sequencing:
-    1. Remove `EPiServer.Find.Cms` during Step 4 (incompatible package)
-    2. Complete the CMS 13 code migration (Steps 2–9)
-    3. Validate the frontend against the new CMS 13 schema (Step 10)
+    1. Remove `EPiServer.Find.Cms` during Step 5 (incompatible package)
+    2. Complete the CMS 13 code migration (Steps 3–10)
+    3. Validate the frontend against the new CMS 13 schema (Step 11)
     4. After migration is verified, run the `optimizely-find-to-graph`
        skill to add Optimizely Graph
 
@@ -183,7 +183,44 @@ Before making changes, scan the project to understand migration scope.
 (including Frontend Impact classification and any side-by-side or
 sequencing recommendations). Do not proceed to migration steps.
 
-### Step 2: Upgrade .NET Runtime
+### Step 2: Fix Obsolete API Warnings
+
+**Before upgrading any packages**, build the CMS 12 project and fix all
+`[Obsolete]` warnings. These APIs have replacements available in CMS 12
+that will be removed in CMS 13. Fixing them now — while the CMS 12
+replacements are still available — is easier than fixing them after
+packages are upgraded.
+
+1. **Build and capture obsolete warnings**:
+   ```shell
+   dotnet build 2>&1 | grep -i "CS0612\|CS0618\|obsolete"
+   ```
+   Fix every `CS0612` (member is obsolete) and `CS0618` (member is
+   obsolete with message) warning. The compiler message typically names
+   the replacement.
+
+2. **Scan for known obsoleted APIs** — these are documented in
+   `references/breaking-changes-dotnet.md` and may not always trigger
+   compiler warnings:
+   - `DataAccessBase` → use `IDatabaseExecutor`
+   - `UriSupport` (static usage) → inject `IUriSupport` via DI
+   - `IPropertyDefinitionRepository.Save/Delete` → modify
+     `ContentType.PropertyDefinitions` then save the `ContentType`
+   - `UsePrimaryHostForOutgoingUrls` → removed, no replacement needed
+   - `IContentRepositoryExtension` → use `IContentRepository` directly
+   - `ITimer` → use `System.Threading.PeriodicTimer`
+   - `IWebHostingEnvironment` → use `IWebHostEnvironment`
+   - `VirtualPathResolver` → use `IWebHostEnvironment.ContentRootPath`
+   - Static instance properties on services → inject via DI
+
+3. **Rebuild and verify zero obsolete warnings**:
+   ```shell
+   dotnet build -warnaserror:CS0612,CS0618
+   ```
+   Do not proceed to Step 3 until the build passes with obsolete
+   warnings treated as errors.
+
+### Step 3: Upgrade .NET Runtime
 
 CMS 13 requires .NET 10.0.
 
@@ -225,7 +262,7 @@ CMS 13 requires .NET 10.0.
    ```
    Search for: `dotnet/sdk:8`, `dotnet/aspnet:8`, `dotnet/runtime:8`
 
-### Step 3: Update NuGet Packages
+### Step 4: Update NuGet Packages
 
 See `references/package-mapping.md` for the complete package mapping.
 
@@ -275,7 +312,7 @@ Key changes:
 8. **Verify nuget.config** — ensure the Optimizely NuGet feed is
    configured. Required for resolving CMS 13 packages.
 
-### Step 4: Handle Third-Party Packages
+### Step 5: Handle Third-Party Packages
 
 See `references/third-party-compatibility.md` for the complete list.
 
@@ -326,7 +363,7 @@ packages to avoid cascading build failures.
    dotnet add package Newtonsoft.Json
    ```
 
-### Step 5: Fix Breaking API Changes
+### Step 6: Fix Breaking API Changes
 
 See `references/breaking-changes-dotnet.md` for the complete list. The
 most common changes:
@@ -479,7 +516,7 @@ public string EditorValue { get; set; }
 ```
 Detection: Search for `DojoWidget`
 
-### Step 6: Handle Removed Features
+### Step 7: Handle Removed Features
 
 See `references/removed-features.md` for detailed guidance on each.
 
@@ -502,7 +539,7 @@ See `references/removed-features.md` for detailed guidance on each.
    EPiServer.Shell.Telemetry` and any `services.Configure<TelemetryOptions>()`
    calls. Search for: `TelemetryOptions`, `EPiServer.Shell.Telemetry`
 
-### Step 7: Update Service Registration
+### Step 8: Update Service Registration
 
 **CRITICAL**: Service registration namespace changed.
 
@@ -556,7 +593,7 @@ services.AddXmlLocalizationProvider(options =>
 });
 ```
 
-### Step 8: Update Configuration
+### Step 9: Update Configuration
 
 1. **UI URL changed** — the new path depends on auth configuration:
    - **DXP with Opti ID**: `/ui/CMS`
@@ -598,7 +635,7 @@ services.AddXmlLocalizationProvider(options =>
    - **IMPORTANT**: Update any code that references content types by
      string name if those names were auto-migrated
 
-### Step 9: JS/TS SDK Updates (if applicable)
+### Step 10: JS/TS SDK Updates (if applicable)
 
 **Skip this step if your project does not use @optimizely/cms-sdk.**
 
@@ -620,11 +657,11 @@ See `references/breaking-changes-sdk.md` for detailed guidance.
 5. **Test GraphQL queries**: Verify queries return expected data,
    especially for ContentArea properties and block types.
 
-### Step 10: Graph/Headless Frontend Validation
+### Step 11: Graph/Headless Frontend Validation
 
 **Skip this step if your Step 1 assessment showed Frontend: None.**
 
-After completing the code migration (Steps 2–9), validate your headless
+After completing the code migration (Steps 3–10), validate your headless
 frontend against the CMS 13 schema before cutting over to production.
 
 1. **Schema diff** — compare the CMS 12 and CMS 13 Graph schemas to
@@ -676,7 +713,7 @@ frontend against the CMS 13 schema before cutting over to production.
 CRITICAL: Do not cut over to CMS 13 production until staged verification
 passes and all frontend queries return expected data.
 
-### Step 11: Verify Migration
+### Step 12: Verify Migration
 
 1. **CRITICAL — Back up the database before first CMS 13 startup**:
    The CMS 13 database migration runs automatically on first startup
@@ -840,14 +877,14 @@ and the runtime smoke test passes.
     runs a one-way database migration on first startup. If something
     goes wrong, the database cannot be reverted to CMS 12 without a
     backup. Always take a full database backup before the first CMS 13
-    startup. See Step 11, item 1.
+    startup. See Step 12, item 1.
 
 27. **Graph schema breaks live frontend after in-place upgrade** —
     CMS 13 auto-migrates content type names and corrects property names,
     changing the GraphQL schema. Headless frontends querying the old
     schema get empty results or errors. Use the side-by-side approach:
     migrate on a branch, validate frontend against staging CMS 13, then
-    cut over. See Step 10.
+    cut over. See Step 11.
 
 ## Related Skills
 
