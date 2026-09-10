@@ -14,6 +14,9 @@ permissions:
 jobs:
   check-skill-hashes:
     runs-on: ubuntu-latest
+    outputs:
+      affected_skills: ${{ steps.affected.outputs.skills }}
+      has_affected: ${{ steps.affected.outputs.has_affected }}
     steps:
       - name: Checkout PR branch
         uses: actions/checkout@v5
@@ -25,6 +28,9 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: '24'
+
+      - name: Validate skill structure
+        run: node scripts/validate-skills.js --ci
 
       - name: Check skill hashes
         id: check
@@ -41,6 +47,39 @@ jobs:
       - name: Update hashes if mismatched
         if: steps.check.outputs.exit_code != '0'
         run: node scripts/update-skill-hashes.js
+
+      - name: Build affected skills list
+        id: affected
+        run: |
+          node -e "
+            const report = JSON.parse(process.env.REPORT);
+            const manifest = JSON.parse(require('fs').readFileSync('skill-deps.json', 'utf-8'));
+            const skills = [];
+            const seen = new Set();
+            for (const s of [...(report.changed || []), ...(report.added || [])]) {
+              if (!seen.has(s.name)) {
+                seen.add(s.name);
+                skills.push({ name: s.name, path: s.path });
+              }
+            }
+            for (const name of (report.transitivelyAffected || [])) {
+              if (!seen.has(name) && manifest.skills[name]) {
+                seen.add(name);
+                skills.push({ name, path: manifest.skills[name].path });
+              }
+            }
+            console.log(JSON.stringify(skills));
+          " > affected.json
+          SKILLS=$(cat affected.json)
+          echo "skills=$SKILLS" >> "$GITHUB_OUTPUT"
+          COUNT=$(echo "$SKILLS" | jq 'length')
+          if [ "$COUNT" -gt 0 ]; then
+            echo "has_affected=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_affected=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          REPORT: ${{ steps.check.outputs.report }}
 
       - name: Report affected evals
         if: steps.check.outputs.exit_code != '0'
@@ -118,3 +157,11 @@ jobs:
         env:
           REPORT: ${{ steps.check.outputs.report }}
           EVAL_REPORT: ${{ steps.evals.outputs.eval_report }}
+
+  run-evals:
+    needs: check-skill-hashes
+    if: needs.check-skill-hashes.outputs.has_affected == 'true'
+    uses: ./.github/workflows/skill-evals.yml
+    with:
+      skills: ${{ needs.check-skill-hashes.outputs.affected_skills }}
+    secrets: inherit

@@ -1,0 +1,177 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { loadPluginSkills, loadManifest, computeSkillHash, extractSkillName, resolveTargetSkills, ROOT } from './lib/manifest.js';
+import { formatValidationConsole, formatValidationJson } from './lib/reporter.js';
+
+const HELP_TEXT = `Usage: node scripts/validate-skills.js [options]
+
+Options:
+  --skill <name>    Validate a specific skill by name
+  --deps            Also validate the skill's dependencies (requires --skill)
+  --ci              Output JSON instead of console formatting
+  --help            Show help`;
+
+function parseArgs(argv) {
+  const args = argv.slice(2);
+  const opts = { skill: null, deps: false, ci: false, help: false };
+  for (let i = 0; i < args.length; i++) {
+    switch (args[i]) {
+      case '--skill':
+        i++;
+        if (!args[i]) {
+          console.error('Error: --skill requires a skill name');
+          process.exit(2);
+        }
+        opts.skill = args[i];
+        break;
+      case '--deps':
+        opts.deps = true;
+        break;
+      case '--ci':
+        opts.ci = true;
+        break;
+      case '--help':
+        opts.help = true;
+        break;
+      default:
+        console.error(`Error: unknown flag "${args[i]}"\n\n${HELP_TEXT}`);
+        process.exit(2);
+    }
+  }
+  if (opts.deps && !opts.skill) {
+    console.error('Error: --deps requires --skill\n\n' + HELP_TEXT);
+    process.exit(2);
+  }
+  return opts;
+}
+
+function checkFrontmatter(skillPath) {
+  const skillMdPath = join(ROOT, skillPath, 'SKILL.md');
+  if (!existsSync(skillMdPath)) {
+    return { name: 'frontmatter', passed: false, message: 'SKILL.md not found' };
+  }
+  const content = readFileSync(skillMdPath, 'utf-8');
+  const fmMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
+  if (!fmMatch) {
+    return { name: 'frontmatter', passed: false, message: 'No YAML frontmatter found' };
+  }
+  const fm = fmMatch[1];
+  const nameMatch = fm.match(/^name:\s*(.+)$/m);
+  const descMatch = fm.match(/^description:\s*(.+)$/m);
+  if (!nameMatch || !nameMatch[1].trim()) {
+    return { name: 'frontmatter', passed: false, message: 'Missing or empty "name" field' };
+  }
+  if (!descMatch || !descMatch[1].trim()) {
+    return { name: 'frontmatter', passed: false, message: 'Missing or empty "description" field' };
+  }
+  return { name: 'frontmatter', passed: true, message: '' };
+}
+
+function checkEvalsSchema(skillPath) {
+  const evalsPath = join(ROOT, skillPath, 'evals', 'evals.json');
+  if (!existsSync(evalsPath)) {
+    return { name: 'evals-schema', passed: false, message: 'evals/evals.json not found' };
+  }
+  let data;
+  try {
+    data = JSON.parse(readFileSync(evalsPath, 'utf-8'));
+  } catch {
+    return { name: 'evals-schema', passed: false, message: 'evals.json is not valid JSON' };
+  }
+  if (typeof data.skill_name !== 'string' || !data.skill_name) {
+    return { name: 'evals-schema', passed: false, message: 'evals.json missing required field "skill_name"' };
+  }
+  if (!Array.isArray(data.evals)) {
+    return { name: 'evals-schema', passed: false, message: 'evals.json missing "evals" array' };
+  }
+  for (const ev of data.evals) {
+    if (typeof ev.id !== 'number') {
+      return { name: 'evals-schema', passed: false, message: `eval entry missing numeric "id"` };
+    }
+    if (typeof ev.prompt !== 'string' || !ev.prompt) {
+      return { name: 'evals-schema', passed: false, message: `eval ${ev.id} missing "prompt"` };
+    }
+    if (typeof ev.expected_output !== 'string' || !ev.expected_output) {
+      return { name: 'evals-schema', passed: false, message: `eval ${ev.id} missing "expected_output"` };
+    }
+  }
+  return { name: 'evals-schema', passed: true, message: '' };
+}
+
+function checkDepIntegrity(skillName, manifest) {
+  const entry = manifest.skills[skillName];
+  if (!entry) {
+    return { name: 'dep-integrity', passed: true, message: '' };
+  }
+  for (const dep of entry.dependencies || []) {
+    if (!manifest.skills[dep]) {
+      return { name: 'dep-integrity', passed: false, message: `dependency "${dep}" not found in skill-deps.json` };
+    }
+  }
+  return { name: 'dep-integrity', passed: true, message: '' };
+}
+
+function checkNoOrphans(skillPath) {
+  const absPath = join(ROOT, skillPath);
+  if (!existsSync(absPath)) {
+    return { name: 'no-orphans', passed: false, message: `directory "${skillPath}" does not exist on disk` };
+  }
+  return { name: 'no-orphans', passed: true, message: '' };
+}
+
+function checkHashFreshness(skillName, skillPath, manifest) {
+  const entry = manifest.skills[skillName];
+  if (!entry) {
+    return { name: 'hash-freshness', passed: false, message: `skill "${skillName}" not in skill-deps.json` };
+  }
+  try {
+    const currentHash = computeSkillHash(skillPath);
+    if (currentHash !== entry.hash) {
+      return { name: 'hash-freshness', passed: false, message: 'hash mismatch (skill changed since last update)' };
+    }
+  } catch (err) {
+    return { name: 'hash-freshness', passed: false, message: err.message };
+  }
+  return { name: 'hash-freshness', passed: true, message: '' };
+}
+
+function validateSkill(skill, manifest) {
+  const checks = [
+    checkFrontmatter(skill.path),
+    checkEvalsSchema(skill.path),
+    checkDepIntegrity(skill.name, manifest),
+    checkNoOrphans(skill.path),
+    checkHashFreshness(skill.name, skill.path, manifest),
+  ];
+  return {
+    skill: skill.name,
+    checks,
+    passed: checks.every((c) => c.passed),
+  };
+}
+
+const opts = parseArgs(process.argv);
+
+if (opts.help) {
+  console.log(HELP_TEXT);
+  process.exit(0);
+}
+
+const manifest = loadManifest();
+if (!manifest) {
+  console.error('Error: skill-deps.json not found. Run "npm run update-hashes" first.');
+  process.exit(2);
+}
+
+const pluginSkills = loadPluginSkills();
+const targets = resolveTargetSkills(opts, manifest, pluginSkills);
+const results = targets.map((t) => validateSkill(t, manifest));
+
+if (opts.ci) {
+  console.log(formatValidationJson(results));
+} else {
+  console.log(formatValidationConsole(results));
+}
+
+const allPassed = results.every((r) => r.passed);
+process.exit(allPassed ? 0 : 1);

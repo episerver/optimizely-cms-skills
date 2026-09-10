@@ -181,4 +181,48 @@ export function computeReleaseHash(skills) {
   return 'sha256:' + createHash('sha256').update(sortedHashes, 'utf-8').digest('hex');
 }
 
+export function findSkillNameByPath(manifest, skillPath) {
+  for (const [name, entry] of Object.entries(manifest.skills)) {
+    if (entry.path === skillPath) return name;
+  }
+  return skillPath.split('/').pop();
+}
+
+export function resolveTransitiveDeps(manifest, skillName, visited = new Set()) {
+  if (visited.has(skillName)) return visited;
+  visited.add(skillName);
+  const entry = manifest.skills[skillName];
+  if (!entry) return visited;
+  for (const dep of entry.dependencies || []) {
+    resolveTransitiveDeps(manifest, dep, visited);
+  }
+  return visited;
+}
+
+export function resolveTargetSkills(opts, manifest, pluginSkills) {
+  if (!opts.skill) {
+    return pluginSkills.map((p) => ({
+      name: findSkillNameByPath(manifest, p),
+      path: p,
+    }));
+  }
+
+  const entry = manifest.skills[opts.skill];
+  if (!entry) {
+    console.error(`Error: skill "${opts.skill}" not found in skill-deps.json`);
+    process.exit(2);
+  }
+
+  const targets = [{ name: opts.skill, path: entry.path }];
+  if (opts.deps) {
+    const allDeps = resolveTransitiveDeps(manifest, opts.skill);
+    for (const depName of allDeps) {
+      if (depName === opts.skill) continue;
+      const depEntry = manifest.skills[depName];
+      if (depEntry) targets.push({ name: depName, path: depEntry.path });
+    }
+  }
+  return targets;
+}
+
 export { ROOT, MANIFEST_PATH };
