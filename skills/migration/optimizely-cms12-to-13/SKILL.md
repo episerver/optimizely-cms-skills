@@ -675,7 +675,23 @@ passes and all frontend queries return expected data.
 
 ### Step 11: Verify Migration
 
-1. **Database prerequisites** (before first CMS 13 startup):
+1. **CRITICAL — Back up the database before first CMS 13 startup**:
+   The CMS 13 database migration runs automatically on first startup
+   and is **irreversible**. Once it completes, the database cannot be
+   used with CMS 12 again. Take a full backup before starting:
+   ```sql
+   BACKUP DATABASE [YourCmsDatabase]
+   TO DISK = 'C:\Backups\CmsDatabase_PreCMS13.bak'
+   WITH INIT, COMPRESSION;
+   ```
+   If using Azure SQL, create a database copy or point-in-time restore
+   point.
+
+   **BLOCKING**: Stop here and ask the user to confirm the backup is
+   complete before proceeding. Do not continue to the next item until
+   the user explicitly confirms.
+
+2. **Database prerequisites** (before first CMS 13 startup):
    - CMS 13 may create or alter database indexes on first startup.
      Conflicting indexes from CMS 12 may cause errors. If startup fails
      with index-related SQL errors, drop the conflicting indexes manually
@@ -685,14 +701,14 @@ passes and all frontend queries return expected data.
    - Clean orphaned content types from removed packages. Add stub classes
      or delete from database to prevent "could not create instance" errors.
 
-2. **Build check**:
+3. **Build check**:
    ```shell
    dotnet build
    ```
    Fix any remaining compilation errors. Most will be straightforward
    type/namespace changes documented in the references.
 
-3. **Runtime smoke test**:
+4. **Runtime smoke test**:
    - Start the application
    - Access CMS admin at `/Optimizely` (not `/EPiServer`)
    - Create or edit a page — verify save works
@@ -701,7 +717,7 @@ passes and all frontend queries return expected data.
    - Test content with ContentArea properties renders correctly
    - Verify HTML content saves without ScriptParser exceptions
 
-4. **If using JS/TS SDK**:
+5. **If using JS/TS SDK**:
    ```shell
    npx tsc --noEmit
    ```
@@ -814,7 +830,13 @@ and the runtime smoke test passes.
     EPiServer.Shell.Telemetry` must be removed. Telemetry is entirely
     removed in CMS 13.
 
-26. **Graph schema breaks live frontend after in-place upgrade** —
+26. **Database migration is irreversible without backup** — CMS 13
+    runs a one-way database migration on first startup. If something
+    goes wrong, the database cannot be reverted to CMS 12 without a
+    backup. Always take a full database backup before the first CMS 13
+    startup. See Step 11, item 1.
+
+27. **Graph schema breaks live frontend after in-place upgrade** —
     CMS 13 auto-migrates content type names and corrects property names,
     changing the GraphQL schema. Headless frontends querying the old
     schema get empty results or errors. Use the side-by-side approach:
