@@ -92,8 +92,19 @@ Before making changes, scan the project to understand migration scope.
    - `IContentCoreDataLoader` — renamed to `IContentNodeLoader`
    - `[DojoWidget]` — removed; use `[CriterionPropertyEditor]`
    - `.PageLink` — renamed to `.ContentLink`
+   - `[Display(GroupName = "...")]` — tab names must be alphanumeric only
+     in CMS 13 (no spaces, hyphens, or special characters)
 
-5. **Scan for third-party packages** — check `.csproj` for packages with
+5. **Scan for non-alphanumeric tab names** — CMS 13 enforces that tab
+   names contain only letters and digits. Tabs with spaces, hyphens, or
+   special characters will cause runtime errors:
+   ```shell
+   grep -rn "GroupName\s*=" --include="*.cs" .
+   ```
+   Check each `GroupName` value — if it contains anything other than
+   `[A-Za-z0-9]`, it must be renamed.
+
+6. **Scan for third-party packages** — check `.csproj` for packages with
    known CMS 13 incompatibilities:
    - `EPiServer.Find.Cms` — no CMS 13 version; must remove
    - `EPiServer.ContentDeliveryApi.*` — not compatible; must remove
@@ -109,7 +120,7 @@ Before making changes, scan the project to understand migration scope.
    - `EPiServer.MarketingAutomationIntegration.*` — not compatible; must remove
    - See `references/third-party-compatibility.md` for the complete list
 
-6. **Scan for headless frontend packages** — check `.csproj` for packages
+7. **Scan for headless frontend packages** — check `.csproj` for packages
    indicating a headless frontend consumes CMS content:
    ```shell
    grep -r "Optimizely.Graph\|ContentDeliveryApi\|ContentManagementApi\|ContentDefinitionsApi" --include="*.csproj" .
@@ -123,7 +134,7 @@ Before making changes, scan the project to understand migration scope.
 
    Any match → **Frontend: Present**. No match → **Frontend: None**.
 
-7. **Scan for spelling corrections** — CMS 13 fixes misspellings in the
+8. **Scan for spelling corrections** — CMS 13 fixes misspellings in the
    public API that cause compilation errors:
    - `GetDescendents` → `GetDescendants`
    - `includeDecendents` → `includeDescendants`
@@ -135,7 +146,7 @@ Before making changes, scan the project to understand migration scope.
    - See `references/breaking-changes-dotnet.md` section 14 for the full
      list
 
-8. **Categorize migration effort** using two axes:
+9. **Categorize migration effort** using two axes:
 
    **Code Impact**:
    - **Minimal**: Only runtime + package updates needed (no removed features,
@@ -154,7 +165,7 @@ Before making changes, scan the project to understand migration scope.
    Examples: `Code: Minimal | Frontend: None`,
    `Code: Moderate | Frontend: Present`
 
-9. **When Frontend Impact is Present** — recommend the side-by-side
+10. **When Frontend Impact is Present** — recommend the side-by-side
    approach:
    - CMS 13 introduces schema-breaking GraphQL changes (content type name
      validation, property name corrections, ContentArea schema
@@ -167,7 +178,7 @@ Before making changes, scan the project to understand migration scope.
    - List the specific packages that triggered the "Frontend: Present"
      classification so the developer understands why.
 
-10. **When both Find and headless frontend packages are detected** —
+11. **When both Find and headless frontend packages are detected** —
     provide explicit sequencing:
     1. Remove `EPiServer.Find.Cms` during Step 5 (incompatible package)
     2. Complete the CMS 13 code migration (Steps 3–10)
@@ -515,6 +526,18 @@ public string EditorValue { get; set; }
 public string EditorValue { get; set; }
 ```
 Detection: Search for `DojoWidget`
+
+**Tab names must be alphanumeric only**:
+```csharp
+// Before (CMS 12) — spaces and special characters were allowed
+[Display(GroupName = "SEO Settings")]
+public virtual string MetaTitle { get; set; }
+
+// After (CMS 13) — only letters and digits
+[Display(GroupName = "SEOSettings")]
+public virtual string MetaTitle { get; set; }
+```
+Detection: Search for `GroupName` and check values against `[A-Za-z0-9]`
 
 ### Step 7: Handle Removed Features
 
@@ -879,7 +902,13 @@ and the runtime smoke test passes.
     backup. Always take a full database backup before the first CMS 13
     startup. See Step 12, item 1.
 
-27. **Graph schema breaks live frontend after in-place upgrade** —
+28. **Tab names with spaces or special characters cause runtime errors**
+    — CMS 13 enforces alphanumeric-only tab names. Content types with
+    `[Display(GroupName = "SEO Settings")]` or similar will fail at
+    runtime. Rename to alphanumeric only (e.g., `"SEOSettings"`). See
+    Step 6.
+
+29. **Graph schema breaks live frontend after in-place upgrade** —
     CMS 13 auto-migrates content type names and corrects property names,
     changing the GraphQL schema. Headless frontends querying the old
     schema get empty results or errors. Use the side-by-side approach:
