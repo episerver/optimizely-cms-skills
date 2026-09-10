@@ -109,7 +109,21 @@ Before making changes, scan the project to understand migration scope.
    - `EPiServer.MarketingAutomationIntegration.*` — not compatible; must remove
    - See `references/third-party-compatibility.md` for the complete list
 
-6. **Scan for spelling corrections** — CMS 13 fixes misspellings in the
+6. **Scan for headless frontend packages** — check `.csproj` for packages
+   indicating a headless frontend consumes CMS content:
+   ```shell
+   grep -r "Optimizely.Graph\|ContentDeliveryApi\|ContentManagementApi\|ContentDefinitionsApi" --include="*.csproj" .
+   ```
+   - `Optimizely.Graph.Cms` or `Optimizely.Graph.Cms.Query` — existing
+     Graph user
+   - `EPiServer.ContentDeliveryApi` or `EPiServer.ContentDeliveryApi.Cms` —
+     Content Delivery API user
+   - `EPiServer.ContentManagementApi` — Management API user (headless)
+   - `EPiServer.ContentDefinitionsApi` — Definitions API user (headless)
+
+   Any match → **Frontend: Present**. No match → **Frontend: None**.
+
+7. **Scan for spelling corrections** — CMS 13 fixes misspellings in the
    public API that cause compilation errors:
    - `GetDescendents` → `GetDescendants`
    - `includeDecendents` → `includeDescendants`
@@ -121,7 +135,9 @@ Before making changes, scan the project to understand migration scope.
    - See `references/breaking-changes-dotnet.md` section 14 for the full
      list
 
-7. **Categorize migration effort**:
+8. **Categorize migration effort** using two axes:
+
+   **Code Impact**:
    - **Minimal**: Only runtime + package updates needed (no removed features,
      no deprecated API usage, no incompatible third-party packages)
    - **Moderate**: API changes required (PageReference, SiteDefinition, etc.)
@@ -130,8 +146,42 @@ Before making changes, scan the project to understand migration scope.
      system, WebForms) or has many incompatible third-party packages
      requiring removal and replacement
 
-**If user only asked for assessment**: Stop here and report findings.
-Do not proceed to migration steps.
+   **Frontend Impact** (from item 6):
+   - **None**: No headless frontend packages detected
+   - **Present**: One or more headless frontend packages detected
+
+   Report as: `Code: <tier> | Frontend: <classification>`
+   Examples: `Code: Minimal | Frontend: None`,
+   `Code: Moderate | Frontend: Present`
+
+9. **When Frontend Impact is Present** — recommend the side-by-side
+   approach:
+   - CMS 13 introduces schema-breaking GraphQL changes (content type name
+     validation, property name corrections, ContentArea schema
+     restructuring, block type resolution changes) that will break live
+     headless frontends the moment the CMS database migrates.
+   - Recommend: complete the code migration (Steps 2–9) on a branch,
+     deploy CMS 13 to a staging instance, validate the frontend against
+     the new schema in Step 10, then cut over to production. The CMS 12
+     instance continues serving production until cutover.
+   - List the specific packages that triggered the "Frontend: Present"
+     classification so the developer understands why.
+
+10. **When both Find and headless frontend packages are detected** —
+    provide explicit sequencing:
+    1. Remove `EPiServer.Find.Cms` during Step 4 (incompatible package)
+    2. Complete the CMS 13 code migration (Steps 2–9)
+    3. Validate the frontend against the new CMS 13 schema (Step 10)
+    4. After migration is verified, run the `optimizely-find-to-graph`
+       skill to add Optimizely Graph
+
+    Do not migrate to Graph before completing the CMS 13 upgrade — Graph
+    packages installed on CMS 12 will need immediate version-bumping after
+    migration.
+
+**If user only asked for assessment**: Stop here and report findings
+(including Frontend Impact classification and any side-by-side or
+sequencing recommendations). Do not proceed to migration steps.
 
 ### Step 2: Upgrade .NET Runtime
 
@@ -567,7 +617,63 @@ See `references/breaking-changes-sdk.md` for detailed guidance.
 5. **Test GraphQL queries**: Verify queries return expected data,
    especially for ContentArea properties and block types.
 
-### Step 10: Verify Migration
+### Step 10: Graph/Headless Frontend Validation
+
+**Skip this step if your Step 1 assessment showed Frontend: None.**
+
+After completing the code migration (Steps 2–9), validate your headless
+frontend against the CMS 13 schema before cutting over to production.
+
+1. **Schema diff** — compare the CMS 12 and CMS 13 Graph schemas to
+   identify breaking changes. See `references/breaking-changes-sdk.md`
+   for the full list. Key schema changes:
+   - **Content type name auto-migration**: Names that were single
+     characters or contained invalid characters are prefixed (`CT_` for
+     content types, `PD_` for property definitions, `G_` for groups,
+     `PDT_` for property data types) or have invalid characters replaced
+     with `_`
+   - **Property name corrections**: Single-character property names get
+     `PD_` prefix; invalid characters become `_`
+   - **ContentArea schema restructuring**: ContentArea no longer inherits
+     XhtmlString on the server side; inline content fragments may be
+     structured differently in the GraphQL response
+   - **Block type resolution changes**: CMS 13 uses a common
+     PropertyDefinitionType for all blocks (DataType "Block") instead of
+     per-block-type definitions, affecting `__typename` discriminators
+
+2. **Frontend query audit** — scan the frontend codebase for GraphQL
+   queries that reference changed type or field names:
+   - Search for content type names that were single characters or
+     contained special characters (these were auto-migrated with prefixes)
+   - Search for property names that were corrected (single-char or
+     invalid-char names)
+   - Check ContentArea fragment expansions for structural changes
+   - Check `__typename` discriminators to verify they still resolve
+     correctly with the new block type resolution
+
+   Detection:
+   ```shell
+   # In the frontend codebase, search for GraphQL queries
+   grep -r "query\|fragment\|__typename" --include="*.ts" --include="*.tsx" --include="*.graphql" .
+   ```
+
+3. **Staged verification** — deploy CMS 13 to a staging environment and
+   validate the frontend end-to-end:
+   - Point the frontend at the CMS 13 staging instance's Graph endpoint
+   - Run the frontend test suite against the new schema
+   - Manually verify critical content pages render correctly
+   - Check that search queries return expected results
+   - Your CMS 12 instance continues serving production traffic. Do not
+     cut over until all verification passes.
+
+   If broken queries are discovered, fix them in the frontend codebase
+   and re-run verification. There is no time pressure — CMS 12 remains
+   running and serving production until you explicitly cut over.
+
+CRITICAL: Do not cut over to CMS 13 production until staged verification
+passes and all frontend queries return expected data.
+
+### Step 11: Verify Migration
 
 1. **Database prerequisites** (before first CMS 13 startup):
    - CMS 13 may create or alter database indexes on first startup.
@@ -707,6 +813,13 @@ and the runtime smoke test passes.
     `services.Configure<TelemetryOptions>()` and `using
     EPiServer.Shell.Telemetry` must be removed. Telemetry is entirely
     removed in CMS 13.
+
+26. **Graph schema breaks live frontend after in-place upgrade** —
+    CMS 13 auto-migrates content type names and corrects property names,
+    changing the GraphQL schema. Headless frontends querying the old
+    schema get empty results or errors. Use the side-by-side approach:
+    migrate on a branch, validate frontend against staging CMS 13, then
+    cut over. See Step 10.
 
 ## Related Skills
 
