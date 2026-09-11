@@ -20,6 +20,7 @@
     "./skills/setup/optimizely-project-scaffold",
     "./skills/setup/optimizely-cli-workflows",
     "./skills/setup/optimizely-observability",
+    "./skills/setup/optimizely-isr-setup",
     "./skills/modeling/optimizely-model",
     "./skills/modeling/optimizely-display-templates",
     "./skills/rendering/optimizely-model-react",
