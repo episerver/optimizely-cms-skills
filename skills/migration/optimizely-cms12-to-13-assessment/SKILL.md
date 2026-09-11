@@ -4,8 +4,8 @@ description: >-
   This skill should be used when the user asks for a "pre-migration
   assessment", "what would it take to migrate to CMS 13", "CMS 12 to 13
   migration effort", "what changed between CMS 12 and 13", "CMS 13
-  breaking changes", "is my project ready for CMS 13", "third-party
-  package compatibility CMS 13", "assess CMS 12 project for migration",
+  breaking changes", "is my project ready for CMS 13", "package
+  compatibility CMS 13", "assess CMS 12 project for migration",
   "how hard is the CMS 13 upgrade", or asks about the scope, effort, or
   risk of migrating from Optimizely CMS 12 to CMS 13 without requesting
   actual code changes.
@@ -21,7 +21,7 @@ recommended migration path — without making any code changes.
 - User wants a pre-migration assessment before starting the upgrade
 - User asks about breaking changes between CMS 12 and CMS 13
 - User asks what it would take to migrate to CMS 13
-- User asks about third-party package compatibility with CMS 13
+- User asks about package compatibility with CMS 13
 - User wants to understand migration scope or effort level
 - User asks whether their project is ready for CMS 13
 
@@ -50,7 +50,6 @@ Before making changes, scan the project to understand migration scope.
    in CMS 13:
    - `DynamicProperty` — Dynamic Properties (removed)
    - `PlugInAttribute`, `PlugInDescriptor` — PlugIn system (removed)
-   - `.aspx`, `DefaultWebFormTemplate` — WebForms (removed)
    - `MirroringImporting`, `MirroringExporting` — Mirroring (removed)
 
 4. **Scan for high-impact API changes**:
@@ -59,7 +58,7 @@ Before making changes, scan the project to understand migration scope.
    - `Castle.Windsor` — dependency removed
    - `Newtonsoft.Json` — replaced with System.Text.Json
    - `ContentArea.ToHtmlString` — ContentArea no longer inherits XhtmlString
-   - `ServiceLocator.Current` — removed; use constructor injection
+   - `ServiceLocator.Current` — antipattern, not recommended; use constructor injection
    - `IConfigurableModule` — removed; move to `Startup.ConfigureServices()`
    - `DataAccessBase` — obsoleted; use `IDatabaseExecutor`
    - `UriSupport.` (static usage) — obsoleted; inject `IUriSupport` via DI
@@ -94,20 +93,31 @@ Before making changes, scan the project to understand migration scope.
    Check each `GroupName` value — if it contains anything other than
    `[A-Za-z0-9]`, it must be renamed.
 
-6. **Scan for third-party packages** — check `.csproj` for packages with
+6. **Scan for incompatible packages** — check `.csproj` for packages with
    known CMS 13 incompatibilities:
-   - `EPiServer.Find.Cms` — no CMS 13 version; must remove
+
+   **Optimizely packages** (no CMS 13 version):
+   - `EPiServer.Find.Cms` — obsolete in CMS 13; must remove (migrate to
+     Optimizely Graph)
    - `EPiServer.ContentDeliveryApi.*` — not compatible; must remove
    - `EPiServer.ContentManagementApi` — not compatible; must remove
    - `EPiServer.ContentDefinitionsApi` — not compatible; must remove
    - `EPiServer.Cms.WelcomeIntegration.UI` — replaced by
      `EPiServer.Cms.DamIntegration.UI`
-   - `Geta.*` packages — most not compatible; must remove
-   - `Advanced.CMS.AdvancedReviews` — not compatible; must remove
-   - EPiServer Labs packages (BlockEnhancements, ContentManager,
-     GridView, etc.) — not compatible; must remove
    - `EPiServer.Marketing.Testing` — not compatible; must remove
    - `EPiServer.MarketingAutomationIntegration.*` — not compatible; must remove
+   - EPiServer Labs packages (BlockEnhancements, ContentManager,
+     GridView, etc.) — not compatible; must remove
+
+   **DAM integration caveat**: At the time of writing, there is no
+   migration path for customers using DAM integration in CMS 12. Check
+   the [Optimizely documentation](https://docs.developers.optimizely.com/content-management-system/v13.0.0-CMS/docs/upgrade-to-cms-13#pre-upgrade-audit-and-prepare)
+   for the latest state.
+
+   **Third-party packages**:
+   - `Geta.*` packages — most not compatible; must remove
+   - `Advanced.CMS.AdvancedReviews` — not compatible; must remove
+   - `Stott.Optimizely.RobotsHandler` — not compatible; must remove
    - See `references/third-party-compatibility.md` for the complete list
 
 7. **Scan for headless frontend packages** — check `.csproj` for packages
@@ -140,12 +150,12 @@ Before making changes, scan the project to understand migration scope.
 
    **Code Impact**:
    - **Minimal**: Only runtime + package updates needed (no removed features,
-     no deprecated API usage, no incompatible third-party packages)
+     no deprecated API usage, no incompatible packages)
    - **Moderate**: API changes required (PageReference, SiteDefinition, etc.)
      but no removed features
    - **Significant**: Uses removed features (Dynamic Properties, PlugIn
-     system, WebForms) or has many incompatible third-party packages
-     requiring removal and replacement
+     system) or has many incompatible packages requiring removal and
+     replacement
 
    **Frontend Impact** (from item 7):
    - **None**: No headless frontend packages detected
@@ -186,7 +196,7 @@ Present the assessment results:
 
 1. **Migration effort**: `Code: <tier> | Frontend: <classification>`
 2. **Removed features found** (if any): list each with recommended replacement
-3. **Incompatible third-party packages** (if any): list each with status
+3. **Incompatible packages** (if any): list each with status (Optimizely and third-party)
 4. **High-impact API changes detected**: count and list the most significant
 5. **Tab name issues** (if any): list non-alphanumeric GroupName values
 6. **Obsolete API warnings**: note that these should be fixed before upgrading

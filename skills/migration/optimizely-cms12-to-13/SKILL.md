@@ -8,7 +8,7 @@ description: >-
   "Dynamic Properties removed", "Visitor Groups stopped working after
   upgrade", "ContentArea no longer inherits XhtmlString", "migrate .NET
   to 10", "update EPiServer packages to CMS 13", "SiteDefinition
-  obsolete", "ServiceLocator.Current removed", "IConfigurableModule not
+  obsolete", "ServiceLocator.Current antipattern", "IConfigurableModule not
   found", "EPiServer.Find not compatible with CMS 13",
   "TypeLoadException after CMS upgrade", or mentions performing an
   Optimizely CMS version migration from CMS 12 to CMS 13.
@@ -30,7 +30,7 @@ removed features, and JS/TS SDK consumer impacts.
   ContentArea, XhtmlString)
 - User needs to upgrade .NET version for CMS 13 compatibility
 - User gets TypeLoadException or runtime errors after CMS 13 upgrade
-  (third-party package incompatibilities)
+  (package incompatibilities)
 - User encounters ServiceLocator.Current or IConfigurableModule errors
 
 **For pre-migration assessment only** (effort estimation, scope analysis,
@@ -174,12 +174,12 @@ Key changes:
 8. **Verify nuget.config** — ensure the Optimizely NuGet feed is
    configured. Required for resolving CMS 13 packages.
 
-### Step 4: Handle Third-Party Packages
+### Step 4: Handle Incompatible Packages
 
 See `references/third-party-compatibility.md` for the complete list.
 
-**Before upgrading core CMS packages**, address incompatible third-party
-packages to avoid cascading build failures.
+**Before upgrading core CMS packages**, address incompatible packages
+to avoid cascading build failures.
 
 1. **Remove incompatible packages with no CMS 13 version**:
    ```shell
@@ -207,6 +207,10 @@ packages to avoid cascading build failures.
 
 3. **Replace packages with alternatives**:
    - `EPiServer.Cms.WelcomeIntegration.UI` → `EPiServer.Cms.DamIntegration.UI`
+     **DAM integration caveat**: At the time of writing, there is no
+     migration path for customers using DAM integration in CMS 12. Check
+     the [Optimizely documentation](https://docs.developers.optimizely.com/content-management-system/v13.0.0-CMS/docs/upgrade-to-cms-13#pre-upgrade-audit-and-prepare)
+     for the latest state.
    - `EPiServer.Find.Cms` → Optimizely Graph (see `optimizely-find-to-graph` skill)
    - `EPiServer.ContentDeliveryApi.*` → Optimizely Graph (install
      `Optimizely.Graph.Cms` + `Optimizely.Graph.Cms.Query`, register with
@@ -282,12 +286,14 @@ services.AddCms();
 ```
 Detection: Search for `UseNewtonsoftJson`, `NewtonsoftJsonSerializerSettingsOptions`
 
-**ServiceLocator.Current → Constructor Injection**:
+**ServiceLocator.Current → Constructor Injection** (antipattern, not removed):
+`ServiceLocator.Current` still works in CMS 13 but is an antipattern
+that is not recommended. Migrate to constructor injection:
 ```csharp
 // Before (CMS 12)
 var repo = ServiceLocator.Current.GetInstance<IContentRepository>();
 
-// After (CMS 13) — inject via constructor
+// After (CMS 13) — inject via constructor (recommended)
 public class MyService
 {
     private readonly IContentRepository _repo;
@@ -403,13 +409,10 @@ See `references/removed-features.md` for detailed guidance on each.
    `ScheduledPlugInAttribute` with `ScheduledJobAttribute` and inherit
    from `ScheduledJobBase`. Search for: `PlugInAttribute`, `EPiServer.PlugIn`
 
-3. **WebForms**: Completely removed. Migrate to ASP.NET Core MVC/Razor.
-   Search for: `.aspx`, `DefaultWebFormTemplate`, `BlockController`
-
-4. **Mirroring**: Completely removed. Use Content Transfer API or
+3. **Mirroring**: Completely removed. Use Content Transfer API or
    third-party deployment tools. Search for: `MirroringImporting`
 
-5. **Telemetry**: Completely removed. Remove `using
+4. **Telemetry**: Completely removed. Remove `using
    EPiServer.Shell.Telemetry` and any `services.Configure<TelemetryOptions>()`
    calls. Search for: `TelemetryOptions`, `EPiServer.Shell.Telemetry`
 
@@ -451,9 +454,9 @@ services.AddCmsValidator<MyCustomValidator>();
 services.AddSingleton<IMyService, MyService>();
 ```
 
-**ServiceLocator removal**:
+**ServiceLocator antipattern**:
 ```csharp
-// CMS 13 — ServiceLocator.Current is removed
+// CMS 13 — ServiceLocator.Current still works but is an antipattern; use constructor injection
 // Replace all service locator usage with constructor injection
 // Search for: ServiceLocator.Current, ServiceLocationHelper
 ```
@@ -683,7 +686,7 @@ and the runtime smoke test passes.
     `Startup.ConfigureServices()` or `Program.cs`. Search for
     `IConfigurableModule` and `ServiceConfigurationContext`.
 
-12. **Third-party packages cause TypeLoadException at runtime** —
+12. **Incompatible packages cause TypeLoadException at runtime** —
     Packages like Geta.NotFoundHandler, Geta.Optimizely.Sitemaps, and
     Advanced.CMS.AdvancedReviews reference types that changed access
     modifiers or were removed. Remove incompatible packages before
@@ -694,9 +697,9 @@ and the runtime smoke test passes.
     usage, and Find-dependent code must be removed or migrated to
     Optimizely Graph. See the `optimizely-find-to-graph` skill.
 
-14. **ServiceLocator.Current throws at runtime** — `IServiceLocator` and
-    all `EPiServer.ServiceLocation` helper classes are removed. Replace
-    with constructor injection throughout.
+14. **ServiceLocator.Current is an antipattern** — `ServiceLocator.Current`
+    still works in CMS 13 but is not recommended and may be removed in
+    future versions. Replace with constructor injection throughout.
 
 15. **Spelling corrections cause compilation errors** — CMS 13 fixes
     misspelled API names (e.g., `GetDescendents` → `GetDescendants`,

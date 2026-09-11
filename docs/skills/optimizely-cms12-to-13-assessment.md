@@ -7,7 +7,7 @@ Scan a CMS 12 project and report migration effort, risk areas, and recommended m
 Use this skill when you want to:
 - Understand the scope and effort of migrating from CMS 12 to CMS 13
 - Get a breaking changes summary before starting the upgrade
-- Check third-party package compatibility with CMS 13
+- Check package compatibility with CMS 13
 - Determine whether your project needs the side-by-side migration approach (headless frontends)
 - Report migration readiness to stakeholders
 
@@ -22,7 +22,7 @@ Say any of these to activate the skill:
 - "What changed between CMS 12 and 13"
 - "CMS 13 breaking changes"
 - "Is my project ready for CMS 13"
-- "Third-party package compatibility CMS 13"
+- "Package compatibility CMS 13"
 - "How hard is the CMS 13 upgrade"
 
 ## Usage Example
@@ -32,9 +32,9 @@ You: "Assess our CMS 12 project for CMS 13 migration readiness"
 
 Agent: [Uses optimizely-cms12-to-13-assessment skill]
 - Detects current CMS version and .NET target framework
-- Scans for removed features (Dynamic Properties, PlugIn system, WebForms)
+- Scans for removed features (Dynamic Properties, PlugIn system)
 - Identifies high-impact API changes (PageReference, SiteDefinition, ContentArea, etc.)
-- Checks third-party packages against the compatibility list
+- Checks Optimizely and third-party packages against the compatibility list
 - Detects headless frontend packages (Graph, Content Delivery API)
 - Flags spelling corrections in the public API that cause confusing errors
 - Reports effort level: Code: Minimal/Moderate/Significant | Frontend: None/Present
@@ -45,9 +45,9 @@ Agent: [Uses optimizely-cms12-to-13-assessment skill]
 ## What It Reports
 
 - **Migration effort** -- Two-axis classification: Code Impact (Minimal, Moderate, Significant) and Frontend Impact (None, Present)
-- **Removed features** -- Dynamic Properties, PlugIn system, WebForms, Mirroring
+- **Removed features** -- Dynamic Properties, PlugIn system, Mirroring
 - **High-impact API changes** -- PageReference, SiteDefinition, ServiceLocator, IConfigurableModule, ContentArea, and 20+ more
-- **Third-party package compatibility** -- EPiServer.Find, Geta.*, Advanced.CMS.*, Labs, and others
+- **Package compatibility** -- Incompatible Optimizely packages (EPiServer.Find, Content Delivery/Management/Definitions APIs) and third-party packages (Geta.*, Advanced.CMS.*, Labs)
 - **Headless frontend detection** -- Graph, Content Delivery API, Management API, Definitions API
 - **Tab name issues** -- Non-alphanumeric GroupName values that will cause runtime errors
 - **Spelling corrections** -- Renamed API methods that cause confusing compilation errors
