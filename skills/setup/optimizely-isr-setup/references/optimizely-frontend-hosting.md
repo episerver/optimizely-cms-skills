@@ -19,7 +19,7 @@ Optimizely frontend hosting supports SSG, SSR, and ISR for Next.js. These enviro
 
 | Variable | Purpose |
 |---|---|
-| `OPTIMIZELY_GRAPH_GATEWAY` | Graph base URL, e.g. `https://cg.optimizely.com` |
+| `OPTIMIZELY_GRAPH_GATEWAY` | Graph query endpoint, e.g. `https://cg.optimizely.com/content/v2` |
 | `OPTIMIZELY_GRAPH_SINGLE_KEY` | Read-only query key |
 | `OPTIMIZELY_GRAPH_APP_KEY` | Webhook management, Basic auth username |
 | `OPTIMIZELY_GRAPH_SECRET` | Webhook management, Basic auth password (Key Vault) |
@@ -56,6 +56,8 @@ ISR requires a running Node.js server, so the deployment package must launch one
 ## Redis cache handler
 
 Frontend hosting runs multiple instances, so the default filesystem ISR cache must be replaced with a shared one. Without this, `revalidateTag()` only clears the cache on whichever instance received the webhook and the others keep serving stale HTML indefinitely.
+
+**This handler is for the `cacheHandler` API**, which backs `unstable_cache`, the fetch cache, and the full-route ISR cache. If the project is on Next.js 16 with `cacheComponents` enabled, `'use cache'` entries bypass it entirely and need a `cacheHandlers.default` implementation instead — see `nextjs-16-cache-components.md`, then come back here for the managed-identity connection and the deployment-slot namespacing, which apply to both.
 
 Install:
 
@@ -234,6 +236,9 @@ export async function register() {
   const hostname = process.env.OPTIMIZELY_SITE_HOSTNAME;
   if (!gateway || !hostname) return;
 
+  // OPTIMIZELY_GRAPH_GATEWAY points at the query endpoint (.../content/v2). The
+  // webhook management API lives at the origin, so derive it rather than appending.
+  const webhooksUrl = `${new URL(gateway).origin}/api/webhooks`;
   const callbackUrl = `https://${hostname}/api/revalidate`;
   const auth = Buffer.from(
     `${process.env.OPTIMIZELY_GRAPH_APP_KEY}:${process.env.OPTIMIZELY_GRAPH_SECRET}`,
@@ -241,7 +246,7 @@ export async function register() {
   const headers = { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json' };
 
   try {
-    const existing = await fetch(`${gateway}/api/webhooks`, { headers, cache: 'no-store' })
+    const existing = await fetch(webhooksUrl, { headers, cache: 'no-store' })
       .then((response) => response.json())
       .then((hooks) => (hooks ?? []).filter((hook) => hook?.request?.url === callbackUrl));
 
@@ -249,15 +254,13 @@ export async function register() {
       // Concurrent instance starts race. Keep one deterministically, drop the rest.
       const [keep, ...duplicates] = [...existing].sort((a, b) => String(b.id).localeCompare(String(a.id)));
       await Promise.all(
-        duplicates.map((hook) =>
-          fetch(`${gateway}/api/webhooks/${hook.id}`, { method: 'DELETE', headers }),
-        ),
+        duplicates.map((hook) => fetch(`${webhooksUrl}/${hook.id}`, { method: 'DELETE', headers })),
       );
       console.info(`[isr] webhook already registered (${keep.id})`);
       return;
     }
 
-    await fetch(`${gateway}/api/webhooks`, {
+    await fetch(webhooksUrl, {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -358,6 +361,18 @@ await purgeCdnCache([`https://${process.env.OPTIMIZELY_SITE_HOSTNAME}${path}`]);
 
 Only the changed page is revalidated and purged; other cached pages are untouched. If a change should affect many URLs (a footer edit), collect them and pass the whole array — the purge endpoint accepts multiple URLs in one call, which is far cheaper than one request per URL.
 
+The delete branch needs its own purge. When resolution returns null there is no path to build a URL from, so the CDN keeps serving the deleted page even after `revalidatePath('/', 'layout')` has cleared the origin — which looks exactly like ISR being broken. Cloud Platform's purge endpoint accepts a wildcard, so pair the site-wide revalidation with a site-wide purge:
+
+```typescript
+if (!content) {
+  revalidatePath('/', 'layout');
+  await purgeCdnCache([`https://${process.env.OPTIMIZELY_SITE_HOSTNAME}/*`]);
+  return NextResponse.json({ revalidated: true, contentKey, scope: 'site' });
+}
+```
+
+This is expensive — it costs you the entire edge cache — which is the price of not knowing the URL. If deletes are frequent enough for that to matter, keep the key → path index described in `SKILL.md` and purge precisely instead.
+
 ## Local development
 
 Locally you have no Redis, no managed identity, and no CDN, and the handler above degrades to the in-memory map automatically. Two things to remember:
@@ -375,6 +390,6 @@ Locally you have no Redis, no managed identity, and no CDN, and the handler abov
 
 **Webhook fires, ISR updates, browser still shows old page.** The CDN wasn't purged, or was purged for the wrong hostname. Confirm with a hard reload or by requesting the origin directly.
 
-**Many revalidations per publish.** Duplicate webhook registrations. `GET {gateway}/api/webhooks` and delete the extras; verify the dedup logic runs before the POST.
+**Many revalidations per publish.** Duplicate webhook registrations. `GET https://cg.optimizely.com/api/webhooks` and delete the extras; verify the dedup logic runs before the POST.
 
 **Redis connection errors at startup, then the app is slow.** The failure backoff isn't in place, so every cache read waits for the full connect timeout.

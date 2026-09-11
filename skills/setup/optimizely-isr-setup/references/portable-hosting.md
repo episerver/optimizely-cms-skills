@@ -31,7 +31,9 @@ The least work. Vercel's ISR cache is shared across all regions and functions, a
 Environment variables to configure in the project settings:
 
 ```
-OPTIMIZELY_GRAPH_GATEWAY=https://cg.optimizely.com
+# The query endpoint, matching the SDK default and the optimizely-setup skill.
+# The webhook management API is at the origin, so derive it: new URL(gateway).origin
+OPTIMIZELY_GRAPH_GATEWAY=https://cg.optimizely.com/content/v2
 OPTIMIZELY_GRAPH_SINGLE_KEY=...
 OPTIMIZELY_GRAPH_APP_KEY=...
 OPTIMIZELY_GRAPH_SECRET=...
@@ -53,6 +55,8 @@ The default filesystem cache under `.next/cache` works, so no handler is require
 ## Self-hosted, multiple instances
 
 You need a shared cache. Below is a plain Redis handler with no cloud-provider dependencies — the same shape as the DXP one in `optimizely-frontend-hosting.md`, minus managed identity.
+
+**This is the `cacheHandler` API**, which backs `unstable_cache`, the fetch cache, and full-route ISR. On Next.js 16 with `cacheComponents` enabled, `'use cache'` entries do not pass through it and need a `cacheHandlers.default` implementation instead — see `nextjs-16-cache-components.md`.
 
 ```bash
 npm install redis
@@ -196,10 +200,16 @@ The Next.js runtime maps ISR onto Netlify's durable cache, and `revalidateTag()`
 
 ## Registering the webhook manually
 
-Off DXP, a one-time registration is simpler and more predictable than startup auto-registration. Run this once per environment:
+Off DXP, a one-time registration is simpler and more predictable than startup auto-registration. Run this once per environment.
+
+The management API lives at the Graph origin, while `OPTIMIZELY_GRAPH_GATEWAY` points at the query endpoint underneath it, so derive one from the other rather than appending:
 
 ```bash
-curl -X POST "$OPTIMIZELY_GRAPH_GATEWAY/api/webhooks" \
+GRAPH_ORIGIN=$(node -p "new URL(process.env.OPTIMIZELY_GRAPH_GATEWAY).origin")
+```
+
+```bash
+curl -X POST "$GRAPH_ORIGIN/api/webhooks" \
   -u "$OPTIMIZELY_GRAPH_APP_KEY:$OPTIMIZELY_GRAPH_SECRET" \
   -H "Content-Type: application/json" \
   -d '{
@@ -217,14 +227,14 @@ curl -X POST "$OPTIMIZELY_GRAPH_GATEWAY/api/webhooks" \
 List what's registered, so you can spot leftovers pointing at dead preview URLs:
 
 ```bash
-curl "$OPTIMIZELY_GRAPH_GATEWAY/api/webhooks" \
+curl "$GRAPH_ORIGIN/api/webhooks" \
   -u "$OPTIMIZELY_GRAPH_APP_KEY:$OPTIMIZELY_GRAPH_SECRET"
 ```
 
 Delete one:
 
 ```bash
-curl -X DELETE "$OPTIMIZELY_GRAPH_GATEWAY/api/webhooks/{id}" \
+curl -X DELETE "$GRAPH_ORIGIN/api/webhooks/{id}" \
   -u "$OPTIMIZELY_GRAPH_APP_KEY:$OPTIMIZELY_GRAPH_SECRET"
 ```
 

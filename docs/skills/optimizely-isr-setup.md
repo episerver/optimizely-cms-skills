@@ -55,10 +55,10 @@ Agent: [Uses optimizely-isr-setup skill]
 ## What It Generates
 
 - **Tagged content fetches** -- `unstable_cache` (Next.js 14/15) or `'use cache'` with `cacheTag` (Next.js 15.5+/16) wrapping the SDK calls
-- **Page-level revalidation** -- `export const revalidate` and `dynamic = 'error'` on content routes
+- **Page-level revalidation** -- `export const revalidate` and `dynamic = 'error'` on content routes, or `cacheLife()` profiles on Next.js 16
 - **Webhook receiver** -- an authenticated `POST` route that parses the Graph payload, resolves the changed content, and revalidates
 - **Webhook registration** -- idempotent startup registration via `instrumentation.ts`, or a one-time `curl` / script
-- **Cache handler** -- a Redis-backed handler for multi-instance deployments, with an in-memory fallback
+- **Cache handler** -- a Redis-backed handler for multi-instance deployments, with an in-memory fallback, for both the legacy `cacheHandler` and the Next.js 16 `cacheHandlers` interface
 - **CDN purge** -- DXP Cloud Platform Services purge, or Cloudflare/Fastly/CloudFront equivalents
 
 ## Revalidation Strategy
@@ -85,6 +85,8 @@ The skill branches on where the app runs, because the invalidation mechanics dif
 - **Self-hosted, single instance** -- the default filesystem cache is sufficient
 - **Self-hosted, multiple instances** -- a shared Redis cache handler is required
 
+It also branches on the Next.js version, because Next.js 16 with Cache Components changes the configuration, the route-level setup, and the cache handler interface even though the tagging strategy stays the same.
+
 ## Key Considerations
 
 - The default Next.js ISR cache is **per-instance**. Anything horizontally scaled needs a shared cache handler, or some requests stay stale indefinitely.
@@ -92,14 +94,21 @@ The skill branches on where the app runs, because the invalidation mechanics dif
 - Reading `headers()`, `cookies()`, or `searchParams` silently makes a route dynamic, and ISR stops applying.
 - Reusable blocks have no URL, so `revalidatePath` cannot reach the pages embedding them -- tags can.
 - Every tag the app applies needs a matching `revalidateTag` in the webhook. A tag with no reader fails silently: the webhook still reports success and content just never updates.
+- Hard deletes cannot be resolved -- the document is gone from Graph before the webhook arrives, so path *and* type are both unavailable and every targeted invalidation is skipped while the webhook still reports success. The handler needs an explicit branch for this.
 - Revalidating Next.js does nothing to a CDN in front of it, except on Vercel and Netlify.
+- `OPTIMIZELY_GRAPH_GATEWAY` already includes `/content/v2`. The webhook management API sits at the origin, so derive it rather than appending.
+- `'use cache'` requires an opt-in flag: `cacheComponents: true` on Next.js 16, `experimental.useCache: true` on 15.x.
+- Under `cacheComponents`, route segment exports of `revalidate`, `dynamic`, and `fetchCache` are build errors; the interval moves into `cacheLife()`.
+- Next.js 16 `'use cache'` entries bypass the legacy `cacheHandler` and need a `cacheHandlers` implementation, which is a different five-method interface.
 - In Next.js 16, `revalidateTag` takes a `cacheLife` profile as its second argument; the single-argument form is deprecated.
 
 ## Related Skills
 
 - [`optimizely-setup`](optimizely-setup.md) -- Install the SDK and configure environment variables first
 - [`optimizely-content-fetching`](optimizely-content-fetching.md) -- The fetch calls that get wrapped in cached functions
+- [`optimizely-model`](optimizely-model.md) -- Where the content types being bucketed into revalidation strategies are defined
 - [`optimizely-content-navigation`](optimizely-content-navigation.md) -- Navigation and breadcrumbs, the classic shared-tag case
+- [`optimizely-multisite-locale`](optimizely-multisite-locale.md) -- Host resolution, the usual reason a route turns dynamic
 - [`optimizely-preview`](optimizely-preview.md) -- Preview routes, which must stay outside the ISR cache
 - [`optimizely-observability`](optimizely-observability.md) -- Spans carry a `cache: hit|miss` attribute for confirming ISR works
 - [`optimizely-troubleshoot-graph`](optimizely-troubleshoot-graph.md) -- Debugging the Graph queries the webhook makes
