@@ -36,7 +36,7 @@ npm run evaluate -- --generate-model <m> --judge-model <m>  # override models
 # LLM evaluation — CI (GitHub Actions workflow using Copilot CLI)
 # Trigger via: Actions → Skill Evaluations → Run workflow
 # Uses matrix strategy (max-parallel: 5) with GITHUB_TOKEN auth
-# CI scripts: scripts/ci/eval-manifest.js, eval-prompts.js, eval-score.js
+# CI scripts: scripts/ci/eval-manifest.js, eval-prompts.js, eval-score.js, eval-aggregate.js
 ```
 
 No build step, no linter. Node.js >= 18.
@@ -62,7 +62,7 @@ Six categories: `setup/`, `modeling/`, `rendering/`, `data/`, `editing/`, `migra
 - **Inter-skill dependency graph** (which skills reference which)
 - **Composite `releaseHash`** (SHA-256 of all skill hashes concatenated)
 
-The CI workflow (`skill-compat.yml`) auto-updates hashes on PRs and reports transitively affected skills. The release workflow (`release.yml`) stamps the version into `package.json` and `.claude-plugin/plugin.json`, tags the commit, and moves the `latest` tag.
+The CI workflow (`skill-compat.yml`) auto-updates hashes on PRs and reports transitively affected skills. It also supports `workflow_dispatch` for manual runs — requires a `pr_number` input and optionally toggles `post_comment` (defaults to true). The release workflow (`release.yml`) stamps the version into `package.json` and `.claude-plugin/plugin.json`, tags the commit, and moves the `latest` tag.
 
 ### Core Library: `scripts/lib/manifest.js`
 
@@ -72,6 +72,8 @@ All scripts share this module. Key exports:
 - `extractSkillName(skillPath)` — parses the `name:` field from YAML frontmatter
 - `scanSkillDependencies(skillPath, allNames)` — regex-based detection of skill references in markdown
 - `computeAffectedSkills(skills, changed)` — BFS on the reverse dependency graph
+- `loadEvalSuite(skillPath)` — loads `evals/evals.json` for a skill (returns null if missing)
+- `countAssertions(cases, filter?)` — counts assertion results across eval cases with optional filter
 - `ROOT` / `MANIFEST_PATH` — resolved paths to repo root and `skill-deps.json`
 
 ### Plugin Manifests

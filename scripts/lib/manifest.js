@@ -225,4 +225,36 @@ export function resolveTargetSkills(opts, manifest, pluginSkills) {
   return targets;
 }
 
+/**
+ * @typedef {Object} SkillRef
+ * @property {string} name
+ * @property {string} path
+ */
+
+/**
+ * Load the evals/evals.json suite for a skill. Returns null if not found.
+ * @param {string} skillPath - Relative skill path (e.g. "./skills/setup/optimizely-setup")
+ */
+export function loadEvalSuite(skillPath) {
+  const evalsPath = join(ROOT, skillPath, 'evals', 'evals.json');
+  if (!existsSync(evalsPath)) return null;
+  return JSON.parse(readFileSync(evalsPath, 'utf-8'));
+}
+
+/**
+ * Count assertion results across eval cases, optionally filtered.
+ * @param {Array} cases - Array of eval case results with assertionResults
+ * @param {Function} [filter] - Optional predicate to filter assertions
+ * @returns {number}
+ */
+export function countAssertions(cases, filter) {
+  return cases.reduce(
+    (sum, c) => {
+      const results = c.assertionResults || [];
+      return sum + (filter ? results.filter(filter).length : results.length);
+    },
+    0,
+  );
+}
+
 export { ROOT, MANIFEST_PATH };

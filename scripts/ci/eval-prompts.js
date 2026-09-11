@@ -1,7 +1,8 @@
+// Writes prompt files for both phases: --phase generate (skill+prompt) and --phase judge (verdict prompts).
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { ASSERTION_PROMPT, EXPECTED_OUTPUT_PROMPT } from '../lib/judge.js';
-import { ROOT } from '../lib/manifest.js';
+import { ROOT, loadEvalSuite } from '../lib/manifest.js';
 
 const WORK_DIR = join(ROOT, 'eval-work');
 
@@ -31,21 +32,18 @@ function parseArgs(argv) {
   return opts;
 }
 
-function loadEvalSuite(skillPath) {
-  const evalsPath = join(ROOT, skillPath, 'evals', 'evals.json');
-  if (!existsSync(evalsPath)) return null;
-  return JSON.parse(readFileSync(evalsPath, 'utf-8'));
-}
-
 function writePromptFile(caseId, filename, content) {
   const caseDir = join(WORK_DIR, String(caseId));
   mkdirSync(caseDir, { recursive: true });
   writeFileSync(join(caseDir, filename), content, 'utf-8');
 }
 
-function generatePhase(suite) {
+function generatePhase(suite, skillPath) {
+  const skillMdPath = join(ROOT, skillPath, 'SKILL.md');
+  const skillContent = readFileSync(skillMdPath, 'utf-8');
   for (const evalCase of suite.evals) {
-    writePromptFile(evalCase.id, 'generate-prompt.txt', evalCase.prompt);
+    const fullPrompt = `Use the following skill as context for answering:\n\n${skillContent}\n\n---\n\n${evalCase.prompt}`;
+    writePromptFile(evalCase.id, 'generate-prompt.txt', fullPrompt);
   }
   console.log(`Wrote ${suite.evals.length} generate prompt(s) to ${WORK_DIR}`);
 }
@@ -88,7 +86,7 @@ if (!suite || !suite.evals || suite.evals.length === 0) {
 }
 
 if (opts.phase === 'generate') {
-  generatePhase(suite);
+  generatePhase(suite, opts.skillPath);
 } else {
   judgePhase(suite);
 }

@@ -50,6 +50,8 @@ export function formatValidationJson(results) {
   );
 }
 
+import { countAssertions } from './manifest.js';
+
 export function formatEvalConsole(results, config) {
   const lines = ['=== Skill Evaluation ===\n'];
 
@@ -97,16 +99,9 @@ export function formatEvalConsole(results, config) {
 
   const passed = results.filter((r) => r.passed).length;
   const failed = results.length - passed;
-  let totalAssertions = 0;
-  let passedAssertions = 0;
-  for (const r of results) {
-    for (const c of r.cases) {
-      for (const a of c.assertionResults || []) {
-        totalAssertions++;
-        if (a.passed) passedAssertions++;
-      }
-    }
-  }
+  const allCases = results.flatMap((r) => r.cases);
+  const totalAssertions = countAssertions(allCases);
+  const passedAssertions = countAssertions(allCases, (a) => a.passed);
 
   lines.push('=== Results ===\n');
   lines.push(`  Passed: ${passed}/${results.length} skills`);
@@ -124,44 +119,3 @@ export function formatEvalConsole(results, config) {
   return lines.join('\n');
 }
 
-export function formatEvalJson(results, config) {
-  let totalAssertions = 0;
-  let passedAssertions = 0;
-  for (const r of results) {
-    for (const c of r.cases) {
-      for (const a of c.assertionResults || []) {
-        totalAssertions++;
-        if (a.passed) passedAssertions++;
-      }
-    }
-  }
-
-  return JSON.stringify(
-    {
-      command: 'evaluate',
-      timestamp: new Date().toISOString(),
-      config: {
-        generateModel: config.generateModel,
-        judgeModel: config.judgeModel,
-        threshold: config.threshold,
-        backend: config.ci ? 'api' : 'cli',
-      },
-      skills: results.map((r) => ({
-        skill: r.skill,
-        cases: r.cases,
-        score: Math.round(r.score),
-        passed: r.passed,
-      })),
-      summary: {
-        total: results.length,
-        passed: results.filter((r) => r.passed).length,
-        failed: results.filter((r) => !r.passed).length,
-        totalAssertions,
-        passedAssertions,
-      },
-      passed: results.every((r) => r.passed),
-    },
-    null,
-    2,
-  );
-}

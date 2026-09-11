@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { loadPluginSkills, loadManifest, resolveTargetSkills, ROOT } from './lib/manifest.js';
+import { loadPluginSkills, loadManifest, resolveTargetSkills, loadEvalSuite, ROOT } from './lib/manifest.js';
 import { judgeAssertion, judgeExpectedOutput } from './lib/judge.js';
 import { createSemaphore } from './lib/concurrency.js';
 import { formatEvalConsole } from './lib/reporter.js';
@@ -22,16 +22,20 @@ function runClaude(args, timeout = 120_000) {
   });
 }
 
-function createBackend() {
+function createBackend(config) {
   return {
     async generate(skillPath, prompt) {
       const skillMdPath = join(ROOT, skillPath, 'SKILL.md');
       const skillContent = readFileSync(skillMdPath, 'utf-8');
       const fullPrompt = `Use the following skill as context for answering:\n\n${skillContent}\n\n---\n\n${prompt}`;
-      return runClaude(['-p', fullPrompt, '--output-format', 'text']);
+      const args = ['-p', fullPrompt, '--output-format', 'text'];
+      if (config.generateModel) args.push('--model', config.generateModel);
+      return runClaude(args);
     },
     async judge(prompt) {
-      return runClaude(['-p', prompt, '--output-format', 'text']);
+      const args = ['-p', prompt, '--output-format', 'text'];
+      if (config.judgeModel) args.push('--model', config.judgeModel);
+      return runClaude(args);
     },
   };
 }
@@ -120,6 +124,15 @@ function parseArgs(argv) {
   return opts;
 }
 
+/**
+ * @typedef {Object} EvalConfig
+ * @property {number} threshold
+ * @property {string} generateModel
+ * @property {string} judgeModel
+ * @property {boolean} verbose
+ */
+
+/** @returns {EvalConfig} */
 function resolveConfig(opts) {
   return {
     threshold: opts.threshold ?? 80,
@@ -137,12 +150,6 @@ function log(config, ...args) {
   } else {
     console.error(msg);
   }
-}
-
-function loadEvalSuite(skillPath) {
-  const evalsPath = join(ROOT, skillPath, 'evals', 'evals.json');
-  if (!existsSync(evalsPath)) return null;
-  return JSON.parse(readFileSync(evalsPath, 'utf-8'));
 }
 
 function withTimeout(promise, ms) {
@@ -164,10 +171,10 @@ async function evaluateCase(evalCase, skillPath, backend, config) {
   } catch (err) {
     if (err.message === 'TIMEOUT') {
       log(config, `  Case ${evalCase.id}: TIMED OUT after ${CASE_TIMEOUT_MS / 1000}s`);
-      return { id: evalCase.id, timedOut: true, error: null, assertionResults: [], score: 0 };
+      return { id: evalCase.id, prompt: evalCase.prompt, timedOut: true, error: null, assertionResults: [], score: 0 };
     }
     log(config, `  Case ${evalCase.id}: ERROR — ${err.message}`);
-    return { id: evalCase.id, timedOut: false, error: err.message, assertionResults: [], score: 0 };
+    return { id: evalCase.id, prompt: evalCase.prompt, timedOut: false, error: err.message, assertionResults: [], score: 0 };
   }
 
   log(config, `  Case ${evalCase.id}: got response (${response.length} chars), judging...`);
@@ -191,10 +198,10 @@ async function evaluateCase(evalCase, skillPath, backend, config) {
 
   const total = assertionResults.length;
   const passed = assertionResults.filter((a) => a.passed).length;
-  const score = total > 0 ? passed / total : 1;
+  const score = total > 0 ? (passed / total) * 100 : 100;
 
-  log(config, `  Case ${evalCase.id}: score ${(score * 100).toFixed(0)}% (${passed}/${total})`);
-  return { id: evalCase.id, timedOut: false, error: null, assertionResults, score };
+  log(config, `  Case ${evalCase.id}: score ${score.toFixed(0)}% (${passed}/${total})`);
+  return { id: evalCase.id, prompt: evalCase.prompt, timedOut: false, error: null, assertionResults, score };
 }
 
 async function evaluateSkill(skill, backend, config) {
@@ -216,14 +223,14 @@ async function evaluateSkill(skill, backend, config) {
   }
 
   const totalScore = cases.length > 0
-    ? (cases.reduce((sum, c) => sum + c.score, 0) / cases.length) * 100
+    ? cases.reduce((sum, c) => sum + c.score, 0) / cases.length
     : 100;
 
   log(config, `  Result: ${totalScore.toFixed(1)}% (threshold: ${config.threshold}%) — ${totalScore >= config.threshold ? 'PASSED' : 'FAILED'}`);
   return {
     skill: skill.name,
     cases,
-    score: totalScore,
+    score: Math.round(totalScore * 100) / 100,
     passed: totalScore >= config.threshold,
   };
 }
@@ -247,7 +254,7 @@ if (!manifest) {
 const pluginSkills = loadPluginSkills();
 const targets = resolveTargetSkills(opts, manifest, pluginSkills);
 log(config, `Resolved ${targets.length} skill(s) to evaluate: ${targets.map((t) => t.name).join(', ')}`);
-const backend = createBackend();
+const backend = createBackend(config);
 const semaphore = createSemaphore(5);
 
 const promises = targets.map(async (skill) => {

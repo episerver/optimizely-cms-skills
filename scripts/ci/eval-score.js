@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseJudgment } from '../lib/judge.js';
-import { ROOT } from '../lib/manifest.js';
+import { ROOT, loadEvalSuite } from '../lib/manifest.js';
 
 const WORK_DIR = join(ROOT, 'eval-work');
 
@@ -27,12 +27,6 @@ function parseArgs(argv) {
     process.exit(2);
   }
   return opts;
-}
-
-function loadEvalSuite(skillPath) {
-  const evalsPath = join(ROOT, skillPath, 'evals', 'evals.json');
-  if (!existsSync(evalsPath)) return null;
-  return JSON.parse(readFileSync(evalsPath, 'utf-8'));
 }
 
 function scoreCase(evalCase) {
@@ -77,7 +71,7 @@ function scoreCase(evalCase) {
 
   const total = assertionResults.length;
   const passed = assertionResults.filter((a) => a.passed).length;
-  const score = total > 0 ? passed / total : 1;
+  const score = total > 0 ? (passed / total) * 100 : 100;
 
   return { id: evalCase.id, prompt: evalCase.prompt, timedOut: false, error: null, assertionResults, score };
 }
@@ -93,7 +87,7 @@ if (!suite || !suite.evals || suite.evals.length === 0) {
 
 const cases = suite.evals.map(scoreCase);
 const totalScore = cases.length > 0
-  ? (cases.reduce((sum, c) => sum + c.score, 0) / cases.length) * 100
+  ? cases.reduce((sum, c) => sum + c.score, 0) / cases.length
   : 100;
 
 const result = {

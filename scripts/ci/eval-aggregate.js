@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { countAssertions } from '../lib/manifest.js';
 
 const resultsDir = process.argv[2];
 if (!resultsDir) {
@@ -19,16 +20,9 @@ const skills = dirs
   })
   .filter(Boolean);
 
-function countAssertions(skill, filter) {
-  return skill.cases.reduce(
-    (sum, c) => sum + (filter ? c.assertionResults.filter(filter).length : c.assertionResults.length),
-    0,
-  );
-}
-
 const passed = skills.filter((s) => s.passed).length;
-const totalAssertions = skills.reduce((sum, s) => sum + countAssertions(s), 0);
-const passedAssertions = skills.reduce((sum, s) => sum + countAssertions(s, (a) => a.passed), 0);
+const totalAssertions = skills.reduce((sum, s) => sum + countAssertions(s.cases), 0);
+const passedAssertions = skills.reduce((sum, s) => sum + countAssertions(s.cases, (a) => a.passed), 0);
 
 const result = {
   command: 'evaluate',
