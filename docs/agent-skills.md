@@ -78,6 +78,7 @@ cp -r optimizely-cms-skills/skills/* .claude/skills/
 | [optimizely-project-scaffold](../skills/setup/optimizely-project-scaffold/) | Scaffold a new project from starter templates | [Guide](skills/optimizely-project-scaffold.md) |
 | [optimizely-cli-workflows](../skills/setup/optimizely-cli-workflows/) | CLI commands for syncing content types with the CMS | [Guide](skills/optimizely-cli-workflows.md) |
 | [optimizely-observability](../skills/setup/optimizely-observability/) | Add OpenTelemetry tracing and monitoring | [Guide](skills/optimizely-observability.md) |
+| [optimizely-isr-setup](../skills/setup/optimizely-isr-setup/) | Configure Next.js ISR, cache tags, and revalidation webhooks | [Guide](skills/optimizely-isr-setup.md) |
 
 ### Modeling
 
