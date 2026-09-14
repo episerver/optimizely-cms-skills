@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadPluginSkills, loadManifest, computeSkillHash, extractSkillName, resolveTargetSkills, ROOT } from './lib/manifest.js';
 import { formatValidationConsole, formatValidationJson } from './lib/reporter.js';
+import { parseArgs } from './lib/cli-args.js';
 
 const HELP_TEXT = `Usage: node scripts/validate-skills.js [options]
 
@@ -10,40 +11,6 @@ Options:
   --deps            Also validate the skill's dependencies (requires --skill)
   --ci              Output JSON instead of console formatting
   --help            Show help`;
-
-function parseArgs(argv) {
-  const args = argv.slice(2);
-  const opts = { skill: null, deps: false, ci: false, help: false };
-  for (let i = 0; i < args.length; i++) {
-    switch (args[i]) {
-      case '--skill':
-        i++;
-        if (!args[i]) {
-          console.error('Error: --skill requires a skill name');
-          process.exit(2);
-        }
-        opts.skill = args[i];
-        break;
-      case '--deps':
-        opts.deps = true;
-        break;
-      case '--ci':
-        opts.ci = true;
-        break;
-      case '--help':
-        opts.help = true;
-        break;
-      default:
-        console.error(`Error: unknown flag "${args[i]}"\n\n${HELP_TEXT}`);
-        process.exit(2);
-    }
-  }
-  if (opts.deps && !opts.skill) {
-    console.error('Error: --deps requires --skill\n\n' + HELP_TEXT);
-    process.exit(2);
-  }
-  return opts;
-}
 
 function checkFrontmatter(skillPath) {
   const skillMdPath = join(ROOT, skillPath, 'SKILL.md');
@@ -150,7 +117,17 @@ function validateSkill(skill, manifest) {
   };
 }
 
-const opts = parseArgs(process.argv);
+const opts = parseArgs(process.argv, {
+  flags: {
+    skill: { type: 'string' },
+    deps: { type: 'boolean' },
+    ci: { type: 'boolean' },
+    help: { type: 'boolean' },
+  },
+  defaults: { skill: null, deps: false, ci: false, help: false },
+  usage: HELP_TEXT,
+  validate: [(o) => o.deps && !o.skill ? '--deps requires --skill' : null],
+});
 
 if (opts.help) {
   console.log(HELP_TEXT);

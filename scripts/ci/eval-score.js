@@ -2,32 +2,9 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseJudgment } from '../lib/judge.js';
 import { ROOT, loadEvalSuite } from '../lib/manifest.js';
+import { parseArgs } from '../lib/cli-args.js';
 
 const WORK_DIR = join(ROOT, 'eval-work');
-
-function parseArgs(argv) {
-  const args = argv.slice(2);
-  const opts = { skillPath: null, threshold: 80 };
-  for (let i = 0; i < args.length; i++) {
-    switch (args[i]) {
-      case '--skill-path':
-        i++;
-        opts.skillPath = args[i];
-        break;
-      case '--threshold': {
-        i++;
-        const val = Number(args[i]);
-        if (!isNaN(val) && val >= 0 && val <= 100) opts.threshold = val;
-        break;
-      }
-    }
-  }
-  if (!opts.skillPath) {
-    console.error('Usage: eval-score.js --skill-path <path> [--threshold N]');
-    process.exit(2);
-  }
-  return opts;
-}
 
 function scoreCase(evalCase) {
   const caseDir = join(WORK_DIR, String(evalCase.id));
@@ -76,7 +53,18 @@ function scoreCase(evalCase) {
   return { id: evalCase.id, prompt: evalCase.prompt, timedOut: false, error: null, assertionResults, score };
 }
 
-const opts = parseArgs(process.argv);
+const opts = parseArgs(process.argv, {
+  flags: {
+    'skill-path': { type: 'string' },
+    threshold: { type: 'number' },
+  },
+  defaults: { skillPath: null, threshold: 80 },
+  strict: false,
+  usage: 'Usage: eval-score.js --skill-path <path> [--threshold N]',
+  validate: [
+    (o) => !o.skillPath ? '--skill-path is required' : null,
+  ],
+});
 const suite = loadEvalSuite(opts.skillPath);
 
 if (!suite || !suite.evals || suite.evals.length === 0) {

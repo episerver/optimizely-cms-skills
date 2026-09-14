@@ -1,10 +1,9 @@
 import { execFile } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { loadPluginSkills, loadManifest, resolveTargetSkills, loadEvalSuite, ROOT } from './lib/manifest.js';
-import { judgeAssertion, judgeExpectedOutput } from './lib/judge.js';
+import { loadPluginSkills, loadManifest, resolveTargetSkills, loadEvalSuite } from './lib/manifest.js';
+import { judgeAssertion, judgeExpectedOutput, buildSkillPrompt } from './lib/judge.js';
 import { createSemaphore } from './lib/concurrency.js';
 import { formatEvalConsole } from './lib/reporter.js';
+import { parseArgs } from './lib/cli-args.js';
 
 const DEFAULT_GENERATE_MODEL = 'claude-sonnet-4-6';
 const DEFAULT_JUDGE_MODEL = 'claude-haiku-4-5';
@@ -25,9 +24,7 @@ function runClaude(args, timeout = 120_000) {
 function createBackend(config) {
   return {
     async generate(skillPath, prompt) {
-      const skillMdPath = join(ROOT, skillPath, 'SKILL.md');
-      const skillContent = readFileSync(skillMdPath, 'utf-8');
-      const fullPrompt = `Use the following skill as context for answering:\n\n${skillContent}\n\n---\n\n${prompt}`;
+      const fullPrompt = buildSkillPrompt(skillPath, prompt);
       const args = ['-p', fullPrompt, '--output-format', 'text'];
       if (config.generateModel) args.push('--model', config.generateModel);
       return runClaude(args);
@@ -56,73 +53,6 @@ Options:
 
 const CASE_TIMEOUT_MS = 120_000;
 
-function parseArgs(argv) {
-  const args = argv.slice(2);
-  const opts = {
-    skill: null,
-    deps: false,
-    threshold: null,
-    generateModel: null,
-    judgeModel: null,
-    verbose: false,
-    help: false,
-  };
-  for (let i = 0; i < args.length; i++) {
-    switch (args[i]) {
-      case '--skill':
-        i++;
-        if (!args[i]) {
-          console.error('Error: --skill requires a skill name');
-          process.exit(2);
-        }
-        opts.skill = args[i];
-        break;
-      case '--deps':
-        opts.deps = true;
-        break;
-      case '--threshold': {
-        i++;
-        const val = Number(args[i]);
-        if (isNaN(val) || val < 0 || val > 100) {
-          console.error('Error: --threshold must be a number between 0 and 100');
-          process.exit(2);
-        }
-        opts.threshold = val;
-        break;
-      }
-      case '--generate-model':
-        i++;
-        if (!args[i]) {
-          console.error('Error: --generate-model requires a model name');
-          process.exit(2);
-        }
-        opts.generateModel = args[i];
-        break;
-      case '--judge-model':
-        i++;
-        if (!args[i]) {
-          console.error('Error: --judge-model requires a model name');
-          process.exit(2);
-        }
-        opts.judgeModel = args[i];
-        break;
-      case '--verbose':
-        opts.verbose = true;
-        break;
-      case '--help':
-        opts.help = true;
-        break;
-      default:
-        console.error(`Error: unknown flag "${args[i]}"\n\n${HELP_TEXT}`);
-        process.exit(2);
-    }
-  }
-  if (opts.deps && !opts.skill) {
-    console.error('Error: --deps requires --skill\n\n' + HELP_TEXT);
-    process.exit(2);
-  }
-  return opts;
-}
 
 /**
  * @typedef {Object} EvalConfig
@@ -235,7 +165,23 @@ async function evaluateSkill(skill, backend, config) {
   };
 }
 
-const opts = parseArgs(process.argv);
+const opts = parseArgs(process.argv, {
+  flags: {
+    skill: { type: 'string' },
+    deps: { type: 'boolean' },
+    threshold: { type: 'number' },
+    'generate-model': { type: 'string' },
+    'judge-model': { type: 'string' },
+    verbose: { type: 'boolean' },
+    help: { type: 'boolean' },
+  },
+  defaults: { skill: null, deps: false, threshold: null, generateModel: null, judgeModel: null, verbose: false, help: false },
+  usage: HELP_TEXT,
+  validate: [
+    (o) => o.deps && !o.skill ? '--deps requires --skill' : null,
+    (o) => o.threshold !== null && (o.threshold < 0 || o.threshold > 100) ? '--threshold must be between 0 and 100' : null,
+  ],
+});
 
 if (opts.help) {
   console.log(HELP_TEXT);

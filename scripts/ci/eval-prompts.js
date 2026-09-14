@@ -1,36 +1,11 @@
 // Writes prompt files for both phases: --phase generate (skill+prompt) and --phase judge (verdict prompts).
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { ASSERTION_PROMPT, EXPECTED_OUTPUT_PROMPT } from '../lib/judge.js';
+import { ASSERTION_PROMPT, EXPECTED_OUTPUT_PROMPT, buildSkillPrompt } from '../lib/judge.js';
 import { ROOT, loadEvalSuite } from '../lib/manifest.js';
+import { parseArgs } from '../lib/cli-args.js';
 
 const WORK_DIR = join(ROOT, 'eval-work');
-
-function parseArgs(argv) {
-  const args = argv.slice(2);
-  const opts = { skillPath: null, phase: null };
-  for (let i = 0; i < args.length; i++) {
-    switch (args[i]) {
-      case '--skill-path':
-        i++;
-        opts.skillPath = args[i];
-        break;
-      case '--phase':
-        i++;
-        opts.phase = args[i];
-        break;
-    }
-  }
-  if (!opts.skillPath || !opts.phase) {
-    console.error('Usage: eval-prompts.js --skill-path <path> --phase generate|judge');
-    process.exit(2);
-  }
-  if (opts.phase !== 'generate' && opts.phase !== 'judge') {
-    console.error('Error: --phase must be "generate" or "judge"');
-    process.exit(2);
-  }
-  return opts;
-}
 
 function writePromptFile(caseId, filename, content) {
   const caseDir = join(WORK_DIR, String(caseId));
@@ -39,10 +14,8 @@ function writePromptFile(caseId, filename, content) {
 }
 
 function generatePhase(suite, skillPath) {
-  const skillMdPath = join(ROOT, skillPath, 'SKILL.md');
-  const skillContent = readFileSync(skillMdPath, 'utf-8');
   for (const evalCase of suite.evals) {
-    const fullPrompt = `Use the following skill as context for answering:\n\n${skillContent}\n\n---\n\n${evalCase.prompt}`;
+    const fullPrompt = buildSkillPrompt(skillPath, evalCase.prompt);
     writePromptFile(evalCase.id, 'generate-prompt.txt', fullPrompt);
   }
   console.log(`Wrote ${suite.evals.length} generate prompt(s) to ${WORK_DIR}`);
@@ -78,7 +51,22 @@ function judgePhase(suite) {
   console.log(`Wrote ${count} judge prompt(s) to ${WORK_DIR}`);
 }
 
-const opts = parseArgs(process.argv);
+const USAGE = 'Usage: eval-prompts.js --skill-path <path> --phase generate|judge';
+
+const opts = parseArgs(process.argv, {
+  flags: {
+    'skill-path': { type: 'string' },
+    phase: { type: 'string' },
+  },
+  defaults: { skillPath: null, phase: null },
+  strict: false,
+  usage: USAGE,
+  validate: [
+    (o) => !o.skillPath ? '--skill-path is required' : null,
+    (o) => !o.phase ? '--phase is required' : null,
+    (o) => o.phase && o.phase !== 'generate' && o.phase !== 'judge' ? '--phase must be "generate" or "judge"' : null,
+  ],
+});
 const suite = loadEvalSuite(opts.skillPath);
 if (!suite || !suite.evals || suite.evals.length === 0) {
   console.log('No eval cases found');

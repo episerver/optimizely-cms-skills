@@ -22,6 +22,16 @@ Does the response adequately match the expected output description? Answer with 
 PASS: <one-line reason>
 FAIL: <one-line reason>`;
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { ROOT } from './manifest.js';
+
+export function buildSkillPrompt(skillPath, userPrompt) {
+  const skillMdPath = join(ROOT, skillPath, 'SKILL.md');
+  const skillContent = readFileSync(skillMdPath, 'utf-8');
+  return `Use the following skill as context for answering:\n\n${skillContent}\n\n---\n\n${userPrompt}`;
+}
+
 export function parseJudgment(text) {
   const trimmed = text.trim();
   const passMatch = trimmed.match(/^PASS:\s*(.+)/i);

@@ -1,25 +1,5 @@
 import { loadPluginSkills, loadManifest, resolveTargetSkills, computeAffectedSkills, findSkillNameByPath } from '../lib/manifest.js';
-
-function parseArgs(argv) {
-  const args = argv.slice(2);
-  const opts = { skill: null, deps: false, changedFiles: null };
-  for (let i = 0; i < args.length; i++) {
-    switch (args[i]) {
-      case '--skill':
-        i++;
-        opts.skill = args[i];
-        break;
-      case '--deps':
-        opts.deps = true;
-        break;
-      case '--changed-files':
-        i++;
-        opts.changedFiles = args[i];
-        break;
-    }
-  }
-  return opts;
-}
+import { parseArgs } from '../lib/cli-args.js';
 
 function resolveFromChangedFiles(changedFiles, manifest, pluginSkills) {
   const files = changedFiles.split('\n').map((f) => f.trim()).filter(Boolean);
@@ -45,7 +25,15 @@ function resolveFromChangedFiles(changedFiles, manifest, pluginSkills) {
   }).filter(Boolean);
 }
 
-const opts = parseArgs(process.argv);
+const opts = parseArgs(process.argv, {
+  flags: {
+    skill: { type: 'string' },
+    deps: { type: 'boolean' },
+    'changed-files': { type: 'string' },
+  },
+  defaults: { skill: null, deps: false, changedFiles: null },
+  strict: false,
+});
 const manifest = loadManifest();
 if (!manifest) {
   console.error('Error: skill-deps.json not found. Run "npm run update-hashes" first.');
