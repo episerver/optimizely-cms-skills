@@ -9,6 +9,9 @@
   "scripts": {
     "check-hashes": "node scripts/check-skill-hashes.js",
     "update-hashes": "node scripts/update-skill-hashes.js",
-    "affected-evals": "node scripts/run-skill-evals.js"
-  }
+    "affected-evals": "node scripts/run-skill-evals.js",
+    "validate": "node scripts/validate-skills.js",
+    "evaluate": "node scripts/evaluate-skills.js"
+  },
+  "devDependencies": {}
 }
