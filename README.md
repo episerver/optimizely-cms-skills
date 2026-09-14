@@ -48,6 +48,7 @@ cp -r optimizely-cms-skills/skills/* ~/.claude/skills/
 | [optimizely-cli-workflows](./skills/setup/optimizely-cli-workflows/) | CLI commands for syncing content types with the CMS |
 | [optimizely-observability](./skills/setup/optimizely-observability/) | Add OpenTelemetry tracing and monitoring to the SDK |
 | [optimizely-isr-setup](./skills/setup/optimizely-isr-setup/) | Configure Next.js ISR, cache tags, and on-demand revalidation webhooks |
+| [optimizely-cache-strategy](./skills/setup/optimizely-cache-strategy/) | Configure CDN cache headers, stale-while-revalidate, and edge cache tag purging |
 
 ### Modeling
 

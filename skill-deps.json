@@ -1,8 +1,8 @@
 {
   "$schema": "./scripts/skill-deps.schema.json",
   "version": 1,
-  "generated": "2026-09-11T12:17:31.716Z",
-  "releaseHash": "sha256:d47d750eb1ee6213f5165a518233085f3b971d2350fda3d2696f3dc3e8cb0ee4",
+  "generated": "2026-09-14T12:36:21.440Z",
+  "releaseHash": "sha256:e583d37614d13eac2db5f76a5c59913ce6463136531d49136d2c17710769b322",
   "skills": {
     "optimizely-setup": {
       "path": "./skills/setup/optimizely-setup",
@@ -46,6 +46,18 @@
         "optimizely-observability",
         "optimizely-preview",
         "optimizely-setup",
+        "optimizely-troubleshoot-graph"
+      ]
+    },
+    "optimizely-cache-strategy": {
+      "path": "./skills/setup/optimizely-cache-strategy",
+      "hash": "sha256:c631591e20cb1200cfb907a2e55f603605a9ba7625a658d958426e1c9829d845",
+      "dependencies": [
+        "optimizely-graphql-optimization",
+        "optimizely-isr-setup",
+        "optimizely-multisite-locale",
+        "optimizely-observability",
+        "optimizely-preview",
         "optimizely-troubleshoot-graph"
       ]
     },
