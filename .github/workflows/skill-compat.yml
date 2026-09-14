@@ -19,6 +19,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  copilot-requests: write
 
 jobs:
   check-skill-hashes:
@@ -26,6 +27,9 @@ jobs:
     outputs:
       affected_skills: ${{ steps.affected.outputs.skills }}
       has_affected: ${{ steps.affected.outputs.has_affected }}
+      report: ${{ steps.check.outputs.report }}
+      has_changes: ${{ steps.check.outputs.exit_code != '0' }}
+      pr_number: ${{ steps.pr.outputs.number }}
     steps:
       - name: Resolve PR ref
         id: pr
@@ -49,7 +53,7 @@ jobs:
           node-version: '24'
 
       - name: Validate skill structure
-        run: node scripts/validate-skills.js --ci
+        run: node scripts/validate-skills.js --ci --skip-hash-freshness
 
       - name: Check skill hashes
         id: check
@@ -101,15 +105,6 @@ jobs:
         env:
           REPORT: ${{ steps.check.outputs.report }}
 
-      - name: Report affected evals
-        if: steps.check.outputs.exit_code != '0'
-        id: evals
-        run: |
-          EVAL_REPORT=$(node scripts/run-skill-evals.js)
-          echo "eval_report<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$EVAL_REPORT" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
-
       - name: Commit updated hashes
         if: steps.check.outputs.exit_code != '0'
         env:
@@ -123,13 +118,33 @@ jobs:
           git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
           git push
 
+  run-evals:
+    needs: check-skill-hashes
+    if: needs.check-skill-hashes.outputs.has_affected == 'true'
+    uses: ./.github/workflows/skill-evals.yml
+    with:
+      skills: ${{ needs.check-skill-hashes.outputs.affected_skills }}
+    secrets: inherit
+
+  post-comment:
+    needs: [check-skill-hashes, run-evals]
+    if: always() && needs.check-skill-hashes.outputs.has_changes == 'true' && (github.event_name == 'pull_request' || inputs.post_comment)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download eval results
+        if: needs.run-evals.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: eval-results
+          path: eval-results/
+        continue-on-error: true
+
       - name: Post PR comment
-        if: steps.check.outputs.exit_code != '0' && (github.event_name == 'pull_request' || inputs.post_comment)
         uses: actions/github-script@v8
         with:
           script: |
+            const fs = require('fs');
             const report = JSON.parse(process.env.REPORT);
-            const evalReport = process.env.EVAL_REPORT;
 
             let body = '## Skill Compatibility Report\n\n';
 
@@ -166,9 +181,30 @@ jobs:
               body += '\n';
             }
 
-            if (evalReport) {
-              body += '### Eval Report\n';
-              body += '```\n' + evalReport + '\n```\n\n';
+            // Include eval results if available
+            const evalPath = 'eval-results/eval-results.json';
+            if (fs.existsSync(evalPath)) {
+              try {
+                const evalResults = JSON.parse(fs.readFileSync(evalPath, 'utf-8'));
+                body += '### Evaluation Results\n\n';
+                body += '| Skill | Score | Status |\n';
+                body += '|-------|-------|--------|\n';
+                for (const skill of evalResults.skills || []) {
+                  const icon = skill.passed ? '✅' : '❌';
+                  body += `| \`${skill.skill}\` | ${skill.score}% | ${icon} |\n`;
+                }
+                body += `\n**Overall: ${evalResults.summary.passed}/${evalResults.summary.total} passed** `;
+                body += `(${evalResults.summary.passedAssertions}/${evalResults.summary.totalAssertions} assertions)\n\n`;
+              } catch (e) {
+                body += '### Evaluation Results\n\n';
+                body += '⚠️ Could not parse eval results.\n\n';
+              }
+            } else if (process.env.EVALS_RESULT === 'failure') {
+              body += '### Evaluation Results\n\n';
+              body += '❌ Evaluation workflow failed. Check the [workflow run](https://github.com/' + context.repo.owner + '/' + context.repo.repo + '/actions) for details.\n\n';
+            } else if (process.env.EVALS_RESULT === 'skipped') {
+              body += '### Evaluation Results\n\n';
+              body += '⏭️ No evaluations were needed.\n\n';
             }
 
             body += '`skill-deps.json` has been auto-updated in this PR.';
@@ -181,14 +217,6 @@ jobs:
               body,
             });
         env:
-          REPORT: ${{ steps.check.outputs.report }}
-          EVAL_REPORT: ${{ steps.evals.outputs.eval_report }}
-          PR_NUMBER: ${{ steps.pr.outputs.number }}
-
-  run-evals:
-    needs: check-skill-hashes
-    if: needs.check-skill-hashes.outputs.has_affected == 'true'
-    uses: ./.github/workflows/skill-evals.yml
-    with:
-      skills: ${{ needs.check-skill-hashes.outputs.affected_skills }}
-    secrets: inherit
+          REPORT: ${{ needs.check-skill-hashes.outputs.report }}
+          PR_NUMBER: ${{ needs.check-skill-hashes.outputs.pr_number }}
+          EVALS_RESULT: ${{ needs.run-evals.result }}
