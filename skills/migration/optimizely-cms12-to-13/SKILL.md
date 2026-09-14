@@ -8,12 +8,10 @@ description: >-
   "Dynamic Properties removed", "Visitor Groups stopped working after
   upgrade", "ContentArea no longer inherits XhtmlString", "migrate .NET
   to 10", "update EPiServer packages to CMS 13", "SiteDefinition
-  obsolete", "what changed between CMS 12 and 13", "CMS 13 breaking
-  changes", "pre-migration assessment", "ServiceLocator.Current removed",
-  "IConfigurableModule not found", "third-party package compatibility
-  CMS 13", "EPiServer.Find not compatible with CMS 13",
-  "TypeLoadException after CMS upgrade", or mentions any Optimizely CMS
-  version migration scenario from CMS 12 to CMS 13.
+  obsolete", "ServiceLocator.Current antipattern", "IConfigurableModule not
+  found", "EPiServer.Find not compatible with CMS 13",
+  "TypeLoadException after CMS upgrade", or mentions performing an
+  Optimizely CMS version migration from CMS 12 to CMS 13.
 ---
 
 # Migrate Optimizely CMS 12 to 13
@@ -26,112 +24,63 @@ removed features, and JS/TS SDK consumer impacts.
 
 - User wants to migrate/upgrade from Optimizely CMS 12 to CMS 13
 - User encounters compilation errors after updating CMS packages
-- User asks about breaking changes between CMS 12 and CMS 13
 - User reports features stopped working after CMS upgrade (Visitor Groups,
   Dynamic Properties, PlugIn system)
-- User wants a pre-migration assessment before starting the upgrade
 - User asks about specific API changes (PageReference, SiteDefinition,
   ContentArea, XhtmlString)
 - User needs to upgrade .NET version for CMS 13 compatibility
 - User gets TypeLoadException or runtime errors after CMS 13 upgrade
-  (third-party package incompatibilities)
-- User asks about third-party package compatibility with CMS 13
+  (package incompatibilities)
 - User encounters ServiceLocator.Current or IConfigurableModule errors
+
+**For pre-migration assessment only** (effort estimation, scope analysis,
+breaking change summary without making code changes): use the
+`optimizely-cms12-to-13-assessment` skill instead.
 
 ## Steps
 
-### Step 1: Assess Current Project
+**Before starting**: Run the `optimizely-cms12-to-13-assessment` skill
+first to understand migration scope, effort level, and recommended
+migration path. If the assessment identified Frontend: Present, complete
+the code migration on a branch and validate the frontend before cutting
+over to production.
 
-Before making changes, scan the project to understand migration scope.
+### Step 1: Fix Obsolete API Warnings
 
-1. **Detect CMS version** — check `.csproj` files for EPiServer/Optimizely
-   package versions:
+**Before upgrading any packages**, build the CMS 12 project and fix all
+`[Obsolete]` warnings. These APIs have replacements available in CMS 12
+that will be removed in CMS 13. Fixing them now — while the CMS 12
+replacements are still available — is easier than fixing them after
+packages are upgraded.
+
+1. **Build and capture obsolete warnings**:
    ```shell
-   grep -r "EPiServer\|Optimizely" --include="*.csproj" .
+   dotnet build 2>&1 | grep -i "CS0612\|CS0618\|obsolete"
    ```
+   Fix every `CS0612` (member is obsolete) and `CS0618` (member is
+   obsolete with message) warning. The compiler message typically names
+   the replacement.
 
-2. **Check .NET version** — read `global.json` and `TargetFramework`:
+2. **Scan for known obsoleted APIs** — these are documented in
+   `references/breaking-changes-dotnet.md` and may not always trigger
+   compiler warnings:
+   - `DataAccessBase` → use `IDatabaseExecutor`
+   - `UriSupport` (static usage) → inject `IUriSupport` via DI
+   - `IPropertyDefinitionRepository.Save/Delete` → modify
+     `ContentType.PropertyDefinitions` then save the `ContentType`
+   - `UsePrimaryHostForOutgoingUrls` → removed, no replacement needed
+   - `IContentRepositoryExtension` → use `IContentRepository` directly
+   - `ITimer` → use `System.Threading.PeriodicTimer`
+   - `IWebHostingEnvironment` → use `IWebHostEnvironment`
+   - `VirtualPathResolver` → use `IWebHostEnvironment.ContentRootPath`
+   - Static instance properties on services → inject via DI
+
+3. **Rebuild and verify zero obsolete warnings**:
    ```shell
-   cat global.json
-   grep -r "TargetFramework" --include="*.csproj" .
+   dotnet build -warnaserror:CS0612,CS0618
    ```
-
-3. **Scan for removed features** — search for usage of features removed
-   in CMS 13:
-   - `DynamicProperty` — Dynamic Properties (removed)
-   - `PlugInAttribute`, `PlugInDescriptor` — PlugIn system (removed)
-   - `.aspx`, `DefaultWebFormTemplate` — WebForms (removed)
-   - `MirroringImporting`, `MirroringExporting` — Mirroring (removed)
-
-4. **Scan for high-impact API changes**:
-   - `PageReference` — must change to ContentReference
-   - `SiteDefinition` — must change to Application
-   - `Castle.Windsor` — dependency removed
-   - `Newtonsoft.Json` — replaced with System.Text.Json
-   - `ContentArea.ToHtmlString` — ContentArea no longer inherits XhtmlString
-   - `ServiceLocator.Current` — removed; use constructor injection
-   - `IConfigurableModule` — removed; move to `Startup.ConfigureServices()`
-   - `DataAccessBase` — obsoleted; use `IDatabaseExecutor`
-   - `UriSupport.` (static usage) — obsoleted; inject `IUriSupport` via DI
-   - `PrincipalInfo.HasEditAccess` — removed; use `user.IsInRole()`
-   - `PrincipalInfo.IsPermitted` — removed; use `PermissionService`
-   - `PageEditing.PageIsInEditMode` — removed; use `IContextModeResolver`
-   - `BlockTypeRepository` — removed; use `IContentTypeRepository`
-   - `PageTypeRepository` — removed; use `IContentTypeRepository`
-   - `PublicString`, `PublicLongString` — removed; use `String`, `LongString`
-   - `IContentRouteEvents` — removed; use `IContentUrlGeneratorEvents`/
-     `IContentUrlResolverEvents`
-   - `Injected<T>` — removed; use constructor injection
-   - `IContentAreaLoader.Get()` — renamed to `LoadContent()`
-   - `SoftLink.LinkStatus` — renamed to `SoftLink.HttpStatusCode`
-   - `RenderSettings.CustomTag` — renamed to `CustomTagName`
-   - `RenderSettings.ChildrenCustomTag` — renamed to `ChildrenCustomTagName`
-   - `IContentTypeRepository<T>` (generic) — removed; use
-     non-generic `IContentTypeRepository`
-   - `ContentCoreData` — renamed to `ContentNode`
-   - `IContentCoreDataLoader` — renamed to `IContentNodeLoader`
-   - `[DojoWidget]` — removed; use `[CriterionPropertyEditor]`
-   - `.PageLink` — renamed to `.ContentLink`
-
-5. **Scan for third-party packages** — check `.csproj` for packages with
-   known CMS 13 incompatibilities:
-   - `EPiServer.Find.Cms` — no CMS 13 version; must remove
-   - `EPiServer.ContentDeliveryApi.*` — not compatible; must remove
-   - `EPiServer.ContentManagementApi` — not compatible; must remove
-   - `EPiServer.ContentDefinitionsApi` — not compatible; must remove
-   - `EPiServer.Cms.WelcomeIntegration.UI` — replaced by
-     `EPiServer.Cms.DamIntegration.UI`
-   - `Geta.*` packages — most not compatible; must remove
-   - `Advanced.CMS.AdvancedReviews` — not compatible; must remove
-   - EPiServer Labs packages (BlockEnhancements, ContentManager,
-     GridView, etc.) — not compatible; must remove
-   - `EPiServer.Marketing.Testing` — not compatible; must remove
-   - `EPiServer.MarketingAutomationIntegration.*` — not compatible; must remove
-   - See `references/third-party-compatibility.md` for the complete list
-
-6. **Scan for spelling corrections** — CMS 13 fixes misspellings in the
-   public API that cause compilation errors:
-   - `GetDescendents` → `GetDescendants`
-   - `includeDecendents` → `includeDescendants`
-   - `conentLink` → `contentLink`
-   - `SearchStringRegexpression` → `SearchStringRegex`
-   - `ValidateLanguageEdititingAccessRights` →
-     `ValidateLanguageEditingAccessRights`
-   - `StatisticsPersistanceInterval` → `StatisticsPersistenceInterval`
-   - See `references/breaking-changes-dotnet.md` section 14 for the full
-     list
-
-7. **Categorize migration effort**:
-   - **Minimal**: Only runtime + package updates needed (no removed features,
-     no deprecated API usage, no incompatible third-party packages)
-   - **Moderate**: API changes required (PageReference, SiteDefinition, etc.)
-     but no removed features
-   - **Significant**: Uses removed features (Dynamic Properties, PlugIn
-     system, WebForms) or has many incompatible third-party packages
-     requiring removal and replacement
-
-**If user only asked for assessment**: Stop here and report findings.
-Do not proceed to migration steps.
+   Do not proceed to Step 2 until the build passes with obsolete
+   warnings treated as errors.
 
 ### Step 2: Upgrade .NET Runtime
 
@@ -225,12 +174,12 @@ Key changes:
 8. **Verify nuget.config** — ensure the Optimizely NuGet feed is
    configured. Required for resolving CMS 13 packages.
 
-### Step 4: Handle Third-Party Packages
+### Step 4: Handle Incompatible Packages
 
 See `references/third-party-compatibility.md` for the complete list.
 
-**Before upgrading core CMS packages**, address incompatible third-party
-packages to avoid cascading build failures.
+**Before upgrading core CMS packages**, address incompatible packages
+to avoid cascading build failures.
 
 1. **Remove incompatible packages with no CMS 13 version**:
    ```shell
@@ -258,6 +207,10 @@ packages to avoid cascading build failures.
 
 3. **Replace packages with alternatives**:
    - `EPiServer.Cms.WelcomeIntegration.UI` → `EPiServer.Cms.DamIntegration.UI`
+     **DAM integration caveat**: At the time of writing, there is no
+     migration path for customers using DAM integration in CMS 12. Check
+     the [Optimizely documentation](https://docs.developers.optimizely.com/content-management-system/v13.0.0-CMS/docs/upgrade-to-cms-13#pre-upgrade-audit-and-prepare)
+     for the latest state.
    - `EPiServer.Find.Cms` → Optimizely Graph (see `optimizely-find-to-graph` skill)
    - `EPiServer.ContentDeliveryApi.*` → Optimizely Graph (install
      `Optimizely.Graph.Cms` + `Optimizely.Graph.Cms.Query`, register with
@@ -333,12 +286,14 @@ services.AddCms();
 ```
 Detection: Search for `UseNewtonsoftJson`, `NewtonsoftJsonSerializerSettingsOptions`
 
-**ServiceLocator.Current → Constructor Injection**:
+**ServiceLocator.Current → Constructor Injection** (antipattern, not removed):
+`ServiceLocator.Current` still works in CMS 13 but is an antipattern
+that is not recommended. Migrate to constructor injection:
 ```csharp
 // Before (CMS 12)
 var repo = ServiceLocator.Current.GetInstance<IContentRepository>();
 
-// After (CMS 13) — inject via constructor
+// After (CMS 13) — inject via constructor (recommended)
 public class MyService
 {
     private readonly IContentRepository _repo;
@@ -429,6 +384,18 @@ public string EditorValue { get; set; }
 ```
 Detection: Search for `DojoWidget`
 
+**Tab names must be alphanumeric only**:
+```csharp
+// Before (CMS 12) — spaces and special characters were allowed
+[Display(GroupName = "SEO Settings")]
+public virtual string MetaTitle { get; set; }
+
+// After (CMS 13) — only letters and digits
+[Display(GroupName = "SEOSettings")]
+public virtual string MetaTitle { get; set; }
+```
+Detection: Search for `GroupName` and check values against `[A-Za-z0-9]`
+
 ### Step 6: Handle Removed Features
 
 See `references/removed-features.md` for detailed guidance on each.
@@ -442,13 +409,10 @@ See `references/removed-features.md` for detailed guidance on each.
    `ScheduledPlugInAttribute` with `ScheduledJobAttribute` and inherit
    from `ScheduledJobBase`. Search for: `PlugInAttribute`, `EPiServer.PlugIn`
 
-3. **WebForms**: Completely removed. Migrate to ASP.NET Core MVC/Razor.
-   Search for: `.aspx`, `DefaultWebFormTemplate`, `BlockController`
-
-4. **Mirroring**: Completely removed. Use Content Transfer API or
+3. **Mirroring**: Completely removed. Use Content Transfer API or
    third-party deployment tools. Search for: `MirroringImporting`
 
-5. **Telemetry**: Completely removed. Remove `using
+4. **Telemetry**: Completely removed. Remove `using
    EPiServer.Shell.Telemetry` and any `services.Configure<TelemetryOptions>()`
    calls. Search for: `TelemetryOptions`, `EPiServer.Shell.Telemetry`
 
@@ -490,9 +454,9 @@ services.AddCmsValidator<MyCustomValidator>();
 services.AddSingleton<IMyService, MyService>();
 ```
 
-**ServiceLocator removal**:
+**ServiceLocator antipattern**:
 ```csharp
-// CMS 13 — ServiceLocator.Current is removed
+// CMS 13 — ServiceLocator.Current still works but is an antipattern; use constructor injection
 // Replace all service locator usage with constructor injection
 // Search for: ServiceLocator.Current, ServiceLocationHelper
 ```
@@ -508,7 +472,10 @@ services.AddXmlLocalizationProvider(options =>
 
 ### Step 8: Update Configuration
 
-1. **UI URL changed**: `/EPiServer` → `/Optimizely`
+1. **UI URL changed** — the new path depends on auth configuration:
+   - **DXP with Opti ID**: `/ui/CMS`
+   - **Self-hosted (ASP.NET Identity)**: `/Optimizely/CMS`
+   - The old `/EPiServer` path no longer works in either mode
    - Update bookmarks, admin links, documentation
    - Search for: `/EPiServer/` in config files and code
    - Module paths also changed:
@@ -567,9 +534,81 @@ See `references/breaking-changes-sdk.md` for detailed guidance.
 5. **Test GraphQL queries**: Verify queries return expected data,
    especially for ContentArea properties and block types.
 
-### Step 10: Verify Migration
+### Step 10: Graph/Headless Frontend Validation
 
-1. **Database prerequisites** (before first CMS 13 startup):
+**Skip this step if the pre-migration assessment showed Frontend: None.**
+
+After completing the code migration (Steps 2–9), validate your headless
+frontend against the CMS 13 schema before cutting over to production.
+
+1. **Schema diff** — compare the CMS 12 and CMS 13 Graph schemas to
+   identify breaking changes. See `references/breaking-changes-sdk.md`
+   for the full list. Key schema changes:
+   - **Content type name auto-migration**: Names that were single
+     characters or contained invalid characters are prefixed (`CT_` for
+     content types, `PD_` for property definitions, `G_` for groups,
+     `PDT_` for property data types) or have invalid characters replaced
+     with `_`
+   - **Property name corrections**: Single-character property names get
+     `PD_` prefix; invalid characters become `_`
+   - **ContentArea schema restructuring**: ContentArea no longer inherits
+     XhtmlString on the server side; inline content fragments may be
+     structured differently in the GraphQL response
+   - **Block type resolution changes**: CMS 13 uses a common
+     PropertyDefinitionType for all blocks (DataType "Block") instead of
+     per-block-type definitions, affecting `__typename` discriminators
+
+2. **Frontend query audit** — scan the frontend codebase for GraphQL
+   queries that reference changed type or field names:
+   - Search for content type names that were single characters or
+     contained special characters (these were auto-migrated with prefixes)
+   - Search for property names that were corrected (single-char or
+     invalid-char names)
+   - Check ContentArea fragment expansions for structural changes
+   - Check `__typename` discriminators to verify they still resolve
+     correctly with the new block type resolution
+
+   Detection:
+   ```shell
+   # In the frontend codebase, search for GraphQL queries
+   grep -r "query\|fragment\|__typename" --include="*.ts" --include="*.tsx" --include="*.graphql" .
+   ```
+
+3. **Staged verification** — deploy CMS 13 to a staging environment and
+   validate the frontend end-to-end:
+   - Point the frontend at the CMS 13 staging instance's Graph endpoint
+   - Run the frontend test suite against the new schema
+   - Manually verify critical content pages render correctly
+   - Check that search queries return expected results
+   - Your CMS 12 instance continues serving production traffic. Do not
+     cut over until all verification passes.
+
+   If broken queries are discovered, fix them in the frontend codebase
+   and re-run verification. There is no time pressure — CMS 12 remains
+   running and serving production until you explicitly cut over.
+
+CRITICAL: Do not cut over to CMS 13 production until staged verification
+passes and all frontend queries return expected data.
+
+### Step 11: Verify Migration
+
+1. **CRITICAL — Back up the database before first CMS 13 startup**:
+   The CMS 13 database migration runs automatically on first startup
+   and is **irreversible**. Once it completes, the database cannot be
+   used with CMS 12 again. Take a full backup before starting:
+   ```sql
+   BACKUP DATABASE [YourCmsDatabase]
+   TO DISK = 'C:\Backups\CmsDatabase_PreCMS13.bak'
+   WITH INIT, COMPRESSION;
+   ```
+   If using Azure SQL, create a database copy or point-in-time restore
+   point.
+
+   **BLOCKING**: Stop here and ask the user to confirm the backup is
+   complete before proceeding. Do not continue to the next item until
+   the user explicitly confirms.
+
+2. **Database prerequisites** (before first CMS 13 startup):
    - CMS 13 may create or alter database indexes on first startup.
      Conflicting indexes from CMS 12 may cause errors. If startup fails
      with index-related SQL errors, drop the conflicting indexes manually
@@ -579,23 +618,25 @@ See `references/breaking-changes-sdk.md` for detailed guidance.
    - Clean orphaned content types from removed packages. Add stub classes
      or delete from database to prevent "could not create instance" errors.
 
-2. **Build check**:
+3. **Build check**:
    ```shell
    dotnet build
    ```
    Fix any remaining compilation errors. Most will be straightforward
    type/namespace changes documented in the references.
 
-3. **Runtime smoke test**:
+4. **Runtime smoke test**:
    - Start the application
-   - Access CMS admin at `/Optimizely` (not `/EPiServer`)
+   - Access CMS admin: `/ui/CMS` (DXP with Opti ID) or
+     `/Optimizely/CMS` (self-hosted with ASP.NET Identity) — the old
+     `/EPiServer` path no longer works
    - Create or edit a page — verify save works
    - Check scheduled jobs run correctly
    - Verify Visitor Groups work (if used and registered)
    - Test content with ContentArea properties renders correctly
    - Verify HTML content saves without ScriptParser exceptions
 
-4. **If using JS/TS SDK**:
+5. **If using JS/TS SDK**:
    ```shell
    npx tsc --noEmit
    ```
@@ -633,8 +674,9 @@ and the runtime smoke test passes.
 8. **IPropertyDefinitionRepository.Save won't compile** — Must modify
    ContentType.PropertyDefinitions collection then save the ContentType.
 
-9. **Admin panel at /EPiServer returns 404** — URL changed to
-   `/Optimizely`.
+9. **Admin panel at /EPiServer returns 404** — URL depends on auth
+   mode: `/ui/CMS` (DXP with Opti ID) or `/Optimizely/CMS`
+   (self-hosted with ASP.NET Identity).
 
 10. **Dynamic Properties code won't compile** — Feature completely
     removed. No drop-in replacement; requires redesign.
@@ -644,7 +686,7 @@ and the runtime smoke test passes.
     `Startup.ConfigureServices()` or `Program.cs`. Search for
     `IConfigurableModule` and `ServiceConfigurationContext`.
 
-12. **Third-party packages cause TypeLoadException at runtime** —
+12. **Incompatible packages cause TypeLoadException at runtime** —
     Packages like Geta.NotFoundHandler, Geta.Optimizely.Sitemaps, and
     Advanced.CMS.AdvancedReviews reference types that changed access
     modifiers or were removed. Remove incompatible packages before
@@ -655,9 +697,9 @@ and the runtime smoke test passes.
     usage, and Find-dependent code must be removed or migrated to
     Optimizely Graph. See the `optimizely-find-to-graph` skill.
 
-14. **ServiceLocator.Current throws at runtime** — `IServiceLocator` and
-    all `EPiServer.ServiceLocation` helper classes are removed. Replace
-    with constructor injection throughout.
+14. **ServiceLocator.Current is an antipattern** — `ServiceLocator.Current`
+    still works in CMS 13 but is not recommended and may be removed in
+    future versions. Replace with constructor injection throughout.
 
 15. **Spelling corrections cause compilation errors** — CMS 13 fixes
     misspelled API names (e.g., `GetDescendents` → `GetDescendants`,
@@ -708,8 +750,29 @@ and the runtime smoke test passes.
     EPiServer.Shell.Telemetry` must be removed. Telemetry is entirely
     removed in CMS 13.
 
+26. **Database migration is irreversible without backup** — CMS 13
+    runs a one-way database migration on first startup. If something
+    goes wrong, the database cannot be reverted to CMS 12 without a
+    backup. Always take a full database backup before the first CMS 13
+    startup. See Step 11, item 1.
+
+28. **Tab names with spaces or special characters cause runtime errors**
+    — CMS 13 enforces alphanumeric-only tab names. Content types with
+    `[Display(GroupName = "SEO Settings")]` or similar will fail at
+    runtime. Rename to alphanumeric only (e.g., `"SEOSettings"`). See
+    Step 5.
+
+29. **Graph schema breaks live frontend after in-place upgrade** —
+    CMS 13 auto-migrates content type names and corrects property names,
+    changing the GraphQL schema. Headless frontends querying the old
+    schema get empty results or errors. Use the side-by-side approach:
+    migrate on a branch, validate frontend against staging CMS 13, then
+    cut over. See Step 10.
+
 ## Related Skills
 
+- **optimizely-cms12-to-13-assessment** — Pre-migration assessment (run
+  this first to understand scope and effort before migrating)
 - **cms11-to-12-migration** — Migrate from CMS 11 to CMS 12 (ASP.NET
   Framework to ASP.NET Core — the prerequisite migration before CMS 13)
 - **find-to-graph** — Migrate EPiServer Find search queries to Graph SDK

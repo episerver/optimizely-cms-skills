@@ -119,6 +119,7 @@ cp -r optimizely-cms-skills/skills/* .claude/skills/
 | Skill | Description | Docs |
 |-------|-------------|------|
 | [optimizely-cms11-to-12](../skills/migration/optimizely-cms11-to-12/) | Migrate CMS 11 (ASP.NET Framework) to CMS 12 (ASP.NET Core) | [Guide](skills/optimizely-cms11-to-12.md) |
+| [optimizely-cms12-to-13-assessment](../skills/migration/optimizely-cms12-to-13-assessment/) | Pre-migration assessment for CMS 12 → 13 (effort, scope, risk) | [Guide](skills/optimizely-cms12-to-13-assessment.md) |
 | [optimizely-cms12-to-13](../skills/migration/optimizely-cms12-to-13/) | Migrate CMS 12 to CMS 13 (.NET 10, breaking API changes) | [Guide](skills/optimizely-cms12-to-13.md) |
 | [optimizely-find-to-graph](../skills/migration/optimizely-find-to-graph/) | Migrate from Optimizely Find to Content Graph | [Guide](skills/optimizely-find-to-graph.md) |
 

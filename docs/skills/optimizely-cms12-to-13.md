@@ -1,19 +1,20 @@
 # Optimizely CMS 12 to 13 Migration
 
-Migrate an Optimizely CMS 12 project to CMS 13, covering the .NET 10 runtime upgrade, NuGet package updates, breaking API changes, removed features, third-party package compatibility, and JS/TS SDK updates.
+Migrate an Optimizely CMS 12 project to CMS 13, covering the .NET 10 runtime upgrade, NuGet package updates, breaking API changes, removed features, package compatibility, and JS/TS SDK updates.
 
 ## When to Use
 
 Use this skill when you want to:
 - Migrate a CMS 12 project to CMS 13
-- Run a pre-migration assessment to understand the scope before starting
 - Fix compilation errors after updating CMS packages to 13.x
-- Replace removed APIs (PageReference, SiteDefinition, ServiceLocator.Current, IConfigurableModule)
-- Handle removed features (Dynamic Properties, PlugIn system, WebForms)
-- Remove or replace incompatible third-party packages (EPiServer.Find, Geta.*, Advanced.CMS.*)
+- Replace removed APIs (PageReference, SiteDefinition, IConfigurableModule) and migrate antipatterns (ServiceLocator.Current)
+- Handle removed features (Dynamic Properties, PlugIn system)
+- Remove or replace incompatible packages — Optimizely (EPiServer.Find, Content Delivery/Management/Definitions APIs) and third-party (Geta.*, Advanced.CMS.*)
 - Update the .NET runtime to .NET 10
 - Fix TypeLoadException or runtime errors from package incompatibilities
 - Update JS/TS SDK code after the CMS 13 upgrade
+
+**For pre-migration assessment only** (effort estimation, scope analysis without code changes): use [`optimizely-cms12-to-13-assessment`](optimizely-cms12-to-13-assessment.md) instead.
 
 ## Trigger Phrases
 
@@ -25,51 +26,36 @@ Say any of these to activate the skill:
 - "PageReference no longer works"
 - "PlugIn attribute not found"
 - "Dynamic Properties removed"
-- "ServiceLocator.Current removed"
+- "ServiceLocator.Current antipattern"
 - "IConfigurableModule not found"
-- "What changed between CMS 12 and 13"
 - "EPiServer.Find not compatible with CMS 13"
-- "Pre-migration assessment"
 
 ## Usage Example
-
-```
-You: "Assess our CMS 12 project for CMS 13 migration readiness"
-
-Agent: [Uses optimizely-cms12-to-13 skill]
-- Detects current CMS version and .NET target framework
-- Scans for removed features (Dynamic Properties, PlugIn system, WebForms)
-- Identifies high-impact API changes (PageReference, SiteDefinition, ContentArea, etc.)
-- Checks third-party packages against the compatibility list
-- Flags spelling corrections in the public API that cause confusing errors
-- Reports effort level: Minimal, Moderate, or Significant
-- Stops here with findings (does not start migrating)
-```
 
 ```
 You: "Migrate our project from CMS 12 to CMS 13"
 
 Agent: [Uses optimizely-cms12-to-13 skill]
-- Runs assessment (as above)
+- Fixes obsolete API warnings in the CMS 12 build before upgrading
 - Upgrades .NET runtime to 10.0 in global.json and .csproj files
 - Updates NuGet packages per the mapping (core CMS, Azure split, health check removal)
-- Removes incompatible third-party packages before upgrading CMS core
+- Removes incompatible packages before upgrading CMS core
 - Fixes breaking API changes (PageReference, SiteDefinition, ContentArea, serialization, etc.)
 - Handles removed features with migration guidance
 - Updates service registration (Visitor Groups, validators, localization provider)
 - Updates configuration (UI URL /EPiServer to /Optimizely, HTML parsing, routing)
 - Updates JS/TS SDK code if applicable
+- Validates Graph/headless frontend schema if applicable
 - Verifies with dotnet build and runtime smoke test
 ```
 
 ## What It Handles
 
-- **Pre-migration assessment** -- Scans the codebase and reports migration scope without making changes
 - **.NET 10 upgrade** -- Updates global.json, TargetFramework, and LangVersion
 - **NuGet package mapping** -- Updates core packages, handles the EPiServer.Azure split, removes deprecated packages
-- **Third-party package triage** -- Removes incompatible packages, replaces where alternatives exist, upgrades compatible ones
+- **Package triage** -- Removes incompatible Optimizely and third-party packages, replaces where alternatives exist, upgrades compatible ones
 - **Breaking API changes** -- Systematic fixes for PageReference, SiteDefinition, ContentArea, ServiceLocator, IConfigurableModule, serialization, and more
-- **Removed features** -- Guidance for Dynamic Properties, PlugIn system, WebForms, and Mirroring
+- **Removed features** -- Guidance for Dynamic Properties, PlugIn system, and Mirroring
 - **Service registration** -- Explicit registration for Visitor Groups, validators, and localization providers
 - **Configuration updates** -- UI URL changes, HTML parsing security defaults, routing API changes, content type name validation
 - **JS/TS SDK updates** -- Content type name verification, preview route URL updates, registry sync
@@ -82,7 +68,7 @@ Agent: [Uses optimizely-cms12-to-13 skill]
 | .NET 6/8 | .NET 10 |
 | PageReference | ContentReference |
 | SiteDefinition | Application |
-| ServiceLocator.Current | Constructor injection |
+| ServiceLocator.Current (antipattern) | Constructor injection |
 | IConfigurableModule | Startup.ConfigureServices() |
 | Newtonsoft.Json | System.Text.Json |
 | /EPiServer admin URL | /Optimizely admin URL |
@@ -91,7 +77,7 @@ Agent: [Uses optimizely-cms12-to-13 skill]
 
 ## Important Notes
 
-- **Remove incompatible third-party packages before upgrading CMS core** to avoid cascading build failures.
+- **Remove incompatible packages before upgrading CMS core** to avoid cascading build failures.
 - **Visitor Groups require explicit registration** with `AddVisitorGroupsMvc()` and `AddVisitorGroupsUI()` or they silently stop working.
 - **IValidate<T> implementations are no longer auto-discovered.** Register them explicitly with `AddCmsValidator<T>()`.
 - **The /lang folder localization provider is no longer auto-registered.** Add `AddXmlLocalizationProvider()` explicitly.
@@ -100,6 +86,7 @@ Agent: [Uses optimizely-cms12-to-13 skill]
 
 ## Related Skills
 
+- [`optimizely-cms12-to-13-assessment`](optimizely-cms12-to-13-assessment.md) -- Pre-migration assessment (run this first to understand scope and effort)
 - [`optimizely-cms11-to-12`](optimizely-cms11-to-12.md) -- The prerequisite migration from CMS 11 to 12 (ASP.NET Framework to ASP.NET Core)
 - [`optimizely-find-to-graph`](optimizely-find-to-graph.md) -- Migrate EPiServer Find queries to Graph SDK (required when CMS 12 project uses Find)
 - [`optimizely-preview`](optimizely-preview.md) -- Re-verify live preview after migration due to URL and preview token changes
