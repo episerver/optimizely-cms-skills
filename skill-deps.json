@@ -1,8 +1,8 @@
 {
   "$schema": "./scripts/skill-deps.schema.json",
   "version": 1,
-  "generated": "2026-09-03T18:46:18.643Z",
-  "releaseHash": "sha256:c8dadaf4fb4656fa55ce90f4f0fda2dec8284b4795c0c278efcd0f84dda59e53",
+  "generated": "2026-09-14T12:36:21.440Z",
+  "releaseHash": "sha256:e583d37614d13eac2db5f76a5c59913ce6463136531d49136d2c17710769b322",
   "skills": {
     "optimizely-setup": {
       "path": "./skills/setup/optimizely-setup",
@@ -32,6 +32,32 @@
       "hash": "sha256:fcad93459dc69408170bae3f2b1f3648d02f96aeb50b483cac3d9920f7bbbea4",
       "dependencies": [
         "optimizely-setup",
+        "optimizely-troubleshoot-graph"
+      ]
+    },
+    "optimizely-isr-setup": {
+      "path": "./skills/setup/optimizely-isr-setup",
+      "hash": "sha256:ec77afd05a19c32b123708c901cf3746a2b6998335a025bc2b04ef88936ea153",
+      "dependencies": [
+        "optimizely-content-fetching",
+        "optimizely-content-navigation",
+        "optimizely-model",
+        "optimizely-multisite-locale",
+        "optimizely-observability",
+        "optimizely-preview",
+        "optimizely-setup",
+        "optimizely-troubleshoot-graph"
+      ]
+    },
+    "optimizely-cache-strategy": {
+      "path": "./skills/setup/optimizely-cache-strategy",
+      "hash": "sha256:c631591e20cb1200cfb907a2e55f603605a9ba7625a658d958426e1c9829d845",
+      "dependencies": [
+        "optimizely-graphql-optimization",
+        "optimizely-isr-setup",
+        "optimizely-multisite-locale",
+        "optimizely-observability",
+        "optimizely-preview",
         "optimizely-troubleshoot-graph"
       ]
     },

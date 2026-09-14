@@ -5,3 +5,6 @@ node_modules/
 Thumbs.db
 .github/skills/
 eval-work/
+
+# skill-creator eval workspaces (local run artifacts, not part of the plugin)
+*-workspace/
