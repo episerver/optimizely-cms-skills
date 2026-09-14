@@ -7,10 +7,11 @@ import { parseArgs } from './lib/cli-args.js';
 const HELP_TEXT = `Usage: node scripts/validate-skills.js [options]
 
 Options:
-  --skill <name>    Validate a specific skill by name
-  --deps            Also validate the skill's dependencies (requires --skill)
-  --ci              Output JSON instead of console formatting
-  --help            Show help`;
+  --skill <name>            Validate a specific skill by name
+  --deps                    Also validate the skill's dependencies (requires --skill)
+  --ci                      Output JSON instead of console formatting
+  --skip-hash-freshness     Skip hash-freshness check (for CI workflows that update hashes separately)
+  --help                    Show help`;
 
 function checkFrontmatter(skillPath) {
   const skillMdPath = join(ROOT, skillPath, 'SKILL.md');
@@ -102,13 +103,13 @@ function checkHashFreshness(skillName, skillPath, manifest) {
   return { name: 'hash-freshness', passed: true, message: '' };
 }
 
-function validateSkill(skill, manifest) {
+function validateSkill(skill, manifest, { skipHashFreshness = false } = {}) {
   const checks = [
     checkFrontmatter(skill.path),
     checkEvalsSchema(skill.path),
     checkDepIntegrity(skill.name, manifest),
     checkNoOrphans(skill.path),
-    checkHashFreshness(skill.name, skill.path, manifest),
+    ...(skipHashFreshness ? [] : [checkHashFreshness(skill.name, skill.path, manifest)]),
   ];
   return {
     skill: skill.name,
@@ -122,9 +123,10 @@ const opts = parseArgs(process.argv, {
     skill: { type: 'string' },
     deps: { type: 'boolean' },
     ci: { type: 'boolean' },
+    'skip-hash-freshness': { type: 'boolean' },
     help: { type: 'boolean' },
   },
-  defaults: { skill: null, deps: false, ci: false, help: false },
+  defaults: { skill: null, deps: false, ci: false, skipHashFreshness: false, help: false },
   usage: HELP_TEXT,
   validate: [(o) => o.deps && !o.skill ? '--deps requires --skill' : null],
 });
@@ -142,7 +144,7 @@ if (!manifest) {
 
 const pluginSkills = loadPluginSkills();
 const targets = resolveTargetSkills(opts, manifest, pluginSkills);
-const results = targets.map((t) => validateSkill(t, manifest));
+const results = targets.map((t) => validateSkill(t, manifest, { skipHashFreshness: opts.skipHashFreshness }));
 
 if (opts.ci) {
   console.log(formatValidationJson(results));

@@ -13,13 +13,10 @@ on:
         description: 'Skill name (empty = all)'
         required: false
         default: ''
-      deps:
-        description: 'Include transitive dependencies'
-        type: boolean
-        default: false
 
 permissions:
   contents: read
+  copilot-requests: write
 
 jobs:
   resolve:
@@ -38,7 +35,6 @@ jobs:
         env:
           CALLER_SKILLS: ${{ inputs.skills }}
           INPUT_SKILL: ${{ inputs.skill }}
-          INPUT_DEPS: ${{ inputs.deps }}
         run: |
           if [ -n "$CALLER_SKILLS" ]; then
             SKILLS="$CALLER_SKILLS"
@@ -46,9 +42,6 @@ jobs:
             ARGS=""
             if [ -n "$INPUT_SKILL" ]; then
               ARGS="--skill $INPUT_SKILL"
-            fi
-            if [ "$INPUT_DEPS" = "true" ]; then
-              ARGS="$ARGS --deps"
             fi
             SKILLS=$(node scripts/ci/eval-manifest.js $ARGS)
           fi
@@ -92,8 +85,12 @@ jobs:
         run: |
           for f in eval-work/*/generate-prompt.txt; do
             dir=$(dirname "$f")
+            id=$(basename "$dir")
             copilot -p "$(cat "$f")" --no-ask-user \
-              --allow-tool='shell(cat:*)' > "$dir/response.txt" 2>/dev/null || true
+              --allow-tool='shell(cat:*)' > "$dir/response.txt" || true
+            echo "::group::Case $id response"
+            cat "$dir/response.txt"
+            echo "::endgroup::"
           done
 
       - name: Prepare judge prompts
@@ -105,8 +102,12 @@ jobs:
             [[ "$f" == *-verdict.txt ]] && continue
             dir=$(dirname "$f")
             base=$(basename "$f" .txt)
+            id=$(basename "$dir")
             copilot -p "$(cat "$f")" --no-ask-user \
-              > "$dir/${base}-verdict.txt" 2>/dev/null || true
+              > "$dir/${base}-verdict.txt" || true
+            echo "::group::Case $id $base verdict"
+            cat "$dir/${base}-verdict.txt"
+            echo "::endgroup::"
           done
 
       - name: Score results
@@ -115,7 +116,9 @@ jobs:
           node scripts/ci/eval-score.js \
             --skill-path "${{ matrix.skill.path }}" \
             --threshold 80 > result.json || true
+          echo "::group::${{ matrix.skill.name }} results"
           cat result.json
+          echo "::endgroup::"
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -139,7 +142,11 @@ jobs:
           pattern: eval-*
           path: results/
       - name: Aggregate results
-        run: node scripts/ci/eval-aggregate.js results/ > eval-results.json
+        run: |
+          node scripts/ci/eval-aggregate.js results/ > eval-results.json
+          echo "::group::Aggregate eval results"
+          cat eval-results.json
+          echo "::endgroup::"
       - uses: actions/upload-artifact@v4
         with:
           name: eval-results

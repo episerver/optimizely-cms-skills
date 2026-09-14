@@ -42,7 +42,8 @@ export function parseJudgment(text) {
   if (failMatch) {
     return { passed: false, reason: failMatch[1].trim() };
   }
-  return { passed: false, reason: 'Judge returned unparseable response' };
+  const preview = trimmed.length > 200 ? trimmed.slice(0, 200) + '...' : trimmed;
+  return { passed: false, reason: `Judge returned unparseable response: ${preview}` };
 }
 
 export async function judgeAssertion(response, assertion, backend) {
