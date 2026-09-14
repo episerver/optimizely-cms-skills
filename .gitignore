@@ -1,0 +1,4 @@
+node_modules/
+
+# skill-creator eval workspaces (local run artifacts, not part of the plugin)
+*-workspace/

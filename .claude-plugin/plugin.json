@@ -21,6 +21,7 @@
     "./skills/setup/optimizely-cli-workflows",
     "./skills/setup/optimizely-observability",
     "./skills/setup/optimizely-isr-setup",
+    "./skills/setup/optimizely-cache-strategy",
     "./skills/modeling/optimizely-model",
     "./skills/modeling/optimizely-display-templates",
     "./skills/rendering/optimizely-model-react",
