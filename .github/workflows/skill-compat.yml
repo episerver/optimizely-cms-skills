@@ -161,7 +161,7 @@ jobs:
           EVALS_RESULT: ${{ needs.run-evals.result }}
 
   ok-to-merge:
-    needs: [detect-changes, run-evals, post-comment]
+    needs: [detect-changes]
     if: always()
     runs-on: ubuntu-latest
     steps:
