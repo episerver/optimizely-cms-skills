@@ -12,24 +12,22 @@ Each release is identified by its **semver tag** (`v0.1.0`).
 
 ### Version Source of Truth
 
-The git tag is the source of truth. The release workflow writes the version from the tag into both `package.json` and `.claude-plugin/plugin.json`.
+The version in `package.json` and `.claude-plugin/plugin.json` is the source of truth. Both must match the target version before the release workflow will proceed.
 
 ## Cutting a Release
 
-1. Go to **Actions** → **Release** in the GitHub repo
-2. Click **Run workflow**
-3. Enter the version (e.g., `0.1.0`) — no `v` prefix
-4. The workflow will:
-   - Validate the version format
-   - Update skill dependency graph
-   - Bump version in `package.json` and `plugin.json`
-   - Commit the changes
-   - Create the semver tag (`v0.1.0`)
-   - Move the `latest` tag to the release commit
-   - Create a **draft** GitHub Release with auto-generated notes
-5. Go to **Releases** → edit the draft
-6. Review and polish the release notes
-7. **Publish** the release
+1. **Bump the version**: Go to **Actions** → **Version Bump** → enter the target version (e.g., `0.2.0`)
+   - This creates a PR that updates `package.json` and `plugin.json`
+2. **Merge the version bump PR**
+3. **Create the release**: Go to **Actions** → **Release** → enter the same version
+   - The workflow will:
+     - Verify the version in `package.json` and `plugin.json` matches
+     - Create the semver tag (`v0.2.0`)
+     - Move the `latest` tag (for non-prerelease versions)
+     - Create a **draft** GitHub Release with auto-generated notes
+4. Go to **Releases** → edit the draft
+5. Review and polish the release notes
+6. **Publish** the release
 
 ## Versioning
 
