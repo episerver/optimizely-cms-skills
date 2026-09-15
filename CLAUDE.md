@@ -9,18 +9,15 @@ A Claude Code plugin containing 20 Agent Skills that teach AI coding agents how 
 ## Commands
 
 ```bash
-# Check if skill hashes match skill-deps.json (exits 1 on mismatch)
-npm run check-hashes
-npm run check-hashes -- --json    # machine-readable output
-
-# Regenerate skill-deps.json with current hashes
-npm run update-hashes
-npm run update-hashes -- --scan-deps  # also rescan inter-skill dependencies
+# Regenerate skill-deps.json dependency graph
+npm run update-deps
+npm run update-deps -- --scan-deps  # also rescan inter-skill dependencies
 
 # Report which skills need eval runs (dry-run, no LLM calls)
 npm run affected-evals
+npm run affected-evals -- --skills <name1>,<name2>  # specific skills only
 
-# Structural validation (frontmatter, evals schema, deps, hashes)
+# Structural validation (frontmatter, evals schema, deps)
 npm run validate                        # all skills, console output
 npm run validate -- --skill <name>      # one skill
 npm run validate -- --skill <name> --deps  # one skill + its dependencies
@@ -55,23 +52,21 @@ skills/<category>/<skill-name>/
 
 Six categories: `setup/`, `modeling/`, `rendering/`, `data/`, `editing/`, `migration/`.
 
-### Integrity System
+### Dependency Graph
 
 `skill-deps.json` is the manifest — it tracks:
-- **Per-skill SHA-256 hash** of each `SKILL.md` (content seal, normalized line endings)
 - **Inter-skill dependency graph** (which skills reference which)
-- **Composite `releaseHash`** (SHA-256 of all skill hashes concatenated)
 
-The CI workflow (`skill-compat.yml`) auto-updates hashes on PRs and reports transitively affected skills. It also supports `workflow_dispatch` for manual runs — requires a `pr_number` input and optionally toggles `post_comment` (defaults to true). The release workflow (`release.yml`) stamps the version into `package.json` and `.claude-plugin/plugin.json`, tags the commit, and moves the `latest` tag.
+The CI workflow (`skill-compat.yml`) uses `git diff` to detect changed skills, computes transitive impact using the dependency graph, and re-evaluates affected skills. It also supports `workflow_dispatch` for manual runs — requires a `pr_number` input and optionally toggles `post_comment` (defaults to true). The release workflow (`release.yml`) stamps the version into `package.json` and `.claude-plugin/plugin.json`, tags the commit, and moves the `latest` tag.
 
 ### Core Library: `scripts/lib/manifest.js`
 
 All scripts share this module. Key exports:
 - `loadPluginSkills()` — reads skill paths from `.claude-plugin/plugin.json`
-- `computeSkillHash(skillPath)` — SHA-256 of `SKILL.md` with `\r\n` → `\n` normalization
 - `extractSkillName(skillPath)` — parses the `name:` field from YAML frontmatter
 - `scanSkillDependencies(skillPath, allNames)` — regex-based detection of skill references in markdown
 - `computeAffectedSkills(skills, changed)` — BFS on the reverse dependency graph
+- `findSkillNameByPath(manifest, skillPath)` — maps a skill path to its name
 - `loadEvalSuite(skillPath)` — loads `evals/evals.json` for a skill (returns null if missing)
 - `countAssertions(cases, filter?)` — counts assertion results across eval cases with optional filter
 - `ROOT` / `MANIFEST_PATH` — resolved paths to repo root and `skill-deps.json`
@@ -89,15 +84,14 @@ Skills reference each other in their markdown content. `scanSkillDependencies` d
 
 When modifying a `SKILL.md`:
 1. Edit the skill content
-2. Run `npm run check-hashes` to verify the hash is now stale
-3. Run `npm run update-hashes` to sync (CI also does this automatically on PR)
-4. If you added/removed skill cross-references, run `npm run update-hashes -- --scan-deps`
+2. If you added/removed skill cross-references, run `npm run update-deps -- --scan-deps`
+3. CI will automatically detect changes via `git diff` and re-evaluate affected skills
 
 When adding a new skill:
 1. Create `skills/<category>/<name>/SKILL.md` with `name` and `description` in frontmatter
 2. Create `skills/<category>/<name>/evals/evals.json`
 3. Add the path to `.claude-plugin/plugin.json` `skills` array
-4. Run `npm run update-hashes -- --scan-deps`
+4. Run `npm run update-deps -- --scan-deps`
 
 ## Eval Format
 

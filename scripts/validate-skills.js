@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { loadPluginSkills, loadManifest, computeSkillHash, extractSkillName, resolveTargetSkills, ROOT } from './lib/manifest.js';
+import { loadPluginSkills, loadManifest, extractSkillName, resolveTargetSkills, ROOT } from './lib/manifest.js';
 import { formatValidationConsole, formatValidationJson } from './lib/reporter.js';
 import { parseArgs } from './lib/cli-args.js';
 
@@ -10,7 +10,6 @@ Options:
   --skill <name>            Validate a specific skill by name
   --deps                    Also validate the skill's dependencies (requires --skill)
   --ci                      Output JSON instead of console formatting
-  --skip-hash-freshness     Skip hash-freshness check (for CI workflows that update hashes separately)
   --help                    Show help`;
 
 function checkFrontmatter(skillPath) {
@@ -87,29 +86,12 @@ function checkNoOrphans(skillPath) {
   return { name: 'no-orphans', passed: true, message: '' };
 }
 
-function checkHashFreshness(skillName, skillPath, manifest) {
-  const entry = manifest.skills[skillName];
-  if (!entry) {
-    return { name: 'hash-freshness', passed: false, message: `skill "${skillName}" not in skill-deps.json` };
-  }
-  try {
-    const currentHash = computeSkillHash(skillPath);
-    if (currentHash !== entry.hash) {
-      return { name: 'hash-freshness', passed: false, message: 'hash mismatch (skill changed since last update)' };
-    }
-  } catch (err) {
-    return { name: 'hash-freshness', passed: false, message: err.message };
-  }
-  return { name: 'hash-freshness', passed: true, message: '' };
-}
-
-function validateSkill(skill, manifest, { skipHashFreshness = false } = {}) {
+function validateSkill(skill, manifest) {
   const checks = [
     checkFrontmatter(skill.path),
     checkEvalsSchema(skill.path),
     checkDepIntegrity(skill.name, manifest),
     checkNoOrphans(skill.path),
-    ...(skipHashFreshness ? [] : [checkHashFreshness(skill.name, skill.path, manifest)]),
   ];
   return {
     skill: skill.name,
@@ -123,10 +105,9 @@ const opts = parseArgs(process.argv, {
     skill: { type: 'string' },
     deps: { type: 'boolean' },
     ci: { type: 'boolean' },
-    'skip-hash-freshness': { type: 'boolean' },
     help: { type: 'boolean' },
   },
-  defaults: { skill: null, deps: false, ci: false, skipHashFreshness: false, help: false },
+  defaults: { skill: null, deps: false, ci: false, help: false },
   usage: HELP_TEXT,
   validate: [(o) => o.deps && !o.skill ? '--deps requires --skill' : null],
 });
@@ -138,13 +119,13 @@ if (opts.help) {
 
 const manifest = loadManifest();
 if (!manifest) {
-  console.error('Error: skill-deps.json not found. Run "npm run update-hashes" first.');
+  console.error('Error: skill-deps.json not found. Run "npm run update-deps" first.');
   process.exit(2);
 }
 
 const pluginSkills = loadPluginSkills();
 const targets = resolveTargetSkills(opts, manifest, pluginSkills);
-const results = targets.map((t) => validateSkill(t, manifest, { skipHashFreshness: opts.skipHashFreshness }));
+const results = targets.map((t) => validateSkill(t, manifest));
 
 if (opts.ci) {
   console.log(formatValidationJson(results));

@@ -54,6 +54,7 @@ jobs:
           fi
 
   evaluate:
+    name: evaluate (${{ matrix.skill.name }})
     needs: resolve
     if: needs.resolve.outputs.has_skills == 'true'
     runs-on: ubuntu-latest
@@ -87,7 +88,7 @@ jobs:
             dir=$(dirname "$f")
             id=$(basename "$dir")
             copilot -p "$(cat "$f")" --no-ask-user \
-              --allow-tool='shell(cat:*)' > "$dir/response.txt" || true
+              --allow-tool='shell(cat:*)' > "$dir/response.txt" 2> >(grep -v -E '^(Changes|Requests|Tokens|Resume)\s' >&2) || true
             echo "::group::Case $id response"
             cat "$dir/response.txt"
             echo "::endgroup::"
@@ -104,7 +105,7 @@ jobs:
             base=$(basename "$f" .txt)
             id=$(basename "$dir")
             copilot -p "$(cat "$f")" --no-ask-user \
-              > "$dir/${base}-verdict.txt" || true
+              > "$dir/${base}-verdict.txt" 2> >(grep -v -E '^(Changes|Requests|Tokens|Resume)\s' >&2) || true
             echo "::group::Case $id $base verdict"
             cat "$dir/${base}-verdict.txt"
             echo "::endgroup::"

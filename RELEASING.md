@@ -8,10 +8,7 @@ Releases are gated — not every merge to `main` is a release. A release is a sp
 
 ### Release Identity
 
-Each release has two identifiers:
-
-- **Semver tag** (`v0.1.0`) — human-readable version
-- **Release hash** — composite SHA-256 of all skill hashes, stored in `skill-deps.json` as `releaseHash`. This is a content seal: same skills produce the same hash.
+Each release is identified by its **semver tag** (`v0.1.0`).
 
 ### Version Source of Truth
 
@@ -24,7 +21,7 @@ The git tag is the source of truth. The release workflow writes the version from
 3. Enter the version (e.g., `0.1.0`) — no `v` prefix
 4. The workflow will:
    - Validate the version format
-   - Update skill hashes and compute the release hash
+   - Update skill dependency graph
    - Bump version in `package.json` and `plugin.json`
    - Commit the changes
    - Create the semver tag (`v0.1.0`)

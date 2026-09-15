@@ -36,7 +36,7 @@ const opts = parseArgs(process.argv, {
 });
 const manifest = loadManifest();
 if (!manifest) {
-  console.error('Error: skill-deps.json not found. Run "npm run update-hashes" first.');
+  console.error('Error: skill-deps.json not found. Run "npm run update-deps" first.');
   process.exit(2);
 }
 

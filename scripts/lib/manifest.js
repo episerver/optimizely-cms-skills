@@ -1,6 +1,5 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, posix } from 'node:path';
-import { createHash } from 'node:crypto';
 
 const ROOT = join(import.meta.dirname, '..', '..');
 const PLUGIN_PATH = join(ROOT, '.claude-plugin', 'plugin.json');
@@ -39,19 +38,6 @@ export function loadPluginSkills() {
     unique.push(normalized);
   }
   return unique;
-}
-
-/**
- * Compute SHA-256 hash of a skill's SKILL.md file.
- * Line endings are normalized (\r\n -> \n) before hashing for cross-platform consistency.
- */
-export function computeSkillHash(skillPath) {
-  const absPath = join(ROOT, skillPath, 'SKILL.md');
-  if (!existsSync(absPath)) {
-    throw new Error(`SKILL.md not found: ${absPath}`);
-  }
-  const content = readFileSync(absPath, 'utf-8').replace(/\r\n/g, '\n');
-  return 'sha256:' + createHash('sha256').update(content, 'utf-8').digest('hex');
 }
 
 /**
@@ -168,19 +154,6 @@ export function computeAffectedSkills(skills, changedSkills, { maxDepth = 1 } = 
     }
   }
   return visited;
-}
-
-/**
- * Compute a composite release hash from all individual skill hashes.
- * Sorts skills alphabetically by name, concatenates their hashes,
- * and produces a single SHA-256 digest.
- */
-export function computeReleaseHash(skills) {
-  const sortedHashes = Object.keys(skills)
-    .sort()
-    .map((name) => skills[name].hash)
-    .join('\n');
-  return 'sha256:' + createHash('sha256').update(sortedHashes, 'utf-8').digest('hex');
 }
 
 export function findSkillNameByPath(manifest, skillPath) {
