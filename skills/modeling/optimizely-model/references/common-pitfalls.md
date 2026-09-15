@@ -376,20 +376,7 @@ p_longstring: {
 }
 ```
 
-**Full mapping** (applies to every property type, since metadata fields are shared):
-
-| ❌ Never write | ✅ Correct field |
-|----------------|------------------|
-| `required` | `isRequired` |
-| `localized`, `cultureSpecific` | `isLocalized` |
-| `sortIndex`, `order`, `displayOrder` | `sortOrder` |
-| `name`, `label` | `displayName` |
-| `helpText`, `tooltip` | `description` |
-| `indexing`, `searchable` | `indexingType: 'searchable'` |
-| `tab`, `section` | `group` |
-| `min`, `max` | `minimum`, `maximum` |
-| `minimumLength`, `maximumLength` | `minLength`, `maxLength` |
-| `allowedType`, `restrictedType` (singular) | `allowedTypes`, `restrictedTypes` (plural arrays) |
+The same trap applies to every property type, since metadata fields are shared. `references/property-types.md` lists each field with the near-miss spellings to avoid, in "Property Metadata Fields".
 
 ## 13. Dropping Range Constraints on Numeric Properties
 

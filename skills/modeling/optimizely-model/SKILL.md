@@ -72,164 +72,82 @@ Choose the appropriate `baseType`: `'_page'`, `'_component'`, `'_experience'`, `
 
 ### Property Types
 
-Common property types include `'string'`, `'richText'`, `'boolean'`, `'integer'`, `'float'`, `'dateTime'`, `'url'`, `'content'`, `'contentReference'`, `'array'`, and `'component'`. 
+The available types are `'string'`, `'richText'`, `'boolean'`, `'integer'`, `'float'`, `'dateTime'`, `'url'`, `'link'`, `'binary'`, `'json'`, `'content'`, `'contentReference'`, `'array'` and `'component'`.
 
-**Numeric types** (`'integer'` and `'float'`) support `minimum` and `maximum` constraints. **When the user gives a range, both values are mandatory output** - a numeric property that silently loses its bounds validates anything:
+Two are worth knowing up front because they carry extra requirements:
 
-```typescript
-price: {
-  type: 'float',
-  minimum: 0.01,
-  maximum: 999.99
-}
+- `'integer'`, `'float'` and `'dateTime'` accept `minimum`/`maximum` bounds (ISO 8601 strings for dates).
+- `'binary'` additionally requires `format: 'blob'`; without it the push fails with `The Type field does not support the value 'binary'`. It also only exists on CMS 13 — SaaS CMS rejects binary properties however they are written, so say so when you generate one.
 
-// User: "p_float is float property and this property has display name 'float display name',
-//        group 'content', indexing type 'queryable', minimum 20, maximum 50"
+`references/property-types.md` documents every type, its constraints and its formats with examples.
 
-// ❌ WRONG - range dropped, the property accepts any number
-p_float: {
-  type: 'float',
-  displayName: 'float display name',
-  group: 'content',
-  indexingType: 'queryable',
-}
+### Turning a Request into Properties
 
-// ✅ CORRECT
-p_float: {
-  type: 'float',
-  displayName: 'float display name',
-  group: 'content',
-  indexingType: 'queryable',
-  minimum: 20,
-  maximum: 50,
-}
-```
+Almost every defect in a generated content type is one of two things, and neither is a wrong `type`: an attribute the user named never made it into the file, or it arrived under a name the schema doesn't know. Both are quiet. A missing `description` or `minimum` pushes cleanly and simply behaves wrong in the editor; a misspelled `required` fails the push with a message that doesn't say which property caused it.
 
-The same applies to `'integer'` and to `'dateTime'` (whose bounds are ISO date strings).
+So treat the request as a checklist. Walk it one attribute at a time, map each to a field using the tables below, and count before writing: if the user named nine things, nine fields should be present — and nothing else, since an invented `isRequired: true` stops editors saving content until they fill the field in.
 
-**Binary type** (`'binary'`) always requires `format: 'blob'` — without it, `config push` fails with `The Type field does not support the value 'binary'`:
-```typescript
-attachment: {
-  type: 'binary',
-  format: 'blob',
-  displayName: 'Attachment'
-}
-```
+**What the user describes → what to emit**
 
-⚠️ Binary properties are only supported on CMS 13. SaaS CMS (`*.cms.optimizely.com`) rejects them on push regardless of format. Warn the user about this whenever you add a binary property.
+| User says | Emit |
+|-----------|------|
+| "dropdown", "select one", "pick one of" | `type: 'string'`, `format: 'selectOne'`, `enum: [{ value, displayName }, ...]` |
+| "select list", "multi-select", "checkboxes" | `type: 'array'`, `format: 'selectMany'`, `items: { type: 'string', enum: [...] }` |
+| "URL to document", "document link" | `type: 'url'`, `format: 'DocumentUrl'` |
+| "URL to image", "image link" | `type: 'url'`, `format: 'ImageUrl'` |
+| "short string", "single-line text", "name" | `type: 'string'`, `format: 'shortString'` |
+| "long string", "multi-line text", "description" | `type: 'string'` — the one string case that takes no format |
+| "GUID", "UUID", "unique identifier" | `type: 'string'`, `format: 'guid'` |
+| "rich text", "formatted text", "WYSIWYG" | `type: 'richText'` |
+| "binary", "blob", "raw file data" | `type: 'binary'`, `format: 'blob'` (CMS 13 only) |
+| "image", "picture", "photo" | `type: 'contentReference'`, `allowedTypes: ['_image']` |
+| "list of tags", "array of strings" | `type: 'array'`, `items: { type: 'string' }` |
 
-See `references/property-types.md` for the complete list with examples.
+The `format` is not decoration — it picks the editor widget. Leave it off a document URL or a GUID and the editor shows a plain text box, with nothing to signal the mistake.
 
-### Property Metadata Fields
+**Metadata and constraints → exact field names**
 
-**CRITICAL**: All properties support these metadata fields - use them when specified by the user:
+The user's wording is never the field name, and near-misses are rejected rather than ignored:
 
-| Field | Description | Example |
-|-------|-------------|---------|
-| `displayName` | Label in CMS UI | `'Article Title'` |
-| `description` | Help text for editors | `'The main heading for this article'` |
-| `group` | Tab/section in editor | `'content'`, `'seo'` |
-| `sortOrder` | Display order in group | `1`, `5`, `10` |
-| `isRequired` | Must have a value | `true`, `false` |
-| `isLocalized` | Different value per language | `true`, `false` |
-| `indexingType` | Search indexing behavior | `'searchable'`, `'queryable'` |
+| User says | Field | Never write |
+|-----------|-------|-------------|
+| "display name", "label" | `displayName` | `name`, `label` |
+| "description", "help text", "tooltip" | `description` | `helpText`, `tooltip` |
+| "localized", "culture specific", "per language" | `isLocalized: true` | `localized`, `cultureSpecific` |
+| "sort order", "sort index", "order" | `sortOrder` | `sortIndex`, `displayOrder` |
+| "group", "tab", "section" | `group` | `tab`, `section` |
+| "searchable" / "queryable", "filterable" | `indexingType: 'searchable'` / `'queryable'` | `indexing`, `searchable` |
+| "required", "mandatory" | `isRequired: true` | `required` |
+| "min length", "max length" | `minLength`, `maxLength` | `minimumLength`, `maximumLength` |
+| "minimum", "maximum", "between X and Y", "at least", "up to" | `minimum`, `maximum` | `min`, `max` |
+| "start with X", "must begin with X" | `pattern: '^X'` | |
+| "allowedType is X", "restrictedType is X" | `allowedTypes: [X]`, `restrictedTypes: [X]` | the singular forms |
 
-**CRITICAL - use these exact field names.** The user's phrasing is not the field name. Writing `required: true` because the user said "required" produces a content type that **fails on `config push`** - the API does not accept unknown property fields. The same trap applies to every row below:
+`required: true` is the one that bites most often — the user says "required", so the word looks like the field, but the schema calls it `isRequired` and rejects the push.
 
-| ❌ Never write | ✅ Correct field |
-|----------------|------------------|
-| `required` | `isRequired` |
-| `localized`, `cultureSpecific` | `isLocalized` |
-| `sortIndex`, `order`, `displayOrder` | `sortOrder` |
-| `name`, `label` | `displayName` |
-| `helpText`, `tooltip` | `description` |
-| `indexing`, `searchable` | `indexingType: 'searchable'` |
-| `tab`, `section` | `group` |
-| `min`, `max` | `minimum`, `maximum` |
-| `minimumLength`, `maximumLength` | `minLength`, `maxLength` |
-| `allowedType`, `restrictedType` (singular) | `allowedTypes`, `restrictedTypes` (plural arrays) |
+The three that vanish most often are `description`, `isLocalized` and `sortOrder`, closely followed by the constraint fields — precisely because nothing breaks when they go missing.
 
 ```typescript
-// User: "p_longstring property is a long string and required"
+// "p_string is a long string with display name 'string display name', description
+//  'A sample string field', localized, group 'content', sort index 5, indexing type
+//  'searchable', start with 'string', min length 1, max length 100"
 
-// ❌ WRONG - `required` is not a field; config push fails
-p_longstring: {
-  type: 'string',
-  displayName: 'Long String',
-  required: true,
-}
-
-// ✅ CORRECT
-p_longstring: {
-  type: 'string',
-  displayName: 'Long String',
-  isRequired: true,
-}
-```
-
-**When user says** → **Use this field**:
-- "display name", "label" → `displayName`
-- "description", "help text" → `description`
-- "localized", "culture specific", "per language" → `isLocalized: true`
-- "sort order", "sort index", "order" → `sortOrder`
-- "group", "tab" → `group`
-- "searchable" → `indexingType: 'searchable'`
-- "required", "mandatory" → `isRequired: true`
-
-**Example with metadata:**
-```typescript
-title: {
-  type: 'string',
-  displayName: 'Article Title',
-  description: 'The main heading displayed at the top',
-  isLocalized: true,
-  group: 'content',
-  sortOrder: 1,
-  indexingType: 'searchable',
-  isRequired: true,
-  maxLength: 100
-}
-```
-
-**CRITICAL - Emit every attribute the user listed, and nothing else.** Walk the request one attribute at a time and map each to a field before writing the file. Two failure modes, both common:
-
-1. **Dropping attributes.** `description`, `isLocalized`, `sortOrder` and the constraint fields (`minimum`/`maximum`, `minLength`/`maxLength`, `pattern`, `minItems`/`maxItems`) are lost most often, because unlike a wrong `type` they cause no error - the type pushes fine and the CMS editor is simply missing the help text, the translation toggle, the ordering and the validation.
-2. **Inventing attributes.** Never add a field the user did not ask for. In particular do not add `isRequired` unless they said "required" or "mandatory" - and note the field is `isRequired`, never `required`.
-
-```typescript
-// User: "p_string is a long string and has display name 'string display name',
-//        description 'A sample string field', localized (culture specific): true,
-//        group 'content', sort index 5, indexing type 'searchable',
-//        start with 'string', min length 1, max length 100"
-
-// ✅ CORRECT - all ten attributes present, nothing added
 p_string: {
-  type: 'string',                     // "long string" → string with no format
+  type: 'string',                      // "long string" → no format
   displayName: 'string display name',
   description: 'A sample string field',
-  isLocalized: true,                  // "localized (culture specific)"
+  isLocalized: true,                   // "localized (culture specific)"
   group: 'content',
-  sortOrder: 5,                       // "sort index"
+  sortOrder: 5,                        // "sort index"
   indexingType: 'searchable',
-  pattern: '^string',                 // "start with"
+  pattern: '^string',                  // "start with"
   minLength: 1,
   maxLength: 100,
 }
-
-// ❌ WRONG - description/isLocalized/sortOrder dropped, isRequired invented under a bogus name
-p_string: {
-  type: 'string',
-  displayName: 'string display name',
-  required: true,                     // never asked for, and not a real field
-  group: 'content',
-  indexingType: 'searchable',
-  pattern: '^string',
-  minLength: 1,
-  maxLength: 100,
-}
+// Nine attributes asked for, nine fields emitted, no isRequired invented along the way.
 ```
 
-**Constraints are type-specific** - a constraint that does not apply to the property's type is invalid:
+Constraints belong to particular types — one that doesn't fit is invalid:
 
 | Constraint | Valid on |
 |------------|----------|
@@ -237,236 +155,49 @@ p_string: {
 | `minimum`, `maximum` | `integer`, `float`, `dateTime` |
 | `minItems`, `maxItems` | `array` |
 
-If the user asks for one that does not fit the type - e.g. `minimum: 20` on a string - omit it and tell them why, rather than silently rewriting it as `minLength`.
+If the user asks for one that does not fit — `minimum: 20` on a string — leave it out and ask whether `minLength` was meant, rather than guessing on their behalf.
 
-### Recognizing Property Intent from User Requests
-
-**CRITICAL**: When users describe properties, recognize the intended UI control and use the correct pattern:
-
-| User Says | Property Type | Required Fields |
-|-----------|---------------|-----------------|
-| "dropdown", "select one", "choice", "pick one from..." | String with selectOne | `type: 'string'`, `format: 'selectOne'`, `enum: [...]` |
-| "select list", "multi-select", "select many", "checkboxes", "pick multiple from..." | Array with selectMany | `type: 'array'`, `format: 'selectMany'`, `items: { type: 'string', enum: [...] }` |
-| "URL to document", "document link", "URL to doc" | URL with DocumentUrl | `type: 'url'`, `format: 'DocumentUrl'` |
-| "URL to image", "image link", "image URL" | URL with ImageUrl | `type: 'url'`, `format: 'ImageUrl'` |
-| "short string", "single-line text", "title", "name" | String with shortString | `type: 'string'`, `format: 'shortString'` |
-| "long string", "multi-line text", "description" | String (no format) | `type: 'string'` |
-| "GUID", "unique identifier", "UUID" | String with guid | `type: 'string'`, `format: 'guid'` |
-| "rich text", "formatted text", "WYSIWYG" | RichText | `type: 'richText'` |
-| "image", "picture", "photo" | ContentReference | `type: 'contentReference'`, `allowedTypes: ['_image']` |
-| "list of tags", "array of strings" | Array | `type: 'array'`, `items: { type: 'string' }` |
-| "binary", "blob", "binary data", "raw file data" | Binary (CMS 13 only) | `type: 'binary'`, `format: 'blob'` |
-| "minimum N", "maximum N", "between X and Y", "at least", "up to", "range" | Constraint on integer/float/dateTime | `minimum: X`, `maximum: Y` (both, whenever both are given) |
-
-**Example**: If user says "add a dropdown with Red, Green, Blue options", create:
-```typescript
-colorChoice: {
-  type: 'string',
-  format: 'selectOne',
-  enum: [
-    { value: 'Red', displayName: 'Red' },
-    { value: 'Green', displayName: 'Green' },
-    { value: 'Blue', displayName: 'Blue' }
-  ],
-  displayName: 'Color Choice'
-}
-```
-
-**The `format` field is mandatory whenever the table above lists one.** Dropping it is the most common modeling bug: the type still pushes successfully, so nothing errors, but the editor gets the wrong widget. Before writing the file, re-read each property the user described and confirm you carried the format over.
-
-```typescript
-// User: "a url to document property p_urlToDocument, a url to image property p_urlToImage,
-//        a short string property p_shortString, a long string property p_longString,
-//        a guid property p_guid"
-
-// ❌ WRONG - formats dropped, every field becomes a generic input
-p_urlToDocument: { type: 'url', displayName: 'URL to Document' },
-p_shortString: { type: 'string', displayName: 'Short String' },
-p_guid: { type: 'string', displayName: 'GUID' },
-
-// ✅ CORRECT - format carried over from the user's wording
-p_urlToDocument: { type: 'url', format: 'DocumentUrl', displayName: 'URL to Document' },
-p_urlToImage: { type: 'url', format: 'ImageUrl', displayName: 'URL to Image' },
-p_shortString: { type: 'string', format: 'shortString', displayName: 'Short String' },
-p_longString: { type: 'string', displayName: 'Long String' },  // long string takes no format
-p_guid: { type: 'string', format: 'guid', displayName: 'GUID' },
-```
-
-See `references/property-types.md` → "All Supported Format Values" for the complete format list.
+`references/common-pitfalls.md` walks through each of these failures with a before/after, if you want to see how they look in practice.
 
 ### Important Patterns
 
-**Content References**: Control what can be referenced using `allowedTypes`, `restrictedTypes`, or `contentType`:
+**Content references** constrain what an editor can pick, three ways:
+
+- `allowedTypes: [...]` whitelists, `restrictedTypes: [...]` blacklists, and the two can be combined.
+- `contentType: X` pins the property to exactly one type. It cannot be used alongside either of the others — if the user asks for both, use `contentType` and tell them which constraint you dropped and why.
+
+Base types are strings; custom types are object references that need importing. The underscore is the tell: `'_image'` is a base type, `ArticleContentType` is yours. Writing a custom type as a string (`['ArticleContentType']`) silently matches nothing.
 
 ```typescript
-// Using allowedTypes (whitelist)
-featuredImage: {
-  type: 'contentReference',
-  allowedTypes: ['_image', '_video'],  // Base types as strings
-  displayName: 'Featured Media'
-}
-
-relatedArticle: {
-  type: 'contentReference',
-  allowedTypes: [ArticleContentType],  // Custom types as object references (NOT strings)
-  restrictedTypes: [DraftContentType], // Can combine with restrictedTypes
-  displayName: 'Related Article'
-}
-
-// Using contentType (single specific type)
-heroSection: {
-  type: 'contentReference',
-  contentType: HeroContentType,  // Object reference
-  displayName: 'Hero Section'
-}
-```
-
-**CRITICAL - Object References vs Strings**:
-- **Base types** (start with underscore: `_page`, `_component`, `_image`, etc.) → use as **strings**: `['_image']`
-- **Custom types** (no underscore: ArticleContentType, AllowedContentType, etc.) → use as **object references**: `[ArticleContentType]`
-- When using custom type objects, **import them** at the top of the file
-
-**How to determine:**
-```typescript
-// Starts with underscore → string
-allowedTypes: ['_image']
-
-// No underscore → object reference + import
-allowedTypes: [ArticleContentType]
 import { ArticleContentType } from './Article';
+import { DraftContentType } from './Draft';
+import { HeroContentType } from './Hero';
 
-// Mixed
-allowedTypes: ['_image', ArticleContentType]
-import { ArticleContentType } from './Article';
+featuredImage:  { type: 'contentReference', allowedTypes: ['_image', '_video'] },
+relatedArticle: { type: 'contentReference', allowedTypes: [ArticleContentType], restrictedTypes: [DraftContentType] },
+heroSection:    { type: 'contentReference', contentType: HeroContentType },
 ```
 
-**CRITICAL - Mutual Exclusivity**:
-⚠️ **Cannot use `contentType` together with `allowedTypes`/`restrictedTypes`** - they are mutually exclusive. If user specifies both, use only `contentType` and warn the user.
-
-**When user says**:
-- "allowedType is X" → Check if X starts with underscore:
-  - If X starts with `_` (e.g., `_image`) → `allowedTypes: ['_image']` (string)
-  - If X does NOT start with `_` (e.g., `ArticleContentType`) → `allowedTypes: [ArticleContentType]` (object) + import
-- "restrictedType is X" → `restrictedTypes: [XContentType]` (object, never string) + import
-- "reference type is X" → `contentType: XContentType` (object, singular, not array) + import
-
-**Examples of type name recognition**:
-```
-User says: "allowedType is AllowedContentType"
-→ AllowedContentType (no underscore) = custom type
-→ allowedTypes: [AllowedContentType]  // Object reference
-→ import { AllowedContentType } from './AllowedContentType';
-
-User says: "allowedType is _image"
-→ _image (starts with underscore) = base type
-→ allowedTypes: ['_image']  // String
-
-User says: "restrictedType is RestrictContentType"
-→ RestrictContentType (no underscore) = custom type
-→ restrictedTypes: [RestrictContentType]  // Object reference
-→ import { RestrictContentType } from './RestrictContentType';
-```
-
-**Arrays**: Specify what type of items the array contains. **CRITICAL**: Constraints on individual items go **inside the `items` object**:
+**Arrays** use `items` to say what they hold. Bounds on the array itself (`minItems`, `maxItems`) sit at the property level; anything describing each element — "every item must start with test" — goes inside `items`. Arrays cannot contain arrays.
 
 ```typescript
-// Simple array
-tags: {
-  type: 'array',
-  items: { type: 'string' },
-  displayName: 'Tags',
-  minItems: 1,    // Array-level: min number of items
-  maxItems: 10,   // Array-level: max number of items
-}
-
-// Array with constraints on each item
 validatedTags: {
   type: 'array',
-  items: {
-    type: 'string',
-    minLength: 1,      // Item-level: each string min length
-    maxLength: 20,     // Item-level: each string max length
-    pattern: '^test'   // Item-level: each string must start with "test"
-  },
+  items: { type: 'string', minLength: 1, maxLength: 20, pattern: '^test' },
   minItems: 1,
-  maxItems: 10
-}
-
-// Array of numbers with range per item
-prices: {
-  type: 'array',
-  items: {
-    type: 'float',
-    minimum: 0.01,   // Item-level: each price >= 0.01
-    maximum: 999.99  // Item-level: each price <= 999.99
-  }
-}
-
-// Array of content references with type restrictions per item
-relatedArticles: {
-  type: 'array',
-  items: {
-    type: 'content',
-    allowedTypes: [ArticleContentType]  // Item-level: each must be Article
-  }
+  maxItems: 10,
 }
 ```
 
-**When user says "each item must...", "per item", "every item should..."** → add constraints inside `items` object.
+The same nesting applies to arrays of numbers (`items.minimum`), of content (`items.allowedTypes`) and of components (`items.contentType`).
 
-**Dropdown Properties (Select One)**: 
-
-**CRITICAL**: For dropdown/select-one properties, you MUST include both `format: 'selectOne'` AND an `enum` array.
+**Components** embed one specific component type, by object reference rather than by name:
 
 ```typescript
-color: {
-  type: 'string',
-  format: 'selectOne',
-  enum: [
-    { value: 'Red', displayName: 'Red' },
-    { value: 'Green', displayName: 'Green' },
-    { value: 'Blue', displayName: 'Blue' }
-  ],
-  displayName: 'Color'
-}
+hero: { type: 'component', contentType: HeroComponentType, displayName: 'Hero Section' }
 ```
 
-**Common mistake**: Omitting `format` or `enum` will result in a plain text field instead of a dropdown.
-
-**Select List Properties (Select Many)**:
-
-**CRITICAL**: For multi-select lists, you MUST use `type: 'array'`, include `format: 'selectMany'`, AND define `items.enum`.
-
-```typescript
-sizes: {
-  type: 'array',
-  format: 'selectMany',
-  displayName: 'Sizes',
-  items: {
-    type: 'string',
-    enum: [
-      { value: 'Small', displayName: 'Small' },
-      { value: 'Medium', displayName: 'Medium' },
-      { value: 'Large', displayName: 'Large' }
-    ]
-  }
-}
-```
-
-**Common mistake**: Putting `enum` at the property level instead of inside `items`, or omitting `format`.
-
-**Components**: Embed a specific component type (use the type object reference, NOT a string):
-```typescript
-hero: {
-  type: 'component',
-  contentType: HeroComponentType, // Reference to the component type object
-  displayName: 'Hero Section',
-}
-```
-
-**IMPORTANT**: The `contentType` field must reference the actual type object (e.g., `HeroComponentType`), not a string like `'HeroComponentType'`.
-
-**Container Types**: Use `mayContainTypes` for pages, experiences, and folders:
+**Container types** use `mayContainTypes` on pages, experiences and folders:
 ```typescript
 export const BlogPageContentType = contentType({
   key: 'BlogPage',
@@ -495,24 +226,9 @@ If the user wants to model based on existing content types, display templates, o
 When creating multiple content types at once (e.g., generating from CMS site data or creating a set of related types):
 
 1. Create all content type files in the components directory
-2. **IMPORTANT**: After creating all files, check if `initContentTypeRegistry` exists in the project (search for it in `layout.tsx` or `app/layout.tsx`)
-3. If the registry exists, add all new content types and contracts to it:
-   ```typescript
-   import { ArticleContentType } from '@/components/Article';
-   import { BlogPageContentType } from '@/components/BlogPage';
-   import { HeroComponentType } from '@/components/Hero';
-   import { SEOContract } from '@/components/SEOContract';
-   import { initContentTypeRegistry } from '@optimizely/cms-sdk';
-   
-   initContentTypeRegistry([
-     SEOContract, // Contracts first
-     ArticleContentType,
-     BlogPageContentType,
-     HeroComponentType,
-   ]);
-   ```
-4. If creating a script to generate content types, ensure the script also updates the registry
-5. Remind the user to sync with `config push` after all types are created and registered
+2. Register them in one pass afterwards rather than one at a time - see [Registering Content Types and Contracts](#registering-content-types-and-contracts) below, and remember contracts come first in the array
+3. If you write a script to generate the types, have the script update the registry too - a generated type that is never registered is invisible to the CMS
+4. Remind the user to sync with `config push` once everything is created and registered
 
 ### Component-Specific Configuration
 

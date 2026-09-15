@@ -432,17 +432,19 @@ ctaButton: {
 
 ### Property Metadata Fields
 
-All property types support these common metadata fields:
+All property types support these common metadata fields. The last column lists the near-miss spellings that fail on push - the user's wording is never the field name, and the schema rejects an unknown key rather than ignoring it:
 
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| `displayName` | string | Label shown in CMS editor UI | `'Article Title'` |
-| `description` | string | Help text shown to editors | `'The main heading for this article'` |
-| `group` | string | Tab/group in editor where property appears | `'content'`, `'seo'`, `'settings'` |
-| `sortOrder` | number | Display order within group (lower = first) | `1`, `5`, `10` |
-| `isRequired` | boolean | Whether property must have a value | `true`, `false` |
-| `isLocalized` | boolean | Whether property has different values per language/culture | `true`, `false` |
-| `indexingType` | string | How property is indexed for search | `'searchable'`, `'queryable'` |
+| Field | Type | Description | Example | ❌ Never write |
+|-------|------|-------------|---------|----------------|
+| `displayName` | string | Label shown in CMS editor UI | `'Article Title'` | `name`, `label` |
+| `description` | string | Help text shown to editors | `'The main heading for this article'` | `helpText`, `tooltip` |
+| `group` | string | Tab/group in editor where property appears | `'content'`, `'seo'`, `'settings'` | `tab`, `section` |
+| `sortOrder` | number | Display order within group (lower = first) | `1`, `5`, `10` | `sortIndex`, `order`, `displayOrder` |
+| `isRequired` | boolean | Whether property must have a value | `true`, `false` | `required` |
+| `isLocalized` | boolean | Whether property has different values per language/culture | `true`, `false` | `localized`, `cultureSpecific` |
+| `indexingType` | string | How property is indexed for search | `'searchable'`, `'queryable'` | `indexing`, `searchable` |
+
+The same applies to the constraint fields: `minimum`/`maximum` never `min`/`max`, `minLength`/`maxLength` never `minimumLength`/`maximumLength`, and `allowedTypes`/`restrictedTypes` never the singular forms. Because metadata fields are shared across every property type, a wrong name breaks a `dateTime` or `contentReference` property exactly as it breaks a `string`.
 
 **Complete example with all metadata:**
 
@@ -462,23 +464,11 @@ title: {
 
 ### Recognizing Metadata from User Input
 
-**CRITICAL**: Map user phrases to the correct field names:
-
-| User Says | Property Field | Value |
-|-----------|----------------|-------|
-| "display name", "label", "title" | `displayName` | The specified text |
-| "description", "help text", "tooltip" | `description` | The specified text |
-| "localized", "culture specific", "per language", "translated" | `isLocalized` | `true` |
-| "sort order", "sort index", "display order", "order" | `sortOrder` | The specified number |
-| "group", "tab", "section" | `group` | The specified group name |
-| "searchable", "indexed for search" | `indexingType` | `'searchable'` |
-| "queryable", "filterable" | `indexingType` | `'queryable'` |
-| "required", "mandatory", "must have value" | `isRequired` | `true` |
-| "start with X", "must begin with X" | `pattern` | `'^X'` |
+Which phrase maps to which field is tabulated in the skill's "Turning a Request into Properties" section; the two rules that matter when applying it are:
 
 **Every phrase the user uses maps to a field - none of them are optional.** After writing a property, count the attributes in the request and count the fields you emitted; they must match. `description`, `isLocalized` and `sortOrder` are the three that go missing most often, because omitting them produces a valid content type that simply behaves wrong in the editor.
 
-**Never emit a field the user did not ask for.** Adding `isRequired: true` to a property nobody called required makes the content uneditable until it is filled in. The field is also spelled `isRequired` - a bare `required` is not part of the schema.
+**Never emit a field the user did not ask for.** Adding `isRequired: true` to a property nobody called required makes the content uneditable until it is filled in.
 
 **Example mappings:**
 
@@ -520,25 +510,6 @@ title: {
   required: true
 }
 ```
-
-### Exact Field Names
-
-The user's wording is never the field name. Translate it, using this table to avoid the near-miss spellings that fail on push:
-
-| ❌ Never write | ✅ Correct field |
-|----------------|------------------|
-| `required` | `isRequired` |
-| `localized`, `cultureSpecific` | `isLocalized` |
-| `sortIndex`, `order`, `displayOrder` | `sortOrder` |
-| `name`, `label` | `displayName` |
-| `helpText`, `tooltip` | `description` |
-| `indexing`, `searchable` | `indexingType: 'searchable'` |
-| `tab`, `section` | `group` |
-| `min`, `max` | `minimum`, `maximum` |
-| `minimumLength`, `maximumLength` | `minLength`, `maxLength` |
-| `allowedType`, `restrictedType` (singular) | `allowedTypes`, `restrictedTypes` (plural arrays) |
-
-This applies to every property type - the metadata fields are shared, so a wrong name breaks a `dateTime` or `contentReference` property exactly as it breaks a `string`.
 
 ### Display Names and Groups
 
