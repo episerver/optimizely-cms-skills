@@ -152,6 +152,34 @@
           "check": "Response states that binary properties are supported on CMS 13 but not on SaaS CMS"
         }
       ]
+    },
+    {
+      "id": 17,
+      "prompt": "Create a page type SkillBug5Page with a url to document property p_urlToDocument, a url to image property p_urlToImage, a short string property p_shortString, a long string property p_longString, a guid property p_guid",
+      "expected_output": "Should create SkillBug5Page.tsx with contentType() definition, baseType: '_page', containing five properties each with the format implied by the user's wording: p_urlToDocument (type: 'url', format: 'DocumentUrl'), p_urlToImage (type: 'url', format: 'ImageUrl'), p_shortString (type: 'string', format: 'shortString'), p_longString (type: 'string', NO format field), p_guid (type: 'string', format: 'guid'). Should NOT omit any format field except on p_longString.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Document URL has DocumentUrl format",
+          "check": "p_urlToDocument includes type: 'url' and format: 'DocumentUrl'"
+        },
+        {
+          "name": "Image URL has ImageUrl format",
+          "check": "p_urlToImage includes type: 'url' and format: 'ImageUrl'"
+        },
+        {
+          "name": "Short string has shortString format",
+          "check": "p_shortString includes type: 'string' and format: 'shortString'"
+        },
+        {
+          "name": "Long string has no format",
+          "check": "p_longString includes type: 'string' and does NOT include a format field"
+        },
+        {
+          "name": "GUID has guid format",
+          "check": "p_guid includes type: 'string' and format: 'guid'"
+        }
+      ]
     }
   ]
 }

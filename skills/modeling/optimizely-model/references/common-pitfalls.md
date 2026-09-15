@@ -266,6 +266,35 @@ p_binary: {
 
 **⚠️ Platform limitation:** even with `format: 'blob'`, binary properties only work on CMS 13. SaaS CMS does not support them — always tell the user this when generating one, and offer `type: 'contentReference'` with `allowedTypes: ['_media']` as the SaaS alternative.
 
+## 9. Dropping the `format` Field
+
+**Problem:** Generating a property from a description that names a format, but emitting only the `type`.
+
+**Why it fails:** Silently. The content type pushes without error, so the mistake is only visible in the CMS editor, where a document URL, an image URL, a short string and a GUID all render as the same generic input.
+
+**Example of what NOT to do:**
+```typescript
+// User asked for "a url to document property, a url to image property,
+// a short string property, a guid property"
+// ❌ WRONG - all four collapse to two generic widgets
+p_urlToDocument: { type: 'url', displayName: 'URL to Document' },
+p_urlToImage: { type: 'url', displayName: 'URL to Image' },
+p_shortString: { type: 'string', displayName: 'Short String' },
+p_guid: { type: 'string', displayName: 'GUID' }
+```
+
+**Solution:** Carry the format over from the user's wording:
+```typescript
+// ✅ CORRECT
+p_urlToDocument: { type: 'url', format: 'DocumentUrl', displayName: 'URL to Document' },
+p_urlToImage: { type: 'url', format: 'ImageUrl', displayName: 'URL to Image' },
+p_shortString: { type: 'string', format: 'shortString', displayName: 'Short String' },
+p_guid: { type: 'string', format: 'guid', displayName: 'GUID' },
+p_longString: { type: 'string', displayName: 'Long String' }  // long string is the one that takes no format
+```
+
+See `property-types.md` → "All Supported Format Values" for every valid `format` and the type it belongs to.
+
 ## Quick Checklist
 
 Before finalizing your content type definition:
@@ -280,3 +309,4 @@ Before finalizing your content type definition:
 - [ ] Type references use objects (e.g., `ArticleContentType`), not strings (e.g., `'ArticleContentType'`)
 - [ ] `editorSettings` used only on `richText` properties (not on string/other types)
 - [ ] `binary` properties include `format: 'blob'` and the user has been told they are CMS 13 only
+- [ ] Every property whose description named a format (document/image URL, short string, GUID, dropdown, select list, binary) carries its `format` field

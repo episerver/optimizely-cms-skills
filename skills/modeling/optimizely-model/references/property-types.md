@@ -640,6 +640,22 @@ sizes: {
 
 The `format` field provides additional semantic information about how a property should be handled in the CMS UI. Different property types support different formats.
 
+**CRITICAL**: When the user's wording names a format (see the table below), the `format` field is **not optional** - omitting it silently produces the wrong editor widget in the CMS. A `url` property described as "URL to document" without `format: 'DocumentUrl'` is a bug, not a simplification.
+
+### All Supported Format Values
+
+| `format` | Valid on `type` | Use when the user says | Also required |
+|----------|-----------------|------------------------|---------------|
+| `'DocumentUrl'` | `'url'` | "URL to document", "document link", "link to PDF/file" | - |
+| `'ImageUrl'` | `'url'` | "URL to image", "image link", "image URL" | - |
+| `'shortString'` | `'string'` | "short string", "single-line text", "title", "name", "label" | - |
+| `'guid'` | `'string'` | "GUID", "UUID", "unique identifier" | - |
+| `'selectOne'` | `'string'` | "dropdown", "select one", "pick one of" | `enum: [...]` |
+| `'selectMany'` | `'array'` | "select list", "multi-select", "select many", "checkboxes" | `items: { enum: [...] }` |
+| `'blob'` | `'binary'` | "binary", "blob", "binary data" | Always required; CMS 13 only |
+
+**Types that take no `format`**: `richText`, `boolean`, `integer`, `float`, `dateTime`, `link`, `json`, `content`, `contentReference`, `component`, and plain long-form `string` ("long string", "multi-line text", "description") or generic `url`.
+
 ### URL Type Formats
 
 URL properties (`type: 'url'`) support formats that indicate the expected URL target:

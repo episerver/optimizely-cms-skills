@@ -1,8 +1,8 @@
 {
   "$schema": "./scripts/skill-deps.schema.json",
   "version": 1,
-  "generated": "2026-09-15T10:11:53.304Z",
-  "releaseHash": "sha256:9d132b9cd9bf993872a4565f77609199db43caab91ae895270f770c9c1ac0f71",
+  "generated": "2026-09-15T10:18:37.067Z",
+  "releaseHash": "sha256:5ec7364b2750510dbe8ec05716d3921c9258e96bbaa228d1b37552c289718b67",
   "skills": {
     "optimizely-setup": {
       "path": "./skills/setup/optimizely-setup",
@@ -63,7 +63,7 @@
     },
     "optimizely-model": {
       "path": "./skills/modeling/optimizely-model",
-      "hash": "sha256:10c9cc9d5be4ad16ee4385d1198b156d5efb144743b6b6c7658beff34c263c65",
+      "hash": "sha256:5b5265290aef9dbf9c0976e989b9bf73c196f7e9051db97d69d19566902d0ca8",
       "dependencies": [
         "optimizely-model-react",
         "optimizely-setup"

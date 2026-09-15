@@ -166,6 +166,28 @@ colorChoice: {
 }
 ```
 
+**The `format` field is mandatory whenever the table above lists one.** Dropping it is the most common modeling bug: the type still pushes successfully, so nothing errors, but the editor gets the wrong widget. Before writing the file, re-read each property the user described and confirm you carried the format over.
+
+```typescript
+// User: "a url to document property p_urlToDocument, a url to image property p_urlToImage,
+//        a short string property p_shortString, a long string property p_longString,
+//        a guid property p_guid"
+
+// ❌ WRONG - formats dropped, every field becomes a generic input
+p_urlToDocument: { type: 'url', displayName: 'URL to Document' },
+p_shortString: { type: 'string', displayName: 'Short String' },
+p_guid: { type: 'string', displayName: 'GUID' },
+
+// ✅ CORRECT - format carried over from the user's wording
+p_urlToDocument: { type: 'url', format: 'DocumentUrl', displayName: 'URL to Document' },
+p_urlToImage: { type: 'url', format: 'ImageUrl', displayName: 'URL to Image' },
+p_shortString: { type: 'string', format: 'shortString', displayName: 'Short String' },
+p_longString: { type: 'string', displayName: 'Long String' },  // long string takes no format
+p_guid: { type: 'string', format: 'guid', displayName: 'GUID' },
+```
+
+See `references/property-types.md` → "All Supported Format Values" for the complete format list.
+
 ### Important Patterns
 
 **Content References**: Control what can be referenced using `allowedTypes`, `restrictedTypes`, or `contentType`:
@@ -617,18 +639,19 @@ Export with appropriate suffixes:
 
 ## Common Pitfalls to Avoid
 
-Avoid nested arrays, invalid base types, missing component type fields, forgetting to register types, and adding baseType to contracts. See `references/common-pitfalls.md` for detailed explanations and solutions.
+Avoid nested arrays, invalid base types, missing component type fields, forgetting to register types, adding baseType to contracts, and dropping the `format` field. See `references/common-pitfalls.md` for detailed explanations and solutions.
 
 ## Summary Workflow
 
 1. Check `optimizely.config.mjs` for components directory
 2. Create the content type, contract, or display template file in that directory
 3. Use appropriate `contentType()`, `contract()`, or `displayTemplate()` structure
-4. Add to registry if it exists:
+4. Verify each property carries its `format` (document/image URL, short string, GUID, dropdown, select list, binary) before moving on
+5. Add to registry if it exists:
    - `initContentTypeRegistry` (contracts before content types)
    - `initDisplayTemplateRegistry` (for display templates)
-5. **Always remind** user to run `config push` and **offer to run it** for them
-6. Suggest `optimizely-model-react` for React components if applicable
+6. **Always remind** user to run `config push` and **offer to run it** for them
+7. Suggest `optimizely-model-react` for React components if applicable
 
 ## Additional Resources
 
