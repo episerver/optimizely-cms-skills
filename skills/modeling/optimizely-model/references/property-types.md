@@ -476,14 +476,40 @@ category: {
 
 ### Required Fields
 
-Mark properties as required using the `isRequired` field:
+Mark properties as required using the `isRequired` field - **never `required`**:
 
 ```typescript
+// ✅ CORRECT
 title: {
   type: 'string',
   isRequired: true
 }
+
+// ❌ WRONG - `required` is not part of the schema; config push fails
+title: {
+  type: 'string',
+  required: true
+}
 ```
+
+### Exact Field Names
+
+The user's wording is never the field name. Translate it, using this table to avoid the near-miss spellings that fail on push:
+
+| ❌ Never write | ✅ Correct field |
+|----------------|------------------|
+| `required` | `isRequired` |
+| `localized`, `cultureSpecific` | `isLocalized` |
+| `sortIndex`, `order`, `displayOrder` | `sortOrder` |
+| `name`, `label` | `displayName` |
+| `helpText`, `tooltip` | `description` |
+| `indexing`, `searchable` | `indexingType: 'searchable'` |
+| `tab`, `section` | `group` |
+| `min`, `max` | `minimum`, `maximum` |
+| `minimumLength`, `maximumLength` | `minLength`, `maxLength` |
+| `allowedType`, `restrictedType` (singular) | `allowedTypes`, `restrictedTypes` (plural arrays) |
+
+This applies to every property type - the metadata fields are shared, so a wrong name breaks a `dateTime` or `contentReference` property exactly as it breaks a `string`.
 
 ### Display Names and Groups
 

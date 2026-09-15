@@ -110,6 +110,39 @@ See `references/property-types.md` for the complete list with examples.
 | `isLocalized` | Different value per language | `true`, `false` |
 | `indexingType` | Search indexing behavior | `'searchable'`, `'queryable'` |
 
+**CRITICAL - use these exact field names.** The user's phrasing is not the field name. Writing `required: true` because the user said "required" produces a content type that **fails on `config push`** - the API does not accept unknown property fields. The same trap applies to every row below:
+
+| ❌ Never write | ✅ Correct field |
+|----------------|------------------|
+| `required` | `isRequired` |
+| `localized`, `cultureSpecific` | `isLocalized` |
+| `sortIndex`, `order`, `displayOrder` | `sortOrder` |
+| `name`, `label` | `displayName` |
+| `helpText`, `tooltip` | `description` |
+| `indexing`, `searchable` | `indexingType: 'searchable'` |
+| `tab`, `section` | `group` |
+| `min`, `max` | `minimum`, `maximum` |
+| `minimumLength`, `maximumLength` | `minLength`, `maxLength` |
+| `allowedType`, `restrictedType` (singular) | `allowedTypes`, `restrictedTypes` (plural arrays) |
+
+```typescript
+// User: "p_longstring property is a long string and required"
+
+// ❌ WRONG - `required` is not a field; config push fails
+p_longstring: {
+  type: 'string',
+  displayName: 'Long String',
+  required: true,
+}
+
+// ✅ CORRECT
+p_longstring: {
+  type: 'string',
+  displayName: 'Long String',
+  isRequired: true,
+}
+```
+
 **When user says** → **Use this field**:
 - "display name", "label" → `displayName`
 - "description", "help text" → `description`

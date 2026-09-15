@@ -212,6 +212,22 @@
           "check": "p_string does not include minimum, and the response explains that minimum does not apply to string properties"
         }
       ]
+    },
+    {
+      "id": 19,
+      "prompt": "Create content type TestingPage with p_longstring property is a long string and required",
+      "expected_output": "Should create TestingPage.tsx with contentType() definition containing p_longstring with type: 'string' (long string takes no format) and isRequired: true. MUST use the schema field name isRequired - a bare 'required: true' is not a valid field and makes config push fail.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Uses isRequired, not required",
+          "check": "p_longstring includes isRequired: true and does NOT include a field named 'required'"
+        },
+        {
+          "name": "Long string has no format",
+          "check": "p_longstring includes type: 'string' and does NOT include a format field"
+        }
+      ]
     }
   ]
 }

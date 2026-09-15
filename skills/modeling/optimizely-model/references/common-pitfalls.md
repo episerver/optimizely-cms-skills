@@ -349,6 +349,48 @@ The field is `isRequired`, never `required`, and it belongs in the output only w
 
 Do not silently rewrite it as the nearest valid field - the user's intent is genuinely ambiguous there.
 
+## 12. Using the User's Wording as the Field Name
+
+**Problem:** The user says "required", so the property gets `required: true`. Same for "localized" → `localized`, "sort index" → `sortIndex`, "label" → `label`.
+
+**Why it fails:** These are not schema fields. Unlike a dropped `description`, this one is loud - `config push` rejects the content type, because unknown property fields are not ignored.
+
+**Example of what NOT to do:**
+```typescript
+// User: "p_longstring property is a long string and required"
+// ❌ WRONG - push fails
+p_longstring: {
+  type: 'string',
+  displayName: 'Long String',
+  required: true
+}
+```
+
+**Solution:** Translate the wording to the schema field:
+```typescript
+// ✅ CORRECT
+p_longstring: {
+  type: 'string',
+  displayName: 'Long String',
+  isRequired: true
+}
+```
+
+**Full mapping** (applies to every property type, since metadata fields are shared):
+
+| ❌ Never write | ✅ Correct field |
+|----------------|------------------|
+| `required` | `isRequired` |
+| `localized`, `cultureSpecific` | `isLocalized` |
+| `sortIndex`, `order`, `displayOrder` | `sortOrder` |
+| `name`, `label` | `displayName` |
+| `helpText`, `tooltip` | `description` |
+| `indexing`, `searchable` | `indexingType: 'searchable'` |
+| `tab`, `section` | `group` |
+| `min`, `max` | `minimum`, `maximum` |
+| `minimumLength`, `maximumLength` | `minLength`, `maxLength` |
+| `allowedType`, `restrictedType` (singular) | `allowedTypes`, `restrictedTypes` (plural arrays) |
+
 ## Quick Checklist
 
 Before finalizing your content type definition:
@@ -366,4 +408,5 @@ Before finalizing your content type definition:
 - [ ] Every property whose description named a format (document/image URL, short string, GUID, dropdown, select list, binary) carries its `format` field
 - [ ] Every attribute the user listed is present - `description`, `isLocalized` and `sortOrder` in particular
 - [ ] No field was added that the user did not ask for (especially `isRequired`)
+- [ ] Field names are the schema's, not the user's wording (`isRequired` not `required`, `isLocalized` not `localized`, `sortOrder` not `sortIndex`)
 - [ ] Constraints match the property type (`minLength`/`pattern` on strings, `minimum`/`maximum` on numbers and dates, `minItems` on arrays)
