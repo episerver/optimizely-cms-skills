@@ -134,6 +134,54 @@ title: {
 }
 ```
 
+**CRITICAL - Emit every attribute the user listed, and nothing else.** Walk the request one attribute at a time and map each to a field before writing the file. Two failure modes, both common:
+
+1. **Dropping attributes.** `description`, `isLocalized` and `sortOrder` are lost most often, because unlike a wrong `type` they cause no error - the type pushes fine and the CMS editor is simply missing the help text, the translation toggle and the ordering.
+2. **Inventing attributes.** Never add a field the user did not ask for. In particular do not add `isRequired` unless they said "required" or "mandatory" - and note the field is `isRequired`, never `required`.
+
+```typescript
+// User: "p_string is a long string and has display name 'string display name',
+//        description 'A sample string field', localized (culture specific): true,
+//        group 'content', sort index 5, indexing type 'searchable',
+//        start with 'string', min length 1, max length 100"
+
+// ✅ CORRECT - all ten attributes present, nothing added
+p_string: {
+  type: 'string',                     // "long string" → string with no format
+  displayName: 'string display name',
+  description: 'A sample string field',
+  isLocalized: true,                  // "localized (culture specific)"
+  group: 'content',
+  sortOrder: 5,                       // "sort index"
+  indexingType: 'searchable',
+  pattern: '^string',                 // "start with"
+  minLength: 1,
+  maxLength: 100,
+}
+
+// ❌ WRONG - description/isLocalized/sortOrder dropped, isRequired invented under a bogus name
+p_string: {
+  type: 'string',
+  displayName: 'string display name',
+  required: true,                     // never asked for, and not a real field
+  group: 'content',
+  indexingType: 'searchable',
+  pattern: '^string',
+  minLength: 1,
+  maxLength: 100,
+}
+```
+
+**Constraints are type-specific** - a constraint that does not apply to the property's type is invalid:
+
+| Constraint | Valid on |
+|------------|----------|
+| `minLength`, `maxLength`, `pattern` | `string` (or `items` of a string array) |
+| `minimum`, `maximum` | `integer`, `float`, `dateTime` |
+| `minItems`, `maxItems` | `array` |
+
+If the user asks for one that does not fit the type - e.g. `minimum: 20` on a string - omit it and tell them why, rather than silently rewriting it as `minLength`.
+
 ### Recognizing Property Intent from User Requests
 
 **CRITICAL**: When users describe properties, recognize the intended UI control and use the correct pattern:
@@ -646,7 +694,7 @@ Avoid nested arrays, invalid base types, missing component type fields, forgetti
 1. Check `optimizely.config.mjs` for components directory
 2. Create the content type, contract, or display template file in that directory
 3. Use appropriate `contentType()`, `contract()`, or `displayTemplate()` structure
-4. Verify each property carries its `format` (document/image URL, short string, GUID, dropdown, select list, binary) before moving on
+4. Re-read the request and verify each property carries **every** attribute asked for - its `format` (document/image URL, short string, GUID, dropdown, select list, binary) and its metadata (`description`, `isLocalized`, `sortOrder` are the ones most often dropped) - and nothing that was not asked for
 5. Add to registry if it exists:
    - `initContentTypeRegistry` (contracts before content types)
    - `initDisplayTemplateRegistry` (for display templates)

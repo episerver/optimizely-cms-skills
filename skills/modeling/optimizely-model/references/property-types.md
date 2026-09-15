@@ -445,6 +445,11 @@ title: {
 | "searchable", "indexed for search" | `indexingType` | `'searchable'` |
 | "queryable", "filterable" | `indexingType` | `'queryable'` |
 | "required", "mandatory", "must have value" | `isRequired` | `true` |
+| "start with X", "must begin with X" | `pattern` | `'^X'` |
+
+**Every phrase the user uses maps to a field - none of them are optional.** After writing a property, count the attributes in the request and count the fields you emitted; they must match. `description`, `isLocalized` and `sortOrder` are the three that go missing most often, because omitting them produces a valid content type that simply behaves wrong in the editor.
+
+**Never emit a field the user did not ask for.** Adding `isRequired: true` to a property nobody called required makes the content uneditable until it is filled in. The field is also spelled `isRequired` - a bare `required` is not part of the schema.
 
 **Example mappings:**
 
@@ -495,15 +500,26 @@ metaTitle: {
 
 ### String Constraints
 
-Limit string length with `minLength` and `maxLength`:
+Limit string length with `minLength` and `maxLength`, and restrict the accepted value with `pattern` (a regular expression):
 
 ```typescript
 title: {
   type: 'string',
   minLength: 5,
-  maxLength: 100
+  maxLength: 100,
+  pattern: '^string'  // "must start with 'string'"
 }
 ```
+
+**Constraints belong to specific types** - applying one to the wrong type is invalid:
+
+| Constraint | Valid on |
+|------------|----------|
+| `minLength`, `maxLength`, `pattern` | `string` (or `items` of a string array) |
+| `minimum`, `maximum` | `integer`, `float`, `dateTime` |
+| `minItems`, `maxItems` | `array` |
+
+When a request pairs a constraint with a type that does not accept it - for example `minimum: 20` on a string property - omit the constraint and tell the user it does not apply to that type. Do not translate it into the nearest valid field (`minLength`) on their behalf; ask if that is what they meant.
 
 ### Dropdown Properties (Select One)
 

@@ -295,6 +295,60 @@ p_longString: { type: 'string', displayName: 'Long String' }  // long string is 
 
 See `property-types.md` → "All Supported Format Values" for every valid `format` and the type it belongs to.
 
+## 10. Dropping or Inventing Metadata Fields
+
+**Problem:** Emitting a property that omits metadata the user asked for, or carries metadata they never mentioned.
+
+**Why it fails:** Silently, again. `description`, `isLocalized` and `sortOrder` have no effect on whether the type pushes, so a property missing all three looks correct in the file and is wrong in the editor - no help text, no per-language values, wrong ordering. An invented `isRequired: true` is worse: it blocks editors from saving content until the field is filled.
+
+**Example of what NOT to do:**
+```typescript
+// User asked for: display name, description, localized, group, sort index 5,
+// indexing type searchable, start with "string", min length 1, max length 100
+// ❌ WRONG - description/isLocalized/sortOrder dropped, `required` invented (and misspelled)
+p_string: {
+  type: 'string',
+  displayName: 'string display name',
+  required: true,
+  group: 'content',
+  indexingType: 'searchable',
+  pattern: '^string',
+  minLength: 1,
+  maxLength: 100
+}
+```
+
+**Solution:** Map each attribute in the request to a field, then verify the counts match:
+```typescript
+// ✅ CORRECT
+p_string: {
+  type: 'string',
+  displayName: 'string display name',
+  description: 'A sample string field',
+  isLocalized: true,
+  group: 'content',
+  sortOrder: 5,
+  indexingType: 'searchable',
+  pattern: '^string',
+  minLength: 1,
+  maxLength: 100
+}
+```
+
+The field is `isRequired`, never `required`, and it belongs in the output only when the user says "required" or "mandatory".
+
+## 11. Applying a Constraint to the Wrong Type
+
+**Problem:** Copying a numeric constraint onto a non-numeric property, e.g. `minimum: 20` on a `string`.
+
+**Why it fails:** `minimum`/`maximum` are only meaningful on `integer`, `float` and `dateTime`; `minLength`/`maxLength`/`pattern` only on `string`; `minItems`/`maxItems` only on `array`.
+
+**Solution:** Omit the constraint that does not fit and say so:
+
+> "`minimum: 20` doesn't apply to a string property - `minimum`/`maximum` are for integer, float and dateTime. Did you mean `minLength: 20`? I've left it out for now."
+
+Do not silently rewrite it as the nearest valid field - the user's intent is genuinely ambiguous there.
+
 ## Quick Checklist
 
 Before finalizing your content type definition:
@@ -310,3 +364,6 @@ Before finalizing your content type definition:
 - [ ] `editorSettings` used only on `richText` properties (not on string/other types)
 - [ ] `binary` properties include `format: 'blob'` and the user has been told they are CMS 13 only
 - [ ] Every property whose description named a format (document/image URL, short string, GUID, dropdown, select list, binary) carries its `format` field
+- [ ] Every attribute the user listed is present - `description`, `isLocalized` and `sortOrder` in particular
+- [ ] No field was added that the user did not ask for (especially `isRequired`)
+- [ ] Constraints match the property type (`minLength`/`pattern` on strings, `minimum`/`maximum` on numbers and dates, `minItems` on arrays)

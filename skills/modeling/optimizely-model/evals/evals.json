@@ -180,6 +180,38 @@
           "check": "p_guid includes type: 'string' and format: 'guid'"
         }
       ]
+    },
+    {
+      "id": 18,
+      "prompt": "Create content type TestingPage with p_string property is a long string and has display name is \"string display name\", description: 'A sample string field', localized (culture specific): true, group: 'content', sort index: 5, indexing type: 'searchable', start with \"string\", min length is 1, max length is 100, minimum: 20",
+      "expected_output": "Should create TestingPage.tsx with contentType() definition containing p_string. MUST include every requested attribute: type: 'string' (long string takes no format), displayName: 'string display name', description: 'A sample string field', isLocalized: true, group: 'content', sortOrder: 5, indexingType: 'searchable', pattern: '^string', minLength: 1, maxLength: 100. Must NOT drop description, isLocalized or sortOrder. Must NOT add isRequired (or a bogus 'required' field) since the user never asked for it. Must omit minimum: 20 because minimum/maximum are only valid on integer, float and dateTime, and should tell the user it was left out and ask whether minLength was meant.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Includes description",
+          "check": "p_string includes description: 'A sample string field'"
+        },
+        {
+          "name": "Includes isLocalized",
+          "check": "p_string includes isLocalized: true"
+        },
+        {
+          "name": "Includes sortOrder",
+          "check": "p_string includes sortOrder: 5"
+        },
+        {
+          "name": "Includes pattern from 'start with'",
+          "check": "p_string includes pattern: '^string'"
+        },
+        {
+          "name": "Does not invent a required field",
+          "check": "p_string includes neither isRequired nor required"
+        },
+        {
+          "name": "Omits the type-invalid minimum constraint",
+          "check": "p_string does not include minimum, and the response explains that minimum does not apply to string properties"
+        }
+      ]
     }
   ]
 }
