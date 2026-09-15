@@ -40,8 +40,8 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Update skill hashes and release hash
-        run: node scripts/update-skill-hashes.js
+      - name: Update skill dependencies
+        run: node scripts/update-skill-deps.js --scan-deps
 
       - name: Bump version in package.json and plugin.json
         run: |
