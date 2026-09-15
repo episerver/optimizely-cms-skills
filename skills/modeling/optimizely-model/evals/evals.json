@@ -93,25 +93,101 @@
       "id": 8,
       "prompt": "Create a page type SkillBug5Page with a url to document property p_urlToDocument, a url to image property p_urlToImage, a short string property p_shortString, a long string property p_longString, and a guid property p_guid",
       "expected_output": "Should create SkillBug5Page.tsx with contentType() definition containing five properties. For p_urlToDocument: MUST have type: 'url', format: 'DocumentUrl'. For p_urlToImage: MUST have type: 'url', format: 'ImageUrl'. For p_shortString: MUST have type: 'string', format: 'shortString'. For p_longString: MUST have type: 'string' with NO format field. For p_guid: MUST have type: 'string', format: 'guid'. Should correctly recognize format requirements from property descriptions.",
-      "files": []
+      "files": [],
+      "assertions": [
+        {
+          "name": "Document URL has DocumentUrl format",
+          "check": "p_urlToDocument includes type: 'url' and format: 'DocumentUrl'"
+        },
+        {
+          "name": "Image URL has ImageUrl format",
+          "check": "p_urlToImage includes type: 'url' and format: 'ImageUrl'"
+        },
+        {
+          "name": "Short string has shortString format",
+          "check": "p_shortString includes type: 'string' and format: 'shortString'"
+        },
+        {
+          "name": "Long string has no format",
+          "check": "p_longString includes type: 'string' and does NOT include a format field"
+        },
+        {
+          "name": "GUID has guid format",
+          "check": "p_guid includes type: 'string' and format: 'guid'"
+        }
+      ]
     },
     {
       "id": 9,
-      "prompt": "Create content type TestingPage with p_string property is a long string and has display name is \"string display name\", description: 'A sample string field', localized (culture specific): true, group: 'content', sort index: 5, indexing type: 'searchable', start with \"string\", min length is 1, max length is 100",
-      "expected_output": "Should create TestingPage.tsx with contentType() definition containing p_string property. MUST have: type: 'string', displayName: 'string display name', description: 'A sample string field', isLocalized: true, group: 'content', sortOrder: 5, indexingType: 'searchable', pattern: '^string', minLength: 1, maxLength: 100. Should NOT omit description, isLocalized, or sortOrder fields.",
-      "files": []
+      "prompt": "Create content type TestingPage with p_string property is a long string and has display name is \"string display name\", description: 'A sample string field', localized (culture specific): true, group: 'content', sort index: 5, indexing type: 'searchable', start with \"string\", min length is 1, max length is 100, minimum: 20",
+      "expected_output": "Should create TestingPage.tsx with contentType() definition containing p_string property. MUST have: type: 'string', displayName: 'string display name', description: 'A sample string field', isLocalized: true, group: 'content', sortOrder: 5, indexingType: 'searchable', pattern: '^string', minLength: 1, maxLength: 100. Should NOT omit description, isLocalized, or sortOrder fields. Should NOT add isRequired (or a bogus 'required' field) since the user never asked for it. Should omit minimum: 20 because minimum/maximum are only valid on integer, float and dateTime, and should tell the user it was left out and ask whether minLength was meant.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Includes description",
+          "check": "p_string includes description: 'A sample string field'"
+        },
+        {
+          "name": "Includes isLocalized",
+          "check": "p_string includes isLocalized: true"
+        },
+        {
+          "name": "Includes sortOrder",
+          "check": "p_string includes sortOrder: 5"
+        },
+        {
+          "name": "Includes pattern from 'start with'",
+          "check": "p_string includes pattern: '^string'"
+        },
+        {
+          "name": "Does not invent a required field",
+          "check": "p_string includes neither isRequired nor required"
+        },
+        {
+          "name": "Omits the type-invalid minimum constraint",
+          "check": "p_string does not include minimum, and the response explains that minimum does not apply to string properties"
+        }
+      ]
     },
     {
       "id": 10,
       "prompt": "Create content type TestingPage with p_longstring property is a long string and required",
       "expected_output": "Should create TestingPage.tsx with contentType() definition containing p_longstring property. MUST have: type: 'string', isRequired: true. Should NOT use 'required' field (wrong field name). The correct field name is 'isRequired'.",
-      "files": []
+      "files": [],
+      "assertions": [
+        {
+          "name": "Uses isRequired, not required",
+          "check": "p_longstring includes isRequired: true and does NOT include a field named 'required'"
+        },
+        {
+          "name": "Long string has no format",
+          "check": "p_longstring includes type: 'string' and does NOT include a format field"
+        }
+      ]
     },
     {
       "id": 11,
       "prompt": "Create content type TestingPage, add p_float is float property and this property has display name is \"float display name\", group: 'content', indexing type: 'queryable', minimum: 20, maximum: 50",
       "expected_output": "Should create TestingPage.tsx with contentType() definition containing p_float property. MUST have: type: 'float', displayName: 'float display name', group: 'content', indexingType: 'queryable', minimum: 20, maximum: 50. Should NOT omit minimum or maximum constraints.",
-      "files": []
+      "files": [],
+      "assertions": [
+        {
+          "name": "Includes minimum bound",
+          "check": "p_float includes minimum: 20"
+        },
+        {
+          "name": "Includes maximum bound",
+          "check": "p_float includes maximum: 50"
+        },
+        {
+          "name": "Includes group and indexingType",
+          "check": "p_float includes group: 'content' and indexingType: 'queryable'"
+        },
+        {
+          "name": "Uses float type with display name",
+          "check": "p_float includes type: 'float' and displayName: 'float display name'"
+        }
+      ]
     },
     {
       "id": 12,
@@ -155,77 +231,25 @@
     },
     {
       "id": 17,
-      "prompt": "Create a page type SkillBug5Page with a url to document property p_urlToDocument, a url to image property p_urlToImage, a short string property p_shortString, a long string property p_longString, a guid property p_guid",
-      "expected_output": "Should create SkillBug5Page.tsx with contentType() definition, baseType: '_page', containing five properties each with the format implied by the user's wording: p_urlToDocument (type: 'url', format: 'DocumentUrl'), p_urlToImage (type: 'url', format: 'ImageUrl'), p_shortString (type: 'string', format: 'shortString'), p_longString (type: 'string', NO format field), p_guid (type: 'string', format: 'guid'). Should NOT omit any format field except on p_longString.",
+      "prompt": "Create content type TestingPage, add p_int is integer property and this property has display name is \"int display name\", group: 'content', indexing type: 'queryable', minimum: 20, maximum: 50",
+      "expected_output": "Should create TestingPage.tsx with contentType() definition containing p_int property. MUST have: type: 'integer', displayName: 'int display name', group: 'content', indexingType: 'queryable', minimum: 20, maximum: 50. Should NOT omit the minimum or maximum range constraints - they are as mandatory as the metadata fields.",
       "files": [],
       "assertions": [
         {
-          "name": "Document URL has DocumentUrl format",
-          "check": "p_urlToDocument includes type: 'url' and format: 'DocumentUrl'"
+          "name": "Includes minimum bound",
+          "check": "p_int includes minimum: 20"
         },
         {
-          "name": "Image URL has ImageUrl format",
-          "check": "p_urlToImage includes type: 'url' and format: 'ImageUrl'"
+          "name": "Includes maximum bound",
+          "check": "p_int includes maximum: 50"
         },
         {
-          "name": "Short string has shortString format",
-          "check": "p_shortString includes type: 'string' and format: 'shortString'"
+          "name": "Uses integer type",
+          "check": "p_int includes type: 'integer' and displayName: 'int display name'"
         },
         {
-          "name": "Long string has no format",
-          "check": "p_longString includes type: 'string' and does NOT include a format field"
-        },
-        {
-          "name": "GUID has guid format",
-          "check": "p_guid includes type: 'string' and format: 'guid'"
-        }
-      ]
-    },
-    {
-      "id": 18,
-      "prompt": "Create content type TestingPage with p_string property is a long string and has display name is \"string display name\", description: 'A sample string field', localized (culture specific): true, group: 'content', sort index: 5, indexing type: 'searchable', start with \"string\", min length is 1, max length is 100, minimum: 20",
-      "expected_output": "Should create TestingPage.tsx with contentType() definition containing p_string. MUST include every requested attribute: type: 'string' (long string takes no format), displayName: 'string display name', description: 'A sample string field', isLocalized: true, group: 'content', sortOrder: 5, indexingType: 'searchable', pattern: '^string', minLength: 1, maxLength: 100. Must NOT drop description, isLocalized or sortOrder. Must NOT add isRequired (or a bogus 'required' field) since the user never asked for it. Must omit minimum: 20 because minimum/maximum are only valid on integer, float and dateTime, and should tell the user it was left out and ask whether minLength was meant.",
-      "files": [],
-      "assertions": [
-        {
-          "name": "Includes description",
-          "check": "p_string includes description: 'A sample string field'"
-        },
-        {
-          "name": "Includes isLocalized",
-          "check": "p_string includes isLocalized: true"
-        },
-        {
-          "name": "Includes sortOrder",
-          "check": "p_string includes sortOrder: 5"
-        },
-        {
-          "name": "Includes pattern from 'start with'",
-          "check": "p_string includes pattern: '^string'"
-        },
-        {
-          "name": "Does not invent a required field",
-          "check": "p_string includes neither isRequired nor required"
-        },
-        {
-          "name": "Omits the type-invalid minimum constraint",
-          "check": "p_string does not include minimum, and the response explains that minimum does not apply to string properties"
-        }
-      ]
-    },
-    {
-      "id": 19,
-      "prompt": "Create content type TestingPage with p_longstring property is a long string and required",
-      "expected_output": "Should create TestingPage.tsx with contentType() definition containing p_longstring with type: 'string' (long string takes no format) and isRequired: true. MUST use the schema field name isRequired - a bare 'required: true' is not a valid field and makes config push fail.",
-      "files": [],
-      "assertions": [
-        {
-          "name": "Uses isRequired, not required",
-          "check": "p_longstring includes isRequired: true and does NOT include a field named 'required'"
-        },
-        {
-          "name": "Long string has no format",
-          "check": "p_longstring includes type: 'string' and does NOT include a format field"
+          "name": "Includes group and indexingType",
+          "check": "p_int includes group: 'content' and indexingType: 'queryable'"
         }
       ]
     }

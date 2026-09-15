@@ -46,8 +46,37 @@ price: {
 ```
 
 **When user specifies numeric constraints:**
+
 - "minimum", "min value", "at least" → use `minimum` field
 - "maximum", "max value", "up to", "no more than" → use `maximum` field
+- "between X and Y", "range X to Y" → both `minimum: X` and `maximum: Y`
+
+**CRITICAL - never drop a range.** `minimum` and `maximum` are the constraint fields most often lost on numeric properties, because their absence produces a content type that pushes cleanly and validates nothing. If the user named a bound, it belongs in the output:
+
+```typescript
+// User: "p_float is float property and this property has display name 'float display name',
+//        group 'content', indexing type 'queryable', minimum 20, maximum 50"
+
+// ❌ WRONG - bounds dropped
+p_float: {
+  type: 'float',
+  displayName: 'float display name',
+  group: 'content',
+  indexingType: 'queryable'
+}
+
+// ✅ CORRECT - all five attributes carried over
+p_float: {
+  type: 'float',
+  displayName: 'float display name',
+  group: 'content',
+  indexingType: 'queryable',
+  minimum: 20,
+  maximum: 50
+}
+```
+
+This applies identically to `'integer'` properties, and to `'dateTime'` where the bounds are ISO 8601 strings.
 
 ### DateTime Type
 

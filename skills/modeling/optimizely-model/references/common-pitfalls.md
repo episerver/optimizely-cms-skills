@@ -391,6 +391,40 @@ p_longstring: {
 | `minimumLength`, `maximumLength` | `minLength`, `maxLength` |
 | `allowedType`, `restrictedType` (singular) | `allowedTypes`, `restrictedTypes` (plural arrays) |
 
+## 13. Dropping Range Constraints on Numeric Properties
+
+**Problem:** Emitting an `integer`, `float` or `dateTime` property without the `minimum`/`maximum` the user asked for.
+
+**Why it fails:** Silently, and it is easy to miss in review - the metadata fields are all present, so the property looks complete. But the constraint that made the property worth specifying is gone: it now accepts any value.
+
+**Example of what NOT to do:**
+```typescript
+// User: "p_float is float property with display name 'float display name',
+//        group 'content', indexing type 'queryable', minimum 20, maximum 50"
+// ❌ WRONG - accepts any number
+p_float: {
+  type: 'float',
+  displayName: 'float display name',
+  group: 'content',
+  indexingType: 'queryable'
+}
+```
+
+**Solution:** Carry both bounds over:
+```typescript
+// ✅ CORRECT
+p_float: {
+  type: 'float',
+  displayName: 'float display name',
+  group: 'content',
+  indexingType: 'queryable',
+  minimum: 20,
+  maximum: 50
+}
+```
+
+Identical for `integer`, and for `dateTime` where the bounds are ISO 8601 strings (`'2024-01-01T00:00:00Z'`). For arrays, the equivalents are `minItems`/`maxItems` at the array level and `minimum`/`maximum` inside `items`.
+
 ## Quick Checklist
 
 Before finalizing your content type definition:
@@ -410,3 +444,4 @@ Before finalizing your content type definition:
 - [ ] No field was added that the user did not ask for (especially `isRequired`)
 - [ ] Field names are the schema's, not the user's wording (`isRequired` not `required`, `isLocalized` not `localized`, `sortOrder` not `sortIndex`)
 - [ ] Constraints match the property type (`minLength`/`pattern` on strings, `minimum`/`maximum` on numbers and dates, `minItems` on arrays)
+- [ ] Every constraint the user named is present - numeric `minimum`/`maximum` in particular

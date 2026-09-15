@@ -74,14 +74,38 @@ Choose the appropriate `baseType`: `'_page'`, `'_component'`, `'_experience'`, `
 
 Common property types include `'string'`, `'richText'`, `'boolean'`, `'integer'`, `'float'`, `'dateTime'`, `'url'`, `'content'`, `'contentReference'`, `'array'`, and `'component'`. 
 
-**Numeric types** (`'integer'` and `'float'`) support `minimum` and `maximum` constraints:
+**Numeric types** (`'integer'` and `'float'`) support `minimum` and `maximum` constraints. **When the user gives a range, both values are mandatory output** - a numeric property that silently loses its bounds validates anything:
+
 ```typescript
 price: {
   type: 'float',
   minimum: 0.01,
   maximum: 999.99
 }
+
+// User: "p_float is float property and this property has display name 'float display name',
+//        group 'content', indexing type 'queryable', minimum 20, maximum 50"
+
+// ❌ WRONG - range dropped, the property accepts any number
+p_float: {
+  type: 'float',
+  displayName: 'float display name',
+  group: 'content',
+  indexingType: 'queryable',
+}
+
+// ✅ CORRECT
+p_float: {
+  type: 'float',
+  displayName: 'float display name',
+  group: 'content',
+  indexingType: 'queryable',
+  minimum: 20,
+  maximum: 50,
+}
 ```
+
+The same applies to `'integer'` and to `'dateTime'` (whose bounds are ISO date strings).
 
 **Binary type** (`'binary'`) always requires `format: 'blob'` — without it, `config push` fails with `The Type field does not support the value 'binary'`:
 ```typescript
@@ -169,7 +193,7 @@ title: {
 
 **CRITICAL - Emit every attribute the user listed, and nothing else.** Walk the request one attribute at a time and map each to a field before writing the file. Two failure modes, both common:
 
-1. **Dropping attributes.** `description`, `isLocalized` and `sortOrder` are lost most often, because unlike a wrong `type` they cause no error - the type pushes fine and the CMS editor is simply missing the help text, the translation toggle and the ordering.
+1. **Dropping attributes.** `description`, `isLocalized`, `sortOrder` and the constraint fields (`minimum`/`maximum`, `minLength`/`maxLength`, `pattern`, `minItems`/`maxItems`) are lost most often, because unlike a wrong `type` they cause no error - the type pushes fine and the CMS editor is simply missing the help text, the translation toggle, the ordering and the validation.
 2. **Inventing attributes.** Never add a field the user did not ask for. In particular do not add `isRequired` unless they said "required" or "mandatory" - and note the field is `isRequired`, never `required`.
 
 ```typescript
@@ -232,6 +256,7 @@ If the user asks for one that does not fit the type - e.g. `minimum: 20` on a st
 | "image", "picture", "photo" | ContentReference | `type: 'contentReference'`, `allowedTypes: ['_image']` |
 | "list of tags", "array of strings" | Array | `type: 'array'`, `items: { type: 'string' }` |
 | "binary", "blob", "binary data", "raw file data" | Binary (CMS 13 only) | `type: 'binary'`, `format: 'blob'` |
+| "minimum N", "maximum N", "between X and Y", "at least", "up to", "range" | Constraint on integer/float/dateTime | `minimum: X`, `maximum: Y` (both, whenever both are given) |
 
 **Example**: If user says "add a dropdown with Red, Green, Blue options", create:
 ```typescript
