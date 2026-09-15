@@ -168,7 +168,7 @@ jobs:
       - name: Check results
         run: |
           if [ "${{ needs.detect-changes.result }}" = "failure" ]; then
-            echo "detect-changes failed"
+            echo "::error::Skill checks failed. Run 'npm run update-deps -- --scan-deps' locally or comment '/update-deps' on this PR to fix."
             exit 1
           fi
           echo "All checks passed"
