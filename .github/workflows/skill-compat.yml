@@ -2,10 +2,6 @@ name: Skill Compatibility Check
 
 on:
   pull_request:
-    paths:
-      - 'skills/**/SKILL.md'
-      - 'skill-deps.json'
-      - '.claude-plugin/plugin.json'
   workflow_dispatch:
     inputs:
       pr_number:
