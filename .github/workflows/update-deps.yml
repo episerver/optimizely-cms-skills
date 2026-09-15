@@ -30,6 +30,9 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Register new skills
+        run: node scripts/ci/register-skills.js
+
       - name: Update skill dependencies
         run: node scripts/update-skill-deps.js --scan-deps
 
@@ -37,11 +40,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git diff --quiet skill-deps.json && echo "Already up to date" && exit 0
+          git add .claude-plugin/plugin.json skill-deps.json
+          git diff --staged --quiet && echo "Already up to date" && exit 0
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add skill-deps.json
-          git commit -m "chore: update skill-deps.json dependencies"
+          git commit -m "chore: update skill registry and dependencies"
           git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
           git push
 

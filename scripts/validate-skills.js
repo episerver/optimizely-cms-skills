@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import { loadPluginSkills, loadManifest, extractSkillName, resolveTargetSkills, ROOT } from './lib/manifest.js';
 import { formatValidationConsole, formatValidationJson } from './lib/reporter.js';
 import { parseArgs } from './lib/cli-args.js';
@@ -78,6 +78,27 @@ function checkDepIntegrity(skillName, manifest) {
   return { name: 'dep-integrity', passed: true, message: '' };
 }
 
+function findUnregisteredSkills(pluginSkills) {
+  const registered = new Set(pluginSkills);
+  const skillsDir = join(ROOT, 'skills');
+  const unregistered = [];
+  if (!existsSync(skillsDir)) return unregistered;
+  for (const category of readdirSync(skillsDir, { withFileTypes: true })) {
+    if (!category.isDirectory()) continue;
+    const categoryPath = join(skillsDir, category.name);
+    for (const skill of readdirSync(categoryPath, { withFileTypes: true })) {
+      if (!skill.isDirectory()) continue;
+      const skillMd = join(categoryPath, skill.name, 'SKILL.md');
+      if (!existsSync(skillMd)) continue;
+      const relPath = './' + relative(ROOT, join(categoryPath, skill.name)).replace(/\\/g, '/');
+      if (!registered.has(relPath)) {
+        unregistered.push(relPath);
+      }
+    }
+  }
+  return unregistered;
+}
+
 function checkNoOrphans(skillPath) {
   const absPath = join(ROOT, skillPath);
   if (!existsSync(absPath)) {
@@ -127,11 +148,13 @@ const pluginSkills = loadPluginSkills();
 const targets = resolveTargetSkills(opts, manifest, pluginSkills);
 const results = targets.map((t) => validateSkill(t, manifest));
 
+const unregistered = findUnregisteredSkills(pluginSkills);
+
 if (opts.ci) {
-  console.log(formatValidationJson(results));
+  console.log(formatValidationJson(results, unregistered));
 } else {
-  console.log(formatValidationConsole(results));
+  console.log(formatValidationConsole(results, unregistered));
 }
 
-const allPassed = results.every((r) => r.passed);
+const allPassed = results.every((r) => r.passed) && unregistered.length === 0;
 process.exit(allPassed ? 0 : 1);

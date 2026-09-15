@@ -1,4 +1,4 @@
-export function formatValidationConsole(results) {
+export function formatValidationConsole(results, unregistered = []) {
   const lines = ['=== Skill Validation ===\n'];
 
   for (const r of results) {
@@ -7,6 +7,14 @@ export function formatValidationConsole(results) {
       const mark = c.passed ? '✓' : '✗';
       const detail = c.passed ? '' : ` — ${c.message}`;
       lines.push(`    ${mark} ${c.name}${detail}`);
+    }
+    lines.push('');
+  }
+
+  if (unregistered.length > 0) {
+    lines.push('=== Unregistered Skills ===\n');
+    for (const path of unregistered) {
+      lines.push(`  ✗ ${path} — not in plugin.json`);
     }
     lines.push('');
   }
@@ -23,12 +31,15 @@ export function formatValidationConsole(results) {
       .join(', ');
     lines.push(`  Failed: ${failed} skill(s) (${failedNames})`);
   }
+  if (unregistered.length > 0) {
+    lines.push(`  Unregistered: ${unregistered.length} skill(s) found on disk but not in plugin.json`);
+  }
 
   return lines.join('\n');
 }
 
-export function formatValidationJson(results) {
-  const passed = results.every((r) => r.passed);
+export function formatValidationJson(results, unregistered = []) {
+  const passed = results.every((r) => r.passed) && unregistered.length === 0;
   return JSON.stringify(
     {
       command: 'validate',
@@ -38,10 +49,12 @@ export function formatValidationJson(results) {
         checks: r.checks,
         passed: r.passed,
       })),
+      unregistered,
       summary: {
         total: results.length,
         passed: results.filter((r) => r.passed).length,
         failed: results.filter((r) => !r.passed).length,
+        unregistered: unregistered.length,
       },
       passed,
     },
