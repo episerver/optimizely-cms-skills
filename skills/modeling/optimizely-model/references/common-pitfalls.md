@@ -239,6 +239,33 @@ bodyText: {
 }
 ```
 
+## 8. Binary Properties Without `format: 'blob'`
+
+**Problem:** Declaring a binary property with only a `type`.
+
+**Why it fails:** The content-type API rejects the property with `The Type field does not support the value 'binary'.` A binary property is only valid when paired with `format: 'blob'`.
+
+**Example of what NOT to do:**
+```typescript
+// ❌ WRONG - push fails: "The Type field does not support the value 'binary'."
+p_binary: {
+  type: 'binary',
+  displayName: 'Binary'
+}
+```
+
+**Solution:** Add the format:
+```typescript
+// ✅ CORRECT
+p_binary: {
+  type: 'binary',
+  format: 'blob',
+  displayName: 'Binary'
+}
+```
+
+**⚠️ Platform limitation:** even with `format: 'blob'`, binary properties only work on CMS 13. SaaS CMS does not support them — always tell the user this when generating one, and offer `type: 'contentReference'` with `allowedTypes: ['_media']` as the SaaS alternative.
+
 ## Quick Checklist
 
 Before finalizing your content type definition:
@@ -252,3 +279,4 @@ Before finalizing your content type definition:
 - [ ] File naming follows conventions (e.g., `BlogPage.tsx` for BlogPage type)
 - [ ] Type references use objects (e.g., `ArticleContentType`), not strings (e.g., `'ArticleContentType'`)
 - [ ] `editorSettings` used only on `richText` properties (not on string/other types)
+- [ ] `binary` properties include `format: 'blob'` and the user has been told they are CMS 13 only

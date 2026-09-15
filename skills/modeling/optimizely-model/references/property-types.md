@@ -14,7 +14,7 @@ The following property types are supported when defining content type properties
 - **`'dateTime'`** - Date and time picker (supports `minimum` and `maximum` constraints)
 - **`'url'`** - Simple URL string field
 - **`'link'`** - Link with metadata (includes text, title, target properties)
-- **`'binary'`** - Binary data field
+- **`'binary'`** - Binary data field (requires `format: 'blob'`, CMS 13 only - see [Binary Type](#binary-type))
 - **`'json'`** - JSON data field (for structured data)
 - **`'content'`** - Reference to other content items
 - **`'contentReference'`** - Content reference with constraints (use with `allowedTypes` to restrict which content types can be referenced)
@@ -60,6 +60,33 @@ publishDate: {
   maximum: '2025-12-31T23:59:59Z'   // Latest allowed date
 }
 ```
+
+### Binary Type
+
+Binary properties store raw file data and **must** declare `format: 'blob'`:
+
+```typescript
+// ✅ CORRECT
+attachment: {
+  type: 'binary',
+  format: 'blob',
+  displayName: 'Attachment'
+}
+
+// ❌ WRONG - missing format, push fails with:
+// "The Type field does not support the value 'binary'."
+attachment: {
+  type: 'binary',
+  displayName: 'Attachment'
+}
+```
+
+**⚠️ CMS 13 only**: the SaaS CMS content-type API does not accept binary properties at all. On a SaaS instance (`OPTIMIZELY_CMS_URL` pointing at `*.cms.optimizely.com`) the push is rejected even with `format: 'blob'`.
+
+When a user asks for a binary property:
+
+1. Generate it with both `type: 'binary'` and `format: 'blob'`
+2. Tell them it only pushes successfully against a CMS 13 instance, and suggest `type: 'contentReference'` with `allowedTypes: ['_media']` as the SaaS alternative for file uploads
 
 ### Array Type
 
@@ -736,6 +763,7 @@ tags: {
 | "GUID", "unique identifier" | `'string'` | `'guid'` | None |
 | "dropdown", "select one" | `'string'` | `'selectOne'` | `enum: [...]` required |
 | "select list", "multi-select" | `'array'` | `'selectMany'` | `items: { enum: [...] }` required |
+| "binary", "blob", "binary data" | `'binary'` | `'blob'` | Always required; CMS 13 only |
 
 **Example mappings:**
 

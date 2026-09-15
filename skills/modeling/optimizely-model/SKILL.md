@@ -83,6 +83,17 @@ price: {
 }
 ```
 
+**Binary type** (`'binary'`) always requires `format: 'blob'` — without it, `config push` fails with `The Type field does not support the value 'binary'`:
+```typescript
+attachment: {
+  type: 'binary',
+  format: 'blob',
+  displayName: 'Attachment'
+}
+```
+
+⚠️ Binary properties are only supported on CMS 13. SaaS CMS (`*.cms.optimizely.com`) rejects them on push regardless of format. Warn the user about this whenever you add a binary property.
+
 See `references/property-types.md` for the complete list with examples.
 
 ### Property Metadata Fields
@@ -139,6 +150,7 @@ title: {
 | "rich text", "formatted text", "WYSIWYG" | RichText | `type: 'richText'` |
 | "image", "picture", "photo" | ContentReference | `type: 'contentReference'`, `allowedTypes: ['_image']` |
 | "list of tags", "array of strings" | Array | `type: 'array'`, `items: { type: 'string' }` |
+| "binary", "blob", "binary data", "raw file data" | Binary (CMS 13 only) | `type: 'binary'`, `format: 'blob'` |
 
 **Example**: If user says "add a dropdown with Red, Green, Blue options", create:
 ```typescript

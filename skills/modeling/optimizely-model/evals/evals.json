@@ -136,6 +136,22 @@
       "prompt": "Create content type TestingPage, add p_contentReference is contentReference property and this property has restrictedType is RestrictContentType, allowedType is AllowedContentType, reference type is ReferenceContentType",
       "expected_output": "Should create TestingPage.tsx with contentType() definition containing p_contentReference property. Since contentType and allowedTypes/restrictedTypes are mutually exclusive, should use ONLY contentType: ReferenceContentType and omit allowedTypes/restrictedTypes. Should warn user about the conflict. Should import ReferenceContentType at top of file.",
       "files": []
+    },
+    {
+      "id": 16,
+      "prompt": "Create a page type SkillTestingPage with a binary property p_binary",
+      "expected_output": "Should create SkillTestingPage.tsx with contentType() definition containing p_binary property. MUST have both type: 'binary' AND format: 'blob' - omitting format causes config push to fail with \"The Type field does not support the value 'binary'.\". Should also warn the user that binary properties are only supported on CMS 13 and are rejected by SaaS CMS, and may suggest contentReference with allowedTypes: ['_media'] as the SaaS alternative.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Binary property declares format blob",
+          "check": "p_binary includes both type: 'binary' and format: 'blob'"
+        },
+        {
+          "name": "Warns about CMS 13 only support",
+          "check": "Response states that binary properties are supported on CMS 13 but not on SaaS CMS"
+        }
+      ]
     }
   ]
 }
