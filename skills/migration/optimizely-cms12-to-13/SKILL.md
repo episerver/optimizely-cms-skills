@@ -771,8 +771,6 @@ and the runtime smoke test passes.
 
 ## Related Skills
 
-- **optimizely-cms12-to-13-assessment** — Pre-migration assessment (run
-  this first to understand scope and effort before migrating)
 - **cms11-to-12-migration** — Migrate from CMS 11 to CMS 12 (ASP.NET
   Framework to ASP.NET Core — the prerequisite migration before CMS 13)
 - **find-to-graph** — Migrate EPiServer Find search queries to Graph SDK

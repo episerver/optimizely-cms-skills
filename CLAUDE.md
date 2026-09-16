@@ -57,7 +57,7 @@ Six categories: `setup/`, `modeling/`, `rendering/`, `data/`, `editing/`, `migra
 `skill-deps.json` is the manifest — it tracks:
 - **Inter-skill dependency graph** (which skills reference which)
 
-The CI workflow (`skill-compat.yml`) uses `git diff` to detect changed skills, computes transitive impact using the dependency graph, and re-evaluates affected skills. It also supports `workflow_dispatch` for manual runs — requires a `pr_number` input and optionally toggles `post_comment` (defaults to true). CI validates that `skill-deps.json` is up to date and that all skills on disk are registered in `plugin.json`. If either is stale, comment `/update-deps` on the PR to fix automatically.
+The CI workflow (`skill-compat.yml`) uses `git diff` to detect changed skill files, computes transitive impact using the dependency graph, and re-evaluates affected skills. It also supports `workflow_dispatch` for manual runs — requires a `pr_number` input and optionally toggles `post_comment` (defaults to true). CI validates that `skill-deps.json` is up to date and that all skills on disk are registered in `plugin.json`. If either is stale, run the **Update Skill Dependencies** workflow for the PR to fix automatically.
 
 The **Version Bump** workflow (`version-bump.yml`) creates a PR that updates the version in `package.json` and `plugin.json`. After merging, the **Release** workflow (`release.yml`) verifies both files contain the target version, then tags the commit and creates a draft GitHub Release.
 

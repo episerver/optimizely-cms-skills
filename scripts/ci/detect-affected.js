@@ -18,9 +18,9 @@ const pluginSkills = loadPluginSkills();
 
 const changedSkills = new Set();
 for (const file of changedFiles) {
-  const normalized = './' + file.replace(/\/SKILL\.md$/, '');
+  const normalized = './' + file.replace(/\\/g, '/');
   for (const skillPath of pluginSkills) {
-    if (normalized === skillPath) {
+    if (normalized === skillPath || normalized.startsWith(`${skillPath}/`)) {
       changedSkills.add(findSkillNameByPath(manifest, skillPath));
     }
   }
