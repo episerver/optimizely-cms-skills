@@ -1,14 +1,16 @@
 {
   "name": "optimizely-cms-skills",
-  "version": "0.1.0-rc.1",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "engines": {
     "node": ">=18"
   },
   "scripts": {
-    "check-hashes": "node scripts/check-skill-hashes.js",
-    "update-hashes": "node scripts/update-skill-hashes.js",
-    "affected-evals": "node scripts/run-skill-evals.js"
-  }
+    "update-deps": "node scripts/update-skill-deps.js",
+    "affected-evals": "node scripts/run-skill-evals.js",
+    "validate": "node scripts/validate-skills.js",
+    "evaluate": "node scripts/evaluate-skills.js"
+  },
+  "devDependencies": {}
 }
