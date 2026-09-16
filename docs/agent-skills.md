@@ -119,6 +119,13 @@ cp -r optimizely-cms-skills/skills/* .claude/skills/
 | [optimizely-cms11-to-12](../skills/migration/optimizely-cms11-to-12/) | Migrate CMS 11 (ASP.NET Framework) to CMS 12 (ASP.NET Core) | [Guide](skills/optimizely-cms11-to-12.md) |
 | [optimizely-cms12-to-13](../skills/migration/optimizely-cms12-to-13/) | Migrate CMS 12 to CMS 13 (.NET 10, breaking API changes) | [Guide](skills/optimizely-cms12-to-13.md) |
 | [optimizely-find-to-graph](../skills/migration/optimizely-find-to-graph/) | Migrate from Optimizely Find to Content Graph | [Guide](skills/optimizely-find-to-graph.md) |
+| [optimizely-remko-graph-client-to-content-js](../skills/migration/optimizely-remko-graph-client-to-content-js/) | Migrate the Remko Graph client (`@remkoj/optimizely-graph-client`) to the official Content JS SDK — client init, fetching, auth/env (foundational) | [Guide](skills/optimizely-remko-graph-client-to-content-js.md) |
+| [optimizely-remko-cms-react-to-content-js](../skills/migration/optimizely-remko-cms-react-to-content-js/) | Migrate Remko CMS React (`@remkoj/optimizely-cms-react`) to the Content JS SDK — component factory, registries, rich text, context | [Guide](skills/optimizely-remko-cms-react-to-content-js.md) |
+| [optimizely-remko-cms-nextjs-to-content-js](../skills/migration/optimizely-remko-cms-nextjs-to-content-js/) | Migrate Remko CMS Next.js (`@remkoj/optimizely-cms-nextjs`) to the Content JS SDK — catch-all page, preview/OPE, publish handlers | [Guide](skills/optimizely-remko-cms-nextjs-to-content-js.md) |
+| [optimizely-remko-graph-functions-to-content-js](../skills/migration/optimizely-remko-graph-functions-to-content-js/) | Migrate Remko Graph Functions (`@remkoj/optimizely-graph-functions`) codegen to the Content JS SDK — runtime query generation | [Guide](skills/optimizely-remko-graph-functions-to-content-js.md) |
+| [optimizely-remko-cms-cli-to-content-js](../skills/migration/optimizely-remko-cms-cli-to-content-js/) | Migrate the Remko CLI (`@remkoj/optimizely-cms-cli`, `opti-cms`) to the official `@optimizely/cms-cli` — content-type sync + honest gaps | [Guide](skills/optimizely-remko-cms-cli-to-content-js.md) |
+| [optimizely-remko-graph-cli-to-content-js](../skills/migration/optimizely-remko-graph-cli-to-content-js/) | Migrate the Remko Graph CLI (`@remkoj/optimizely-graph-cli`, `opti-graph`) to `@optimizely/cms-cli` — almost entirely honest gaps | [Guide](skills/optimizely-remko-graph-cli-to-content-js.md) |
+| [optimizely-remko-cms-api-to-content-js](../skills/migration/optimizely-remko-cms-api-to-content-js/) | Migrate the Remko CMS API client (`@remkoj/optimizely-cms-api`) to the SDK + CLI — straddle skill, do last | [Guide](skills/optimizely-remko-cms-api-to-content-js.md) |
 
 ## Tips for Effective Usage
 
