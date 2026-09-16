@@ -25,10 +25,14 @@ function checkFrontmatter(skillPath) {
   const fm = fmMatch[1];
   const nameMatch = fm.match(/^name:\s*(.+)$/m);
   const descMatch = fm.match(/^description:\s*(.+)$/m);
+  const descBlockMatch = fm.match(/^description:\s*[>|][-+]?\s*$\n((?:[ \t].*(?:\n|$))+)/m);
   if (!nameMatch || !nameMatch[1].trim()) {
     return { name: 'frontmatter', passed: false, message: 'Missing or empty "name" field' };
   }
-  if (!descMatch || !descMatch[1].trim()) {
+  const hasInlineDescription = descMatch && !/^[>|][-+]?$/.test(descMatch[1].trim()) && descMatch[1].trim();
+  const hasBlockDescription = descBlockMatch
+    && descBlockMatch[1].split('\n').some((line) => line.trim().length > 0);
+  if (!hasInlineDescription && !hasBlockDescription) {
     return { name: 'frontmatter', passed: false, message: 'Missing or empty "description" field' };
   }
   return { name: 'frontmatter', passed: true, message: '' };

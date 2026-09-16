@@ -271,7 +271,11 @@ export async function register() {
           headers: { 'x-api-key': process.env.OPTIMIZELY_GRAPH_CALLBACK_APIKEY },
         },
         topic: ['*.*'],
-        filters: [{ status: { eq: 'Published' } }],
+        filters: [
+          { status: { eq: 'Published' } },
+          { status: { eq: 'Expired' } },
+          { status: { eq: 'Deleted' } },
+        ],
       }),
     });
     console.info('[isr] webhook registered');
