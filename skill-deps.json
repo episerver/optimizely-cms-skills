@@ -1,8 +1,8 @@
 {
   "$schema": "./scripts/skill-deps.schema.json",
   "version": 1,
-  "generated": "2026-09-03T18:46:18.643Z",
-  "releaseHash": "sha256:c8dadaf4fb4656fa55ce90f4f0fda2dec8284b4795c0c278efcd0f84dda59e53",
+  "generated": "2026-09-16T17:03:39.985Z",
+  "releaseHash": "sha256:9a83c2872f412375e528e8f3f0c122f3af48e526ac54c960b9dbb69febe9ae75",
   "skills": {
     "optimizely-setup": {
       "path": "./skills/setup/optimizely-setup",
@@ -167,6 +167,90 @@
       "hash": "sha256:fa2e31a8f916ebbf0cb68f7fb5177c12509d760386e1dd2ba92ed3dcfc1f2d91",
       "dependencies": [
         "optimizely-setup"
+      ]
+    },
+    "optimizely-remko-graph-client-to-content-js": {
+      "path": "./skills/migration/optimizely-remko-graph-client-to-content-js",
+      "hash": "sha256:ece78f51108cab2553079bc38defe5c795242635c8b1a4df87acf2f46133b04b",
+      "dependencies": [
+        "optimizely-remko-cms-api-to-content-js",
+        "optimizely-remko-cms-cli-to-content-js",
+        "optimizely-remko-cms-nextjs-to-content-js",
+        "optimizely-remko-cms-react-to-content-js",
+        "optimizely-remko-graph-cli-to-content-js",
+        "optimizely-remko-graph-functions-to-content-js"
+      ]
+    },
+    "optimizely-remko-cms-react-to-content-js": {
+      "path": "./skills/migration/optimizely-remko-cms-react-to-content-js",
+      "hash": "sha256:738767d01d866a18852168b551449f216a0e865604af250f89b57af97f07232e",
+      "dependencies": [
+        "optimizely-remko-cms-api-to-content-js",
+        "optimizely-remko-cms-cli-to-content-js",
+        "optimizely-remko-cms-nextjs-to-content-js",
+        "optimizely-remko-graph-cli-to-content-js",
+        "optimizely-remko-graph-client-to-content-js",
+        "optimizely-remko-graph-functions-to-content-js"
+      ]
+    },
+    "optimizely-remko-cms-nextjs-to-content-js": {
+      "path": "./skills/migration/optimizely-remko-cms-nextjs-to-content-js",
+      "hash": "sha256:9535752a186a2c85d6908d36671be9ba6c5c1a08eade5158359c4a65f33fa370",
+      "dependencies": [
+        "optimizely-remko-cms-api-to-content-js",
+        "optimizely-remko-cms-cli-to-content-js",
+        "optimizely-remko-cms-react-to-content-js",
+        "optimizely-remko-graph-cli-to-content-js",
+        "optimizely-remko-graph-client-to-content-js",
+        "optimizely-remko-graph-functions-to-content-js"
+      ]
+    },
+    "optimizely-remko-graph-functions-to-content-js": {
+      "path": "./skills/migration/optimizely-remko-graph-functions-to-content-js",
+      "hash": "sha256:3acdcbf21c49cd6893235d9123cd0b810dd4ed1807b53ed657d576eb852a8f0b",
+      "dependencies": [
+        "optimizely-remko-cms-api-to-content-js",
+        "optimizely-remko-cms-cli-to-content-js",
+        "optimizely-remko-cms-nextjs-to-content-js",
+        "optimizely-remko-cms-react-to-content-js",
+        "optimizely-remko-graph-cli-to-content-js",
+        "optimizely-remko-graph-client-to-content-js"
+      ]
+    },
+    "optimizely-remko-cms-api-to-content-js": {
+      "path": "./skills/migration/optimizely-remko-cms-api-to-content-js",
+      "hash": "sha256:f2f96be70f7b09cf30fbda47b5a5c38a1b0e8dcd4aca9ec57d554530d3b98e12",
+      "dependencies": [
+        "optimizely-remko-cms-cli-to-content-js",
+        "optimizely-remko-cms-nextjs-to-content-js",
+        "optimizely-remko-cms-react-to-content-js",
+        "optimizely-remko-graph-cli-to-content-js",
+        "optimizely-remko-graph-client-to-content-js",
+        "optimizely-remko-graph-functions-to-content-js"
+      ]
+    },
+    "optimizely-remko-cms-cli-to-content-js": {
+      "path": "./skills/migration/optimizely-remko-cms-cli-to-content-js",
+      "hash": "sha256:b606fbf7a78471b23083ecf0e65ddfba8fc81d071aa40a7bdc144667a6f6a3c1",
+      "dependencies": [
+        "optimizely-remko-cms-api-to-content-js",
+        "optimizely-remko-cms-nextjs-to-content-js",
+        "optimizely-remko-cms-react-to-content-js",
+        "optimizely-remko-graph-cli-to-content-js",
+        "optimizely-remko-graph-client-to-content-js",
+        "optimizely-remko-graph-functions-to-content-js"
+      ]
+    },
+    "optimizely-remko-graph-cli-to-content-js": {
+      "path": "./skills/migration/optimizely-remko-graph-cli-to-content-js",
+      "hash": "sha256:89e7a463fc63bb43bbaa00d4a49cd8cb9e4022729bb33790730534097a3ff273",
+      "dependencies": [
+        "optimizely-remko-cms-api-to-content-js",
+        "optimizely-remko-cms-cli-to-content-js",
+        "optimizely-remko-cms-nextjs-to-content-js",
+        "optimizely-remko-cms-react-to-content-js",
+        "optimizely-remko-graph-client-to-content-js",
+        "optimizely-remko-graph-functions-to-content-js"
       ]
     }
   }

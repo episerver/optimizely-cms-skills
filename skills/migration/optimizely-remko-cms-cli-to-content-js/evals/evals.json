@@ -1,0 +1,217 @@
+{
+  "skill_name": "optimizely-remko-cms-cli-to-content-js",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I have a project using @remkoj/optimizely-cms-cli (opti-cms) for content-type sync and scaffolding. Help me migrate to the official @optimizely/cms-cli.",
+      "expected_output": "Should follow the 5-step migration workflow: Step 1 assess current usage (grep package.json scripts for opti-cms/types:/nextjs:/styles:, scan for .env/CLI config, check devDependencies, categorize effort), Step 2 swap dev dependency (yarn remove @remkoj/optimizely-cms-cli, yarn add -D @optimizely/cms-cli, note bin rename opti-cms → optimizely-cms-cli), Step 3 migrate each command (show before/after package.json scripts for direct maps types:push → config push, types:pull → config pull, cms:reset → danger delete-all-content-types; explicit honest-gap callouts for styles:* and nextjs:*), Step 4 migrate auth/env (link auth-and-env-mapping.md; note env var names unchanged but OPTIMIZELY_CMS_API_URL + NODE_TLS_REJECT_UNAUTHORIZED are new), Step 5 verify (npx optimizely-cms-cli --help, npx optimizely-cms-cli login, grep for stale opti-cms references). MUST mention that the official CLI has NO Visual Builder styles commands and NO Next.js scaffolding/codegen. MUST reference the three shared-references files.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Follows 5-step workflow",
+          "check": "Output includes all 5 steps in sequential order"
+        },
+        {
+          "name": "States no styles or nextjs commands",
+          "check": "Clearly states there are NO Visual Builder styles commands or Next.js scaffolding/codegen commands in @optimizely/cms-cli; explains code-first replacements"
+        },
+        {
+          "name": "References shared files",
+          "check": "Links to package-and-import-mapping.md, auth-and-env-mapping.md, and setup-and-di.md"
+        },
+        {
+          "name": "Includes verification step",
+          "check": "Ends with --help check, login check, and stale opti-cms reference check"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Can you assess my project's use of opti-cms and tell me what it would take to migrate to the official CLI? Don't make any changes yet.",
+      "expected_output": "Should perform assessment only (Step 1) without making changes. MUST grep package.json scripts for opti-cms/types:/nextjs:/styles:. MUST scan for .env/CLI config (OPTIMIZELY_CMS_CLIENT_ID, OPTIMIZELY_CMS_CLIENT_SECRET, OPTIMIZELY_CMS_URL). MUST check devDependencies for @remkoj/optimizely-cms-cli. MUST categorize effort (minimal/moderate/significant based on styles:* or nextjs:* usage). SHOULD stop after assessment and report findings — the instruction 'If the user only asked for assessment, stop here and report' must be followed. SHOULD NOT proceed to package swap or script changes.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Assessment only, no changes",
+          "check": "Reports findings without modifying code or packages"
+        },
+        {
+          "name": "Scans for key artifacts",
+          "check": "Mentions package.json scripts, .env config, devDependencies, types:/nextjs:/styles: usage"
+        },
+        {
+          "name": "Categorizes effort",
+          "check": "Outputs minimal, moderate, or significant effort assessment"
+        },
+        {
+          "name": "Stops after Step 1",
+          "check": "Does not proceed to package swap or script migration"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "What's the @optimizely/cms-cli equivalent of 'opti-cms types:push' and 'opti-cms types:pull'? I need to migrate my package.json scripts.",
+      "expected_output": "Should clearly state that types:push → config push and types:pull → config pull (direct maps). MUST explain the syntax change: yargs colon-separated (types:push) → oclif space-separated (config push). MUST provide before/after package.json scripts showing opti-cms types:push → optimizely-cms-cli config push and opti-cms types:pull → optimizely-cms-cli config pull. MUST mention available flags: config push (--config, --force, --host), config pull (--output, --group/--individual/--single-file/--json, --include-read-only, --host). SHOULD NOT invent commands or say they are the same — the bin name changes opti-cms → optimizely-cms-cli.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "States direct map",
+          "check": "Clearly says types:push → config push, types:pull → config pull"
+        },
+        {
+          "name": "Explains syntax change",
+          "check": "Mentions yargs colon-separated → oclif space-separated subcommands"
+        },
+        {
+          "name": "Provides before/after scripts",
+          "check": "Shows package.json scripts with opti-cms types:push → optimizely-cms-cli config push"
+        },
+        {
+          "name": "Mentions flags",
+          "check": "Lists --config, --force, --host for config push; --output, --group, etc. for config pull"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I migrated to @optimizely/cms-cli but my 'opti-cms styles:push' and 'opti-cms nextjs:components' scripts are failing with 'unknown command'. What should I do?",
+      "expected_output": "Should identify that styles:* and nextjs:* commands have NO equivalent in the official CLI — honest gap. MUST explain that the Remko CLI had Visual Builder styles commands (styles:list, styles:push, styles:pull, styles:delete, style:create) and Next.js scaffolding commands (nextjs:create, nextjs:components, nextjs:factory, nextjs:fragments, nextjs:queries, nextjs:visualbuilder), and the official CLI does NOT. MUST recommend deleting the styles:* and nextjs:* scripts from package.json. MUST provide the code-first replacement for styles: displayTemplate() + initDisplayTemplateRegistry() + config push. MUST provide the code-first replacement for nextjs: manual component authoring (cms-react skill) + runtime query generation (graph-functions skill) + config pull for type definitions. SHOULD NOT suggest building a compatibility layer or keeping the Remko CLI.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies no equivalent for styles/nextjs",
+          "check": "Clearly says styles:* and nextjs:* commands have NO equivalents in the official CLI"
+        },
+        {
+          "name": "Recommends deleting scripts",
+          "check": "Says to delete styles:* and nextjs:* scripts from package.json"
+        },
+        {
+          "name": "Provides code-first replacement",
+          "check": "Shows displayTemplate() + initDisplayTemplateRegistry() for styles; manual component authoring + runtime query generation for nextjs"
+        },
+        {
+          "name": "Does not suggest compatibility layer",
+          "check": "Does not suggest keeping the Remko CLI or building a wrapper"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "What's the @optimizely/cms-cli equivalent of 'opti-cms cms:reset'?",
+      "expected_output": "Should clearly state that cms:reset → danger delete-all-content-types (direct map). MUST explain that this is a DESTRUCTIVE operation that deletes ALL user-defined content types. MUST mention that the official CLI requires interactive confirm (no --force bypass). MUST provide before/after command showing opti-cms cms:reset → optimizely-cms-cli danger delete-all-content-types. MUST mention --host flag to override OPTIMIZELY_CMS_URL. SHOULD warn about the destructiveness and recommend running in non-production first.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "States direct map",
+          "check": "Clearly says cms:reset → danger delete-all-content-types"
+        },
+        {
+          "name": "Warns about destructiveness",
+          "check": "Mentions that this deletes ALL user-defined content types and requires interactive confirm"
+        },
+        {
+          "name": "Provides before/after command",
+          "check": "Shows opti-cms cms:reset → optimizely-cms-cli danger delete-all-content-types"
+        },
+        {
+          "name": "Mentions --host flag",
+          "check": "Lists --host flag to override OPTIMIZELY_CMS_URL"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "I see my CI scripts run 'opti-cms cms:version' to check the CMS version. What's the @optimizely/cms-cli equivalent?",
+      "expected_output": "Should clearly state that cms:version has NO direct equivalent in the official CLI. MUST explain that the official CLI's --version shows CLI version only, not CMS/API version. MUST recommend using 'login' to verify CMS connectivity and auth instead. MUST provide before/after showing opti-cms cms:version removed and replaced with optimizely-cms-cli login. SHOULD NOT suggest building a version-check script or keeping the Remko CLI.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "States no cms:version equivalent",
+          "check": "Clearly says cms:version has NO equivalent; --version shows CLI version only"
+        },
+        {
+          "name": "Recommends login command",
+          "check": "Says to use 'login' to verify CMS connectivity and auth"
+        },
+        {
+          "name": "Provides before/after",
+          "check": "Shows opti-cms cms:version removed and replaced with optimizely-cms-cli login"
+        },
+        {
+          "name": "Does not suggest version-check script",
+          "check": "Does not suggest building a custom version-check script"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "After migrating to the official CLI, I still have 'opti-cms' references in my package.json and CI scripts. Should I keep them?",
+      "expected_output": "Should clearly state that all opti-cms references must be removed or updated to optimizely-cms-cli. MUST explain that the bin name changes opti-cms → optimizely-cms-cli. MUST recommend grepping for opti-cms in package.json, CI scripts, and shell aliases. MUST provide grep command (grep -r opti-cms --include='*.json' --include='*.yml' --include='*.sh'). SHOULD mention that stale opti-cms references will fail with 'command not found' after removing @remkoj/optimizely-cms-cli. SHOULD NOT suggest keeping opti-cms references.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "States all opti-cms references must be removed",
+          "check": "Clearly says all opti-cms references must be removed or updated to optimizely-cms-cli"
+        },
+        {
+          "name": "Recommends grepping",
+          "check": "Provides grep command to find stale opti-cms references"
+        },
+        {
+          "name": "Does not suggest keeping opti-cms",
+          "check": "Does not suggest keeping opti-cms references or installing both CLIs"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "My Remko project uses OPTIMIZELY_CMS_CLIENT_ID and OPTIMIZELY_CMS_CLIENT_SECRET for the CLI. Do these env vars change in the official CLI?",
+      "expected_output": "Should clearly state that OPTIMIZELY_CMS_CLIENT_ID, OPTIMIZELY_CMS_CLIENT_SECRET, and OPTIMIZELY_CMS_URL keep the same names in the official CLI — no migration needed. MUST mention that the official CLI adds OPTIMIZELY_CMS_API_URL (optional override for non-prod) and NODE_TLS_REJECT_UNAUTHORIZED (local dev only). MUST provide before/after .env showing unchanged vars + new vars commented out. MUST link to auth-and-env-mapping.md. SHOULD NOT suggest renaming the existing env vars.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "States env var names unchanged",
+          "check": "Clearly says OPTIMIZELY_CMS_CLIENT_ID, OPTIMIZELY_CMS_CLIENT_SECRET, OPTIMIZELY_CMS_URL keep the same names"
+        },
+        {
+          "name": "Mentions new env vars",
+          "check": "Lists OPTIMIZELY_CMS_API_URL and NODE_TLS_REJECT_UNAUTHORIZED as new optional vars"
+        },
+        {
+          "name": "Provides before/after .env",
+          "check": "Shows .env with unchanged vars + new vars commented out"
+        },
+        {
+          "name": "Links to auth-and-env-mapping.md",
+          "check": "References ../_shared-references/auth-and-env-mapping.md"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "I've finished migrating @remkoj/optimizely-cms-cli. Now clean up package.json for me — just uninstall every @remkoj/* package we still have so nothing community is left.",
+      "expected_output": "MUST NOT blindly remove every @remkoj/* package. Three cross-cutting rules apply. (1) Optimizely One carve-out: @remkoj/optimizely-one-nextjs has NO target mapping and is a KNOWN, PERMITTED residual — it must be LEFT INSTALLED, and its presence must NOT be treated as an incomplete migration. The agent must explicitly exclude it from the removal set and explain why. (2) Conditional residual: @remkoj/optimizely-cms-api mostly migrates (management -> @optimizely/cms-cli; published reads -> @optimizely/cms-sdk getClient()), but content write/CRUD, changesets, and runtime OAuth are honest gaps with no official equivalent — so it must be LEFT INSTALLED (or those paths rewritten to raw Integration API REST) IF the project uses any of them, and stripped only after confirming it does not. (3) Removal order: the @remkoj/* packages are interdependent, so the agent must NOT global-delete/uninstall them all at once (that transiently breaks the build). It must follow the staged teardown order (client -> codegen/functions -> content-type registry -> display-template + React registries -> components -> pages/preview -> remove packages) and use the exact `yarn remove` command that omits optimizely-one-nextjs unconditionally and stages optimizely-cms-api conditionally. MUST reference the \"Scope carve-out\", \"Conditional residual\", and \"Removal order\" sections of ../_shared-references/package-and-import-mapping.md. SHOULD NOT emit `yarn remove @remkoj/*` or otherwise strip every @remkoj package indiscriminately.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Preserves Optimizely One carve-out",
+          "check": "Does NOT remove @remkoj/optimizely-one-nextjs; states it is a permitted residual with no target mapping and not a sign of incomplete migration"
+        },
+        {
+          "name": "Handles cms-api as conditional residual",
+          "check": "Does NOT blindly remove @remkoj/optimizely-cms-api; treats it as a conditional residual — kept (or its paths rewritten to raw Integration API REST) if the project uses content write/CRUD, changesets, or runtime OAuth, and stripped only after confirming it does not"
+        },
+        {
+          "name": "Rejects global delete of @remkoj/*",
+          "check": "Does not uninstall all @remkoj/* at once; follows the staged teardown order instead"
+        },
+        {
+          "name": "References removal-order reference",
+          "check": "Points to the Scope carve-out, Conditional residual, and Removal order sections of package-and-import-mapping.md and uses the yarn remove command that omits optimizely-one-nextjs unconditionally and stages optimizely-cms-api conditionally"
+        }
+      ]
+    }
+  ]
+}

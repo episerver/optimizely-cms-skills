@@ -1,0 +1,277 @@
+{
+  "skill_name": "optimizely-remko-cms-react-to-content-js",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I have a Next.js app using @remkoj/optimizely-cms-react for React component rendering. Help me migrate to the official @optimizely/cms-sdk.",
+      "expected_output": "Should follow the 6-step migration workflow: Step 1 assess current usage (grep for @remkoj/optimizely-cms-react imports, scan for DefaultComponentFactory/ComponentFactory, registerAll, RichTextComponentDictionary, CmsContent/OptimizelyComponent RSC, ServerContext, RichText component, CMS-styles helpers, check factory registration files, check server context usage, check component files, categorize effort), Step 2 swap packages (yarn remove @remkoj/optimizely-cms-react, yarn add @optimizely/cms-sdk), Step 3 migrate factory registration (DefaultComponentFactory + registerAll to initReactComponentRegistry with resolver object; RichTextComponentDictionary has NO registration equivalent), Step 4 migrate server context wiring (ServerContext to withAppContext + getContext/setContext), Step 5 migrate per-component code (CmsComponent to standard React component, GraphQL fragment removed, content prop not data, RichText prop changed to content={body?.json}), Step 6 verify (tsc, yarn build, yarn dev, dual-React check, rich-text rendering check). MUST mention that RichTextComponentDictionary has no registration equivalent and that the target ships a built-in RichText component. MUST reference the three shared-references files.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Follows 6-step workflow",
+          "check": "Output includes all 6 steps in sequential order"
+        },
+        {
+          "name": "Mentions RichTextComponentDictionary has no equivalent",
+          "check": "Clearly states RichTextComponentDictionary is NOT registered; built-in RichText component is used instead"
+        },
+        {
+          "name": "References shared files",
+          "check": "Links to package-and-import-mapping.md, auth-and-env-mapping.md, and setup-and-di.md"
+        },
+        {
+          "name": "Includes verification step",
+          "check": "Ends with tsc, yarn build, yarn dev, and dual-React check"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Can you assess my project's use of @remkoj/optimizely-cms-react and tell me what it would take to migrate to the official SDK? Don't make any changes yet.",
+      "expected_output": "Should perform assessment only (Step 1) without making changes. MUST grep for @remkoj/optimizely-cms-react imports. MUST scan for DefaultComponentFactory, ComponentFactory, registerAll, RichTextComponentDictionary, CmsContent, OptimizelyComponent (RSC), ServerContext, RichText component, createHtmlComponent, extractSettings, readSetting. MUST check for factory registration files (e.g., factory.ts). MUST check for server context usage (e.g., api.ts, publishedContext). MUST check component files to count how many CMS components need migration. MUST categorize effort (minimal/moderate/significant). SHOULD stop after assessment and report findings — the instruction 'If the user only asked for assessment, stop here and report' must be followed. SHOULD NOT proceed to package swap or code changes.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Assessment only, no changes",
+          "check": "Reports findings without modifying code or packages"
+        },
+        {
+          "name": "Scans for key symbols",
+          "check": "Greps for imports and mentions DefaultComponentFactory, registerAll, RichTextComponentDictionary, ServerContext, CmsContent, OptimizelyComponent"
+        },
+        {
+          "name": "Categorizes effort",
+          "check": "Outputs minimal, moderate, or significant effort assessment"
+        },
+        {
+          "name": "Stops after Step 1",
+          "check": "Does not proceed to package swap or code migration"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I migrated to @optimizely/cms-sdk and removed @remkoj/optimizely-cms-react, but now I get an error saying 'component not found' when rendering an Article page. I registered the Article component in my factory.ts file like I did with Remko. What's wrong?",
+      "expected_output": "Should identify that factory.ts is the old Remko pattern and no longer used. MUST explain that the target SDK does not use a factory instance — component registration happens via initReactComponentRegistry in the root layout. MUST provide before/after code showing factory.ts (Remko) removed and replaced with initReactComponentRegistry({ resolver: { Article } }) in layout.tsx. MUST emphasize that registration must happen in the root layout BEFORE any component renders. SHOULD mention that the factory file should be deleted. SHOULD NOT suggest keeping the factory.ts file or calling factory methods.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies factory.ts is removed",
+          "check": "Explains that factory.ts is no longer used and should be deleted"
+        },
+        {
+          "name": "Provides root-layout registration",
+          "check": "Shows initReactComponentRegistry({ resolver }) called in layout.tsx"
+        },
+        {
+          "name": "Emphasizes timing",
+          "check": "Says registration must happen in root layout before components render"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "My Remko code has a factory.registerAll(RichTextComponentDictionary) call. What's the equivalent in @optimizely/cms-sdk?",
+      "expected_output": "Should clearly state that RichTextComponentDictionary has NO direct equivalent in @optimizely/cms-sdk and NO registration is needed. MUST explain that the official SDK ships a built-in RichText component at @optimizely/cms-sdk/react/richText with default node renderers (docs 10-richtext-component-react.md). MUST say to NOT register a rich-text dictionary. SHOULD mention that if custom rich-text nodes are needed, use the elements prop on RichText. SHOULD NOT invent a registration method or suggest building a dictionary.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "States no direct equivalent",
+          "check": "Clearly says RichTextComponentDictionary has no equivalent and no registration is needed"
+        },
+        {
+          "name": "Explains built-in RichText",
+          "check": "Mentions the built-in RichText component at @optimizely/cms-sdk/react/richText"
+        },
+        {
+          "name": "Does not invent registration",
+          "check": "Does not suggest registering a rich-text dictionary or building a compatibility layer"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "I use ServerContext from @remkoj/optimizely-cms-react/rsc to pass the factory and client to my pages. What's the equivalent in the official SDK?",
+      "expected_output": "Should identify that ServerContext has no direct class equivalent in @optimizely/cms-sdk. MUST explain that the explicit ServerContext object (new ServerContext({ factory, client, mode })) is replaced by request-scoped context via withAppContext + getContext / setContext. MUST provide before/after code showing new ServerContext removed and replaced with withAppContext wrapping the page + getContext/setContext for reading/writing context. SHOULD reference setup-and-di.md. SHOULD NOT suggest instantiating a ServerContext class or building a compatibility shim.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "States no direct class equivalent",
+          "check": "Explains ServerContext is not a class in the target; replaced by request-scoped context"
+        },
+        {
+          "name": "Provides withAppContext pattern",
+          "check": "Shows withAppContext wrapping the page and getContext/setContext usage"
+        },
+        {
+          "name": "Does not suggest instantiation",
+          "check": "Does not suggest creating a ServerContext instance"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "After migrating to @optimizely/cms-sdk, I get an error 'Cannot use import statement outside a module' when importing from @optimizely/cms-sdk/react/server in my client component. How do I fix this?",
+      "expected_output": "Should identify that @optimizely/cms-sdk/react/server exports are server-only (they import 'server-only') and cannot be used in client components. MUST explain that server components must import from ./react/server, but client components must import from ./react/client. MUST recommend moving the import to a server component or changing the import to the client subpath if the symbol exists there. SHOULD mention the server/client component boundary as a common pitfall. SHOULD NOT suggest removing 'server-only' or patching the SDK.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies server-only boundary",
+          "check": "Explains ./react/server is server-only and cannot be imported in client components"
+        },
+        {
+          "name": "Recommends server/client split",
+          "check": "Says to move import to server component or use ./react/client"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "My Remko Article component has a RichText component that takes a `text` prop. After migrating to @optimizely/cms-sdk, the rich text doesn't render. What's wrong?",
+      "expected_output": "Should identify that the RichText prop changed from `text={data.body}` (Remko) to `content={content.body?.json}` (target). MUST explain that the target RichText takes the .json field from the rich-text property, not the raw property. MUST provide before/after code showing the prop change. SHOULD mention that the import also changed from @remkoj/optimizely-cms-react/components to @optimizely/cms-sdk/react/richText. SHOULD NOT suggest passing the raw body property.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies prop change",
+          "check": "Explains RichText prop changed from text={data.body} to content={content.body?.json}"
+        },
+        {
+          "name": "Provides before/after code",
+          "check": "Shows Remko code with text prop and target code with content prop + .json field"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "I migrated to @optimizely/cms-sdk and now I get 'invalid hook call' errors in the browser. The app builds fine. What could be wrong?",
+      "expected_output": "Should identify this as a dual-React issue (multiple copies of React installed). MUST recommend running `yarn why react` to check for duplicate React installs. MUST explain that Remko packages pin a specific React version, so migrating can leave duplicate React in the dependency tree. SHOULD recommend removing duplicate React installs. SHOULD mention this is a common pitfall when migrating from Remko. SHOULD NOT suggest downgrading the SDK or clearing caches as the primary fix.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies dual-React issue",
+          "check": "Mentions 'multiple copies of React' or 'duplicate React installs'"
+        },
+        {
+          "name": "Recommends yarn why react",
+          "check": "Says to run `yarn why react` to check for duplicates"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "My Remko code uses CmsContent from @remkoj/optimizely-cms-react/rsc to fetch and render content by contentLink. What's the equivalent in @optimizely/cms-sdk?",
+      "expected_output": "Should identify that CmsContent (auto-fetch-and-render by contentLink) has no direct equivalent in @optimizely/cms-sdk. MUST explain that the target's OptimizelyComponent does NOT auto-fetch — you must call getClient().getContent() or getContentByPath() yourself, then pass the result to OptimizelyComponent. MUST provide before/after code showing CmsContent removed and replaced with manual fetch + OptimizelyComponent. SHOULD mention that OptimizelyComponent takes a content prop, not a contentLink prop. SHOULD NOT suggest building an auto-fetching CmsContent wrapper.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "States no auto-fetching",
+          "check": "Explains CmsContent auto-fetching is removed; OptimizelyComponent requires pre-fetched content"
+        },
+        {
+          "name": "Provides manual fetch pattern",
+          "check": "Shows getClient().getContent() or getContentByPath() + OptimizelyComponent"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "I'm getting a TypeScript error: 'Cannot find module @optimizely/cms-sdk/react/server or its corresponding type declarations'. I'm importing initContentTypeRegistry from there. What's the issue?",
+      "expected_output": "Should identify that initContentTypeRegistry is a ROOT export of @optimizely/cms-sdk, not from ./react/server. MUST explain that the correct import is `import { initContentTypeRegistry } from '@optimizely/cms-sdk'` (root), not from the react/server subpath. MUST provide the correct import statement. SHOULD mention that initReactComponentRegistry IS from ./react/server (to contrast). SHOULD NOT suggest adding a types package or patching tsconfig.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies wrong import path",
+          "check": "Explains initContentTypeRegistry is a root export, not from ./react/server"
+        },
+        {
+          "name": "Provides correct import",
+          "check": "Shows `import { initContentTypeRegistry } from '@optimizely/cms-sdk'`"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "My Remko factory registers MegaMenuGroupBlock twice: once with variant 'mobile' pointing to MegaMenuGroupBlockMobile and once with no variant pointing to MegaMenuGroupBlock. I'm converting the registration array into the resolver object for initReactComponentRegistry. Is `{ MegaMenuGroupBlock: MegaMenuGroupBlock, MegaMenuGroupBlock: MegaMenuGroupBlockMobile }` correct?",
+      "expected_output": "MUST reject the flattened object — a plain object literal cannot hold two MegaMenuGroupBlock keys; the second silently overwrites the first (last-key-wins) and the type-check stays green while a renderer is lost. MUST explain the variant discriminator does NOT disappear: it moves onto a displayTemplate() and the resolver routes to it via a colon key ('MegaMenuGroupBlock:mobile') OR a nested tag map ({ MegaMenuGroupBlock: { default, tags: { mobile } } }). MUST state each variant needs a displayTemplate() registered via initDisplayTemplateRegistry, and the variant is selected at render time with <OptimizelyComponent content={item} tag=\"mobile\" />. SHOULD reference setup-and-di.md / Step 3 / Step 5a. SHOULD NOT accept collapsing the array to one key per type.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Rejects the flattened object",
+          "check": "Says the duplicate-key object silently overwrites and loses a renderer with a green type-check"
+        },
+        {
+          "name": "Provides colon-key or nested-tag-map form",
+          "check": "Shows 'MegaMenuGroupBlock:mobile' colon key or the nested { default, tags } map"
+        },
+        {
+          "name": "Ties variant to displayTemplate + tag render",
+          "check": "Mentions registering a displayTemplate() via initDisplayTemplateRegistry and selecting with tag=\"mobile\" at render"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "I'm migrating a Remko app with 94 CmsEditable usages. Can I just find-and-delete all of them since you said the framework injects edit attributes automatically?",
+      "expected_output": "MUST reject a blanket delete. MUST explain CmsEditable has two distinct modes. Mode A (field/attribute wrapper, cmsFieldName=\"…\") is framework-owned and safe to delete — the target injects data-epi-* attributes automatically via OptimizelyComponent in preview. Mode B (render wrapper, as={Component} …) actually RENDERS a component and bridges a curated set of server→client props across the RSC boundary; it is NOT deletable and NOT a spread. MUST say to replace Mode B with an explicit <Component …/> passing only the props the child consumed, and to NOT spread the whole content object. MUST instruct categorizing every occurrence as Mode A vs Mode B before editing. SHOULD reference Step 5b. SHOULD NOT approve a global delete or a {...content} spread.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Rejects blanket delete",
+          "check": "Says a find-and-delete corrupts Mode B render wrappers"
+        },
+        {
+          "name": "Distinguishes Mode A vs Mode B",
+          "check": "Explains cmsFieldName field wrapper (delete) vs as={Component} render wrapper (keep, explicit render)"
+        },
+        {
+          "name": "Warns against spreading",
+          "check": "Says to hand-pick forwarded props, not {...content} spread across the boundary"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "prompt": "My Remko CmsContentArea uses itemWrapper and noWrapper props. I'm replacing it with content.area?.map((item) => <OptimizelyComponent content={item} />). Does that cover the itemWrapper and noWrapper behavior?",
+      "expected_output": "MUST explain that a bare .map() drops the advanced props and they must be re-expressed by hand. itemWrapper becomes the element rendered around each mapped item (e.g. <div className=\"col\" key={item._metadata.key}><OptimizelyComponent content={item} /></div>). noWrapper has NO target analogue — the inline map adds no outer wrapper anyway, so it is a no-op you drop. MUST note there is no drop-in CmsContentArea component. SHOULD reference Step 5c / the mapping row. SHOULD NOT claim the bare map already reproduces itemWrapper.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Says bare map drops the props",
+          "check": "States itemWrapper/noWrapper are not covered by a plain map and must be handled explicitly"
+        },
+        {
+          "name": "Translates itemWrapper to per-item element",
+          "check": "Shows an element wrapping each OptimizelyComponent inside the map"
+        },
+        {
+          "name": "Explains noWrapper is a no-op",
+          "check": "Says noWrapper has no analogue because the inline map adds no wrapper"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "prompt": "I've finished migrating @remkoj/optimizely-cms-react. Now clean up package.json for me — just uninstall every @remkoj/* package we still have so nothing community is left.",
+      "expected_output": "MUST NOT blindly remove every @remkoj/* package. Three cross-cutting rules apply. (1) Optimizely One carve-out: @remkoj/optimizely-one-nextjs has NO target mapping and is a KNOWN, PERMITTED residual — it must be LEFT INSTALLED, and its presence must NOT be treated as an incomplete migration. The agent must explicitly exclude it from the removal set and explain why. (2) Conditional residual: @remkoj/optimizely-cms-api mostly migrates (management -> @optimizely/cms-cli; published reads -> @optimizely/cms-sdk getClient()), but content write/CRUD, changesets, and runtime OAuth are honest gaps with no official equivalent — so it must be LEFT INSTALLED (or those paths rewritten to raw Integration API REST) IF the project uses any of them, and stripped only after confirming it does not. (3) Removal order: the @remkoj/* packages are interdependent, so the agent must NOT global-delete/uninstall them all at once (that transiently breaks the build). It must follow the staged teardown order (client -> codegen/functions -> content-type registry -> display-template + React registries -> components -> pages/preview -> remove packages) and use the exact `yarn remove` command that omits optimizely-one-nextjs unconditionally and stages optimizely-cms-api conditionally. MUST reference the \"Scope carve-out\", \"Conditional residual\", and \"Removal order\" sections of ../_shared-references/package-and-import-mapping.md. SHOULD NOT emit `yarn remove @remkoj/*` or otherwise strip every @remkoj package indiscriminately.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Preserves Optimizely One carve-out",
+          "check": "Does NOT remove @remkoj/optimizely-one-nextjs; states it is a permitted residual with no target mapping and not a sign of incomplete migration"
+        },
+        {
+          "name": "Handles cms-api as conditional residual",
+          "check": "Does NOT blindly remove @remkoj/optimizely-cms-api; treats it as a conditional residual — kept (or its paths rewritten to raw Integration API REST) if the project uses content write/CRUD, changesets, or runtime OAuth, and stripped only after confirming it does not"
+        },
+        {
+          "name": "Rejects global delete of @remkoj/*",
+          "check": "Does not uninstall all @remkoj/* at once; follows the staged teardown order instead"
+        },
+        {
+          "name": "References removal-order reference",
+          "check": "Points to the Scope carve-out, Conditional residual, and Removal order sections of package-and-import-mapping.md and uses the yarn remove command that omits optimizely-one-nextjs unconditionally and stages optimizely-cms-api conditionally"
+        }
+      ]
+    }
+  ]
+}
