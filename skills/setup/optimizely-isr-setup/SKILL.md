@@ -392,7 +392,11 @@ Authorization: Basic base64({OPTIMIZELY_GRAPH_APP_KEY}:{OPTIMIZELY_GRAPH_SECRET}
     "headers": { "x-api-key": "{OPTIMIZELY_GRAPH_CALLBACK_APIKEY}" }
   },
   "topic": ["*.*"],
-  "filters": [{ "status": { "eq": "Published" } }]
+  "filters": [
+    { "status": { "eq": "Published" } },
+    { "status": { "eq": "Expired" } },
+    { "status": { "eq": "Deleted" } }
+  ]
 }
 ```
 

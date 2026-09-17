@@ -21,7 +21,7 @@ if (!manifest) {
 const skillPaths = loadPluginSkills();
 const manifestSkills = manifest.skills;
 
-// Identify changed skills via --skills flag or default to all
+// Identify changed skills via --skills flag
 const skillsFlag = args.find((a) => a.startsWith('--skills='))?.slice('--skills='.length)
   || (args.includes('--skills') ? args[args.indexOf('--skills') + 1] : null);
 
@@ -30,14 +30,6 @@ if (skillsFlag) {
   directlyChanged = skillsFlag.split(',').map((s) => s.trim()).filter(Boolean);
 } else {
   directlyChanged = [];
-  for (const sp of skillPaths) {
-    try {
-      const name = extractSkillName(sp);
-      directlyChanged.push(name);
-    } catch (err) {
-      console.error(`[error] ${sp}: ${err.message}`);
-    }
-  }
 }
 
 if (directlyChanged.length === 0) {

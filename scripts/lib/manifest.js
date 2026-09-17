@@ -131,18 +131,17 @@ function buildReverseDeps(skills) {
 
 /**
  * Compute affected skills given a set of changed skill names.
- * Uses BFS on the reverse-dependency graph, capped at `maxDepth` hops
- * to avoid fan-out from circular references in text-matched dependencies.
+ * Uses BFS on the reverse-dependency graph.
  * Returns a Set of all affected skill names (including the initially changed ones).
  */
-export function computeAffectedSkills(skills, changedSkills, { maxDepth = 1 } = {}) {
+export function computeAffectedSkills(skills, changedSkills, { maxDepth = Infinity } = {}) {
   const reverse = buildReverseDeps(skills);
   const visited = new Set(changedSkills);
   const queue = [...changedSkills].map((name) => ({ name, depth: 0 }));
 
   while (queue.length > 0) {
     const { name, depth } = queue.shift();
-    if (depth >= maxDepth) continue;
+    if (Number.isFinite(maxDepth) && depth >= maxDepth) continue;
     const dependents = reverse[name];
     if (dependents) {
       for (const dep of dependents) {

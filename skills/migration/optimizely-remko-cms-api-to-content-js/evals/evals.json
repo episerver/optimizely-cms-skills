@@ -1,0 +1,193 @@
+{
+  "skill_name": "optimizely-remko-cms-api-to-content-js",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need to assess my project's usage of @remkoj/optimizely-cms-api before migrating. Can you scan the codebase and tell me what Integration API services we're using?",
+      "expected_output": "The skill should grep for @remkoj/optimizely-cms-api imports, categorize usage by concern (management/tooling via ContentTypesService/DisplayTemplatesService/PropertyFormatsService/PropertyGroupsService, runtime reads via ContentService.get*/list*, writes via ContentService.create/update/delete, changesets via ChangesetsService, OAuth via getAccessToken/getCmsIntegrationApiConfigFromEnvironment, client factory via CmsIntegrationApiClient/createClient, generated types), check .env for OPTIMIZELY_CMS_CLIENT_ID/OPTIMIZELY_CMS_CLIENT_SECRET/OPTIMIZELY_CMS_URL (same names as target CLI), and categorize migration effort (minimal/moderate/significant). It should STOP AFTER STEP 1 and report findings without proceeding to migration steps, because the user only asked for assessment.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "stops_after_assessment",
+          "check": "The skill stops after Step 1 (Assess Current Usage) and does not proceed to Step 2 (Decide the Split) or later steps when the user only asks for assessment."
+        },
+        {
+          "name": "greps_for_cms_api_imports",
+          "check": "The skill runs grep commands to detect @remkoj/optimizely-cms-api imports (ContentTypesService, DisplayTemplatesService, ContentService, ChangesetsService, CmsIntegrationApiClient, createClient, etc.)."
+        },
+        {
+          "name": "categorizes_by_concern",
+          "check": "The skill categorizes usage by concern: management/tooling (ContentTypesService, DisplayTemplatesService), runtime reads (ContentService.get*/list*), writes (ContentService.create/update/delete), changesets (ChangesetsService), OAuth (getAccessToken), and explains the straddle (TWO target packages + honest gaps)."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "How do I migrate ContentTypesService and DisplayTemplatesService from @remkoj/optimizely-cms-api to the official SDK?",
+      "expected_output": "The skill should explain that ContentTypesService and DisplayTemplatesService (management/tooling) migrate to @optimizely/cms-cli config push/config pull + code-first contentType()/displayTemplate() in @optimizely/cms-sdk. It should show a code-first content-type example (contentType() from @optimizely/cms-sdk) and a code-first display-template example (displayTemplate() + initDisplayTemplateRegistry()), and the config push/config pull commands. It should reference the optimizely-remko-cms-cli-to-content-js skill (Task 6) and optimizely-remko-graph-client-to-content-js skill (Task 2).",
+      "files": [],
+      "assertions": [
+        {
+          "name": "routes_to_cli_and_code_first",
+          "check": "The skill correctly ROUTES ContentTypesService and DisplayTemplatesService usage to @optimizely/cms-cli (config push/config pull) + code-first schemas (contentType()/displayTemplate() in @optimizely/cms-sdk)."
+        },
+        {
+          "name": "provides_code_first_examples",
+          "check": "The skill provides code-first examples for contentType() and displayTemplate() schemas (exported from @optimizely/cms-sdk, NOT from @remkoj packages)."
+        },
+        {
+          "name": "references_related_skills",
+          "check": "The skill references the optimizely-remko-cms-cli-to-content-js skill (Task 6) and optimizely-remko-graph-client-to-content-js skill (Task 2) for complete code-first schema patterns and config push/pull usage."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I use ContentService to read published content and also create draft content. How do I migrate this to the official SDK?",
+      "expected_output": "The skill should explain the SPLIT: runtime published-content reads migrate to getClient() (Graph delivery, published only) from @optimizely/cms-sdk, BUT content writes (create/update/delete drafts) are an HONEST GAP (no SDK equivalent). It MUST state the semantic difference: Integration API reads draft/all versions; Graph reads published only. For writes, it should recommend: use admin UI for manual authoring, OR keep the @remkoj/optimizely-cms-api package (or raw Integration API REST calls) for programmatic write/CRUD. It should show the config(buildConfig()) + getClient() runtime client init example and reference the optimizely-remko-graph-client-to-content-js skill (Task 2).",
+      "files": [],
+      "assertions": [
+        {
+          "name": "splits_reads_and_writes",
+          "check": "The skill SPLITS ContentService usage: published-content reads → getClient() (Graph, @optimizely/cms-sdk); writes (create/update/delete drafts) → honest gap (no SDK equivalent)."
+        },
+        {
+          "name": "states_semantic_difference",
+          "check": "The skill explicitly states the semantic difference: Integration API reads draft/all versions; Graph reads published only; getClient() is NOT a drop-in replacement for ContentService reads if draft/version access is needed."
+        },
+        {
+          "name": "provides_honest_gap_options",
+          "check": "The skill provides honest-gap migration options for content writes: admin UI, keep @remkoj/optimizely-cms-api package, raw Integration API REST calls, or DELETE code paths."
+        },
+        {
+          "name": "shows_graph_client_init",
+          "check": "The skill shows the config(buildConfig()) + getClient() runtime client init example for published-content reads and references the optimizely-remko-graph-client-to-content-js skill (Task 2)."
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "What's the official SDK equivalent of ChangesetsService?",
+      "expected_output": "The skill should state clearly that ChangesetsService is an HONEST GAP — there is NO equivalent in the official SDK or CLI. It should recommend: use the CMS admin UI for manual changeset management, OR keep the @remkoj/optimizely-cms-api package (or raw Integration API REST calls) if programmatic changeset access is required.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "states_no_changesets_equivalent",
+          "check": "The skill explicitly states that ChangesetsService has NO equivalent in the official SDK or CLI (honest gap)."
+        },
+        {
+          "name": "recommends_admin_ui_or_keep_package",
+          "check": "The skill recommends: use CMS admin UI for manual changeset management, OR keep the @remkoj/optimizely-cms-api package (or raw Integration API REST calls) for programmatic access."
+        },
+        {
+          "name": "does_not_fabricate_equivalent",
+          "check": "The skill does NOT fabricate a changeset equivalent (e.g., does NOT suggest using getClient() or config push/pull for changesets)."
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "I use getAccessToken and getCmsIntegrationApiConfigFromEnvironment from @remkoj/optimizely-cms-api. How do I migrate these to the official SDK?",
+      "expected_output": "The skill should state clearly that runtime OAuth helpers (getAccessToken, getCmsIntegrationApiConfigFromEnvironment) are an HONEST GAP — there is NO runtime OAuth helper in @optimizely/cms-sdk. It should explain that the CLI handles auth internally (login command verifies CMS credentials), but there are no runtime helpers. It should recommend: if you need programmatic token exchange (e.g., for a custom Integration API client), use raw Integration API OAuth endpoints (/oauth/token); otherwise DELETE the code paths calling these helpers.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "states_no_runtime_oauth_helpers",
+          "check": "The skill explicitly states that runtime OAuth helpers (getAccessToken, getCmsIntegrationApiConfigFromEnvironment) have NO equivalent in @optimizely/cms-sdk (honest gap)."
+        },
+        {
+          "name": "explains_cli_login",
+          "check": "The skill explains that the CLI handles auth internally (login command verifies CMS credentials), but there are no runtime OAuth helpers in the SDK."
+        },
+        {
+          "name": "recommends_raw_oauth_or_delete",
+          "check": "The skill recommends: use raw Integration API OAuth endpoints (/oauth/token) if programmatic token exchange is needed, OR DELETE the code paths calling these helpers."
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "I'm switching from @remkoj/optimizely-cms-api to the official SDK. Do I need to change my environment variables?",
+      "expected_output": "The skill should explain that the CMS Integration API credentials (OPTIMIZELY_CMS_CLIENT_ID, OPTIMIZELY_CMS_CLIENT_SECRET, OPTIMIZELY_CMS_URL) have the SAME names in the source package and target CLI — no renaming needed. However, it should also note that the runtime Graph client (getClient() from @optimizely/cms-sdk) uses DIFFERENT credentials (OPTIMIZELY_GRAPH_SINGLE_KEY or OPTIMIZELY_GRAPH_APP_KEY + OPTIMIZELY_GRAPH_SECRET) for fetching published content. These are SEPARATE from the CMS Integration API credentials.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "states_cms_creds_unchanged",
+          "check": "The skill states that CMS Integration API credentials (OPTIMIZELY_CMS_CLIENT_ID, OPTIMIZELY_CMS_CLIENT_SECRET, OPTIMIZELY_CMS_URL) have the SAME names in source and target — no renaming needed."
+        },
+        {
+          "name": "distinguishes_graph_vs_cms_creds",
+          "check": "The skill distinguishes CMS Integration API credentials (used by source package and target CLI) from Graph credentials (OPTIMIZELY_GRAPH_SINGLE_KEY or OPTIMIZELY_GRAPH_APP_KEY + OPTIMIZELY_GRAPH_SECRET, used by runtime Graph client getClient())."
+        },
+        {
+          "name": "warns_against_duplication",
+          "check": "The skill warns NOT to rename or duplicate the CMS credentials (same names are reused)."
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "I use CmsIntegrationApiClient and createClient from @remkoj/optimizely-cms-api. How do I migrate these?",
+      "expected_output": "The skill should explain that CmsIntegrationApiClient and createClient (umbrella client factory) straddle ALL concerns: management/tooling (ContentTypesService, DisplayTemplatesService) → @optimizely/cms-cli config push/config pull + code-first schemas; runtime published-content reads (ContentService reads) → getClient() (Graph, @optimizely/cms-sdk); writes/changesets → honest gaps (admin UI or raw Integration API REST). It should guide the user to categorize their usage by concern (Step 2: Decide the Split) and then migrate each concern separately (Step 3/4/5).",
+      "files": [],
+      "assertions": [
+        {
+          "name": "explains_umbrella_client_straddle",
+          "check": "The skill explains that CmsIntegrationApiClient and createClient (umbrella client factory) straddle ALL concerns (management/tooling, runtime reads, writes/changesets) and require categorizing usage by concern."
+        },
+        {
+          "name": "guides_to_decide_split_step",
+          "check": "The skill guides the user to Step 2 (Decide the Split) to categorize usage by concern before migrating."
+        },
+        {
+          "name": "references_all_migration_paths",
+          "check": "The skill references all migration paths: management/tooling → config push/config pull + code-first (Step 3), runtime reads → getClient() (Step 4), writes/changesets → honest gaps (Step 5)."
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "I'm migrating from @remkoj/optimizely-cms-api to the official SDK. I see there's both a CLI and a runtime SDK. Which one should I use?",
+      "expected_output": "The skill should explain the straddle: @remkoj/optimizely-cms-api is ONE source package that covers BOTH management/tooling (content types, display templates, property formats/groups) AND runtime operations (content reads/writes, changesets). The migration straddles TWO target packages: @optimizely/cms-cli (management/tooling, config push/config pull) + @optimizely/cms-sdk (runtime published-content reads via getClient(), code-first schemas). Plus honest gaps (content writes/CRUD, changesets) have no equivalent. It should recommend assessing current usage (Step 1) to categorize by concern, then deciding the split (Step 2) before migrating.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "explains_one_to_two_straddle",
+          "check": "The skill explains that ONE source package (@remkoj/optimizely-cms-api) straddles TWO target packages (@optimizely/cms-cli for management/tooling + @optimizely/cms-sdk for runtime reads) PLUS honest gaps (writes/changesets)."
+        },
+        {
+          "name": "distinguishes_management_vs_runtime",
+          "check": "The skill distinguishes management/tooling (content types, display templates, via CLI) from runtime operations (published-content reads via getClient(), writes/changesets as gaps)."
+        },
+        {
+          "name": "recommends_assessment_first",
+          "check": "The skill recommends assessing current usage (Step 1) to categorize by concern before deciding the split (Step 2) and migrating."
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "I've finished migrating @remkoj/optimizely-cms-api. Now clean up package.json for me — just uninstall every @remkoj/* package we still have so nothing community is left.",
+      "expected_output": "MUST NOT blindly remove every @remkoj/* package. Three cross-cutting rules apply. (1) Optimizely One carve-out: @remkoj/optimizely-one-nextjs has NO target mapping and is a KNOWN, PERMITTED residual — it must be LEFT INSTALLED, and its presence must NOT be treated as an incomplete migration. The agent must explicitly exclude it from the removal set and explain why. (2) Conditional residual: @remkoj/optimizely-cms-api mostly migrates (management -> @optimizely/cms-cli; published reads -> @optimizely/cms-sdk getClient()), but content write/CRUD, changesets, and runtime OAuth are honest gaps with no official equivalent — so it must be LEFT INSTALLED (or those paths rewritten to raw Integration API REST) IF the project uses any of them, and stripped only after confirming it does not. (3) Removal order: the @remkoj/* packages are interdependent, so the agent must NOT global-delete/uninstall them all at once (that transiently breaks the build). It must follow the staged teardown order (client -> codegen/functions -> content-type registry -> display-template + React registries -> components -> pages/preview -> remove packages) and use the exact `yarn remove` command that omits optimizely-one-nextjs unconditionally and stages optimizely-cms-api conditionally. MUST reference the \"Scope carve-out\", \"Conditional residual\", and \"Removal order\" sections of ../_shared-references/package-and-import-mapping.md. SHOULD NOT emit `yarn remove @remkoj/*` or otherwise strip every @remkoj package indiscriminately.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Preserves Optimizely One carve-out",
+          "check": "Does NOT remove @remkoj/optimizely-one-nextjs; states it is a permitted residual with no target mapping and not a sign of incomplete migration"
+        },
+        {
+          "name": "Handles cms-api as conditional residual",
+          "check": "Does NOT blindly remove @remkoj/optimizely-cms-api; treats it as a conditional residual — kept (or its paths rewritten to raw Integration API REST) if the project uses content write/CRUD, changesets, or runtime OAuth, and stripped only after confirming it does not"
+        },
+        {
+          "name": "Rejects global delete of @remkoj/*",
+          "check": "Does not uninstall all @remkoj/* at once; follows the staged teardown order instead"
+        },
+        {
+          "name": "References removal-order reference",
+          "check": "Points to the Scope carve-out, Conditional residual, and Removal order sections of package-and-import-mapping.md and uses the yarn remove command that omits optimizely-one-nextjs unconditionally and stages optimizely-cms-api conditionally"
+        }
+      ]
+    }
+  ]
+}
