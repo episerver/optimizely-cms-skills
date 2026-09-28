@@ -182,7 +182,15 @@
     },
     "optimizely-remko-migration-discovery": {
       "path": "./skills/migration/optimizely-remko-migration-discovery",
-      "dependencies": []
+      "dependencies": [
+        "optimizely-remko-cms-api-to-content-js",
+        "optimizely-remko-cms-cli-to-content-js",
+        "optimizely-remko-cms-nextjs-to-content-js",
+        "optimizely-remko-cms-react-to-content-js",
+        "optimizely-remko-graph-cli-to-content-js",
+        "optimizely-remko-graph-client-to-content-js",
+        "optimizely-remko-graph-functions-to-content-js"
+      ]
     },
     "optimizely-remko-graph-client-to-content-js": {
       "path": "./skills/migration/optimizely-remko-graph-client-to-content-js",
