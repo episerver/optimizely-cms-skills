@@ -1,6 +1,6 @@
 {
   "name": "optimizely-cms-skills",
-  "version": "0.1.0-rc.1",
+  "version": "0.1.0",
   "description": "Agent Skills for Optimizely CMS development",
   "author": {
     "name": "Optimizely",
@@ -20,6 +20,8 @@
     "./skills/setup/optimizely-project-scaffold",
     "./skills/setup/optimizely-cli-workflows",
     "./skills/setup/optimizely-observability",
+    "./skills/setup/optimizely-isr-setup",
+    "./skills/setup/optimizely-cache-strategy",
     "./skills/modeling/optimizely-model",
     "./skills/modeling/optimizely-display-templates",
     "./skills/rendering/optimizely-model-react",
@@ -34,6 +36,7 @@
     "./skills/editing/optimizely-preview",
     "./skills/editing/optimizely-troubleshoot-graph",
     "./skills/migration/optimizely-cms11-to-12",
+    "./skills/migration/optimizely-cms12-to-13-assessment",
     "./skills/migration/optimizely-cms12-to-13",
     "./skills/migration/optimizely-find-to-graph",
     "./skills/migration/optimizely-remko-migration-discovery",

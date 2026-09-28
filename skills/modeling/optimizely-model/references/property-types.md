@@ -14,7 +14,7 @@ The following property types are supported when defining content type properties
 - **`'dateTime'`** - Date and time picker (supports `minimum` and `maximum` constraints)
 - **`'url'`** - Simple URL string field
 - **`'link'`** - Link with metadata (includes text, title, target properties)
-- **`'binary'`** - Binary data field
+- **`'binary'`** - Binary data field (requires `format: 'blob'`, CMS 13 only - see [Binary Type](#binary-type))
 - **`'json'`** - JSON data field (for structured data)
 - **`'content'`** - Reference to other content items
 - **`'contentReference'`** - Content reference with constraints (use with `allowedTypes` to restrict which content types can be referenced)
@@ -46,8 +46,37 @@ price: {
 ```
 
 **When user specifies numeric constraints:**
+
 - "minimum", "min value", "at least" → use `minimum` field
 - "maximum", "max value", "up to", "no more than" → use `maximum` field
+- "between X and Y", "range X to Y" → both `minimum: X` and `maximum: Y`
+
+**CRITICAL - never drop a range.** `minimum` and `maximum` are the constraint fields most often lost on numeric properties, because their absence produces a content type that pushes cleanly and validates nothing. If the user named a bound, it belongs in the output:
+
+```typescript
+// User: "p_float is float property and this property has display name 'float display name',
+//        group 'content', indexing type 'queryable', minimum 20, maximum 50"
+
+// ❌ WRONG - bounds dropped
+p_float: {
+  type: 'float',
+  displayName: 'float display name',
+  group: 'content',
+  indexingType: 'queryable'
+}
+
+// ✅ CORRECT - all five attributes carried over
+p_float: {
+  type: 'float',
+  displayName: 'float display name',
+  group: 'content',
+  indexingType: 'queryable',
+  minimum: 20,
+  maximum: 50
+}
+```
+
+This applies identically to `'integer'` properties, and to `'dateTime'` where the bounds are ISO 8601 strings.
 
 ### DateTime Type
 
@@ -60,6 +89,33 @@ publishDate: {
   maximum: '2025-12-31T23:59:59Z'   // Latest allowed date
 }
 ```
+
+### Binary Type
+
+Binary properties store raw file data and **must** declare `format: 'blob'`:
+
+```typescript
+// ✅ CORRECT
+attachment: {
+  type: 'binary',
+  format: 'blob',
+  displayName: 'Attachment'
+}
+
+// ❌ WRONG - missing format, push fails with:
+// "The Type field does not support the value 'binary'."
+attachment: {
+  type: 'binary',
+  displayName: 'Attachment'
+}
+```
+
+**⚠️ CMS 13 only**: the SaaS CMS content-type API does not accept binary properties at all. On a SaaS instance (`OPTIMIZELY_CMS_URL` pointing at `*.cms.optimizely.com`) the push is rejected even with `format: 'blob'`.
+
+When a user asks for a binary property:
+
+1. Generate it with both `type: 'binary'` and `format: 'blob'`
+2. Tell them it only pushes successfully against a CMS 13 instance, and suggest `type: 'contentReference'` with `allowedTypes: ['_media']` as the SaaS alternative for file uploads
 
 ### Array Type
 
@@ -376,17 +432,19 @@ ctaButton: {
 
 ### Property Metadata Fields
 
-All property types support these common metadata fields:
+All property types support these common metadata fields. The last column lists the near-miss spellings that fail on push - the user's wording is never the field name, and the schema rejects an unknown key rather than ignoring it:
 
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| `displayName` | string | Label shown in CMS editor UI | `'Article Title'` |
-| `description` | string | Help text shown to editors | `'The main heading for this article'` |
-| `group` | string | Tab/group in editor where property appears | `'content'`, `'seo'`, `'settings'` |
-| `sortOrder` | number | Display order within group (lower = first) | `1`, `5`, `10` |
-| `isRequired` | boolean | Whether property must have a value | `true`, `false` |
-| `isLocalized` | boolean | Whether property has different values per language/culture | `true`, `false` |
-| `indexingType` | string | How property is indexed for search | `'searchable'`, `'queryable'` |
+| Field | Type | Description | Example | ❌ Never write |
+|-------|------|-------------|---------|----------------|
+| `displayName` | string | Label shown in CMS editor UI | `'Article Title'` | `name`, `label` |
+| `description` | string | Help text shown to editors | `'The main heading for this article'` | `helpText`, `tooltip` |
+| `group` | string | Tab/group in editor where property appears | `'content'`, `'seo'`, `'settings'` | `tab`, `section` |
+| `sortOrder` | number | Display order within group (lower = first) | `1`, `5`, `10` | `sortIndex`, `order`, `displayOrder` |
+| `isRequired` | boolean | Whether property must have a value | `true`, `false` | `required` |
+| `isLocalized` | boolean | Whether property has different values per language/culture | `true`, `false` | `localized`, `cultureSpecific` |
+| `indexingType` | string | How property is indexed for search | `'searchable'`, `'queryable'` | `indexing`, `searchable` |
+
+The same applies to the constraint fields: `minimum`/`maximum` never `min`/`max`, `minLength`/`maxLength` never `minimumLength`/`maximumLength`, and `allowedTypes`/`restrictedTypes` never the singular forms. Because metadata fields are shared across every property type, a wrong name breaks a `dateTime` or `contentReference` property exactly as it breaks a `string`.
 
 **Complete example with all metadata:**
 
@@ -406,18 +464,11 @@ title: {
 
 ### Recognizing Metadata from User Input
 
-**CRITICAL**: Map user phrases to the correct field names:
+Which phrase maps to which field is tabulated in the skill's "Turning a Request into Properties" section; the two rules that matter when applying it are:
 
-| User Says | Property Field | Value |
-|-----------|----------------|-------|
-| "display name", "label", "title" | `displayName` | The specified text |
-| "description", "help text", "tooltip" | `description` | The specified text |
-| "localized", "culture specific", "per language", "translated" | `isLocalized` | `true` |
-| "sort order", "sort index", "display order", "order" | `sortOrder` | The specified number |
-| "group", "tab", "section" | `group` | The specified group name |
-| "searchable", "indexed for search" | `indexingType` | `'searchable'` |
-| "queryable", "filterable" | `indexingType` | `'queryable'` |
-| "required", "mandatory", "must have value" | `isRequired` | `true` |
+**Every phrase the user uses maps to a field - none of them are optional.** After writing a property, count the attributes in the request and count the fields you emitted; they must match. `description`, `isLocalized` and `sortOrder` are the three that go missing most often, because omitting them produces a valid content type that simply behaves wrong in the editor.
+
+**Never emit a field the user did not ask for.** Adding `isRequired: true` to a property nobody called required makes the content uneditable until it is filled in.
 
 **Example mappings:**
 
@@ -444,12 +495,19 @@ category: {
 
 ### Required Fields
 
-Mark properties as required using the `isRequired` field:
+Mark properties as required using the `isRequired` field - **never `required`**:
 
 ```typescript
+// ✅ CORRECT
 title: {
   type: 'string',
   isRequired: true
+}
+
+// ❌ WRONG - `required` is not part of the schema; config push fails
+title: {
+  type: 'string',
+  required: true
 }
 ```
 
@@ -468,15 +526,26 @@ metaTitle: {
 
 ### String Constraints
 
-Limit string length with `minLength` and `maxLength`:
+Limit string length with `minLength` and `maxLength`, and restrict the accepted value with `pattern` (a regular expression):
 
 ```typescript
 title: {
   type: 'string',
   minLength: 5,
-  maxLength: 100
+  maxLength: 100,
+  pattern: '^string'  // "must start with 'string'"
 }
 ```
+
+**Constraints belong to specific types** - applying one to the wrong type is invalid:
+
+| Constraint | Valid on |
+|------------|----------|
+| `minLength`, `maxLength`, `pattern` | `string` (or `items` of a string array) |
+| `minimum`, `maximum` | `integer`, `float`, `dateTime` |
+| `minItems`, `maxItems` | `array` |
+
+When a request pairs a constraint with a type that does not accept it - for example `minimum: 20` on a string property - omit the constraint and tell the user it does not apply to that type. Do not translate it into the nearest valid field (`minLength`) on their behalf; ask if that is what they meant.
 
 ### Dropdown Properties (Select One)
 
@@ -613,6 +682,22 @@ sizes: {
 
 The `format` field provides additional semantic information about how a property should be handled in the CMS UI. Different property types support different formats.
 
+**CRITICAL**: When the user's wording names a format (see the table below), the `format` field is **not optional** - omitting it silently produces the wrong editor widget in the CMS. A `url` property described as "URL to document" without `format: 'DocumentUrl'` is a bug, not a simplification.
+
+### All Supported Format Values
+
+| `format` | Valid on `type` | Use when the user says | Also required |
+|----------|-----------------|------------------------|---------------|
+| `'DocumentUrl'` | `'url'` | "URL to document", "document link", "link to PDF/file" | - |
+| `'ImageUrl'` | `'url'` | "URL to image", "image link", "image URL" | - |
+| `'shortString'` | `'string'` | "short string", "single-line text", "title", "name", "label" | - |
+| `'guid'` | `'string'` | "GUID", "UUID", "unique identifier" | - |
+| `'selectOne'` | `'string'` | "dropdown", "select one", "pick one of" | `enum: [...]` |
+| `'selectMany'` | `'array'` | "select list", "multi-select", "select many", "checkboxes" | `items: { enum: [...] }` |
+| `'blob'` | `'binary'` | "binary", "blob", "binary data" | Always required; CMS 13 only |
+
+**Types that take no `format`**: `richText`, `boolean`, `integer`, `float`, `dateTime`, `link`, `json`, `content`, `contentReference`, `component`, and plain long-form `string` ("long string", "multi-line text", "description") or generic `url`.
+
 ### URL Type Formats
 
 URL properties (`type: 'url'`) support formats that indicate the expected URL target:
@@ -736,6 +821,7 @@ tags: {
 | "GUID", "unique identifier" | `'string'` | `'guid'` | None |
 | "dropdown", "select one" | `'string'` | `'selectOne'` | `enum: [...]` required |
 | "select list", "multi-select" | `'array'` | `'selectMany'` | `items: { enum: [...] }` required |
+| "binary", "blob", "binary data" | `'binary'` | `'blob'` | Always required; CMS 13 only |
 
 **Example mappings:**
 

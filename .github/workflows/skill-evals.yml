@@ -1,0 +1,155 @@
+name: Skill Evaluations
+
+on:
+  workflow_call:
+    inputs:
+      skills:
+        description: 'JSON array of {name, path} objects for skills to evaluate'
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      skill:
+        description: 'Skill name (empty = all)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+  copilot-requests: write
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      skills: ${{ steps.out.outputs.skills }}
+      has_skills: ${{ steps.out.outputs.has_skills }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - id: out
+        env:
+          CALLER_SKILLS: ${{ inputs.skills }}
+          INPUT_SKILL: ${{ inputs.skill }}
+        run: |
+          if [ -n "$CALLER_SKILLS" ]; then
+            SKILLS="$CALLER_SKILLS"
+          else
+            ARGS=""
+            if [ -n "$INPUT_SKILL" ]; then
+              ARGS="--skill $INPUT_SKILL"
+            fi
+            SKILLS=$(node scripts/ci/eval-manifest.js $ARGS)
+          fi
+          echo "skills=$SKILLS" >> "$GITHUB_OUTPUT"
+          COUNT=$(echo "$SKILLS" | jq 'length')
+          if [ "$COUNT" -gt 0 ]; then
+            echo "has_skills=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_skills=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  evaluate:
+    name: evaluate (${{ matrix.skill.name }})
+    needs: resolve
+    if: needs.resolve.outputs.has_skills == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        skill: ${{ fromJson(needs.resolve.outputs.skills) }}
+      max-parallel: 5
+      fail-fast: false
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - run: npm install -g @github/copilot
+
+      - name: Install skill for Copilot
+        run: |
+          mkdir -p .github/skills
+          cp -r "${{ matrix.skill.path }}" ".github/skills/${{ matrix.skill.name }}"
+
+      - name: Prepare generate prompts
+        run: node scripts/ci/eval-prompts.js --skill-path "${{ matrix.skill.path }}" --phase generate
+
+      - name: Generate responses
+        run: |
+          for f in eval-work/*/generate-prompt.txt; do
+            dir=$(dirname "$f")
+            id=$(basename "$dir")
+            copilot -p "$(cat "$f")" --no-ask-user \
+              --allow-tool='shell(cat:*)' > "$dir/response.txt" 2> >(grep -v -E '^(Changes|Requests|Tokens|Resume)\s' >&2) || true
+            echo "::group::Case $id response"
+            cat "$dir/response.txt"
+            echo "::endgroup::"
+          done
+
+      - name: Prepare judge prompts
+        run: node scripts/ci/eval-prompts.js --skill-path "${{ matrix.skill.path }}" --phase judge
+
+      - name: Judge responses
+        run: |
+          for f in eval-work/*/judge-*.txt; do
+            [[ "$f" == *-verdict.txt ]] && continue
+            dir=$(dirname "$f")
+            base=$(basename "$f" .txt)
+            id=$(basename "$dir")
+            copilot -p "$(cat "$f")" --no-ask-user \
+              > "$dir/${base}-verdict.txt" 2> >(grep -v -E '^(Changes|Requests|Tokens|Resume)\s' >&2) || true
+            echo "::group::Case $id $base verdict"
+            cat "$dir/${base}-verdict.txt"
+            echo "::endgroup::"
+          done
+
+      - name: Score results
+        id: score
+        run: |
+          node scripts/ci/eval-score.js \
+            --skill-path "${{ matrix.skill.path }}" \
+            --threshold 80 > result.json || true
+          echo "::group::${{ matrix.skill.name }} results"
+          cat result.json
+          echo "::endgroup::"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-${{ matrix.skill.name }}
+          path: result.json
+
+  aggregate:
+    needs: evaluate
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: eval-*
+          path: results/
+      - name: Aggregate results
+        run: |
+          node scripts/ci/eval-aggregate.js results/ > eval-results.json
+          echo "::group::Aggregate eval results"
+          cat eval-results.json
+          echo "::endgroup::"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eval-results
+          path: eval-results.json
+          retention-days: 30

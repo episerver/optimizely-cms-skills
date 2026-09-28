@@ -3,7 +3,6 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   loadPluginSkills,
-  computeSkillHash,
   extractSkillName,
   loadManifest,
   computeAffectedSkills,
@@ -15,30 +14,26 @@ const dryRun = !args.includes('--run');
 
 const manifest = loadManifest();
 if (!manifest) {
-  console.error('skill-deps.json not found. Run `npm run update-hashes` first.');
+  console.error('skill-deps.json not found. Run `npm run update-deps` first.');
   process.exit(1);
 }
 
 const skillPaths = loadPluginSkills();
 const manifestSkills = manifest.skills;
 
-// Identify changed skills
-const directlyChanged = [];
-for (const sp of skillPaths) {
-  try {
-    const name = extractSkillName(sp);
-    const currentHash = computeSkillHash(sp);
-    const entry = manifestSkills[name];
-    if (!entry || entry.hash !== currentHash) {
-      directlyChanged.push(name);
-    }
-  } catch (err) {
-    console.error(`[error] ${sp}: ${err.message}`);
-  }
+// Identify changed skills via --skills flag
+const skillsFlag = args.find((a) => a.startsWith('--skills='))?.slice('--skills='.length)
+  || (args.includes('--skills') ? args[args.indexOf('--skills') + 1] : null);
+
+let directlyChanged;
+if (skillsFlag) {
+  directlyChanged = skillsFlag.split(',').map((s) => s.trim()).filter(Boolean);
+} else {
+  directlyChanged = [];
 }
 
 if (directlyChanged.length === 0) {
-  console.log('No skill changes detected. No evals needed.');
+  console.log('No skills specified. No evals needed.');
   process.exit(0);
 }
 

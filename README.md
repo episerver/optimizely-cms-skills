@@ -47,6 +47,8 @@ cp -r optimizely-cms-skills/skills/* ~/.claude/skills/
 | [optimizely-project-scaffold](./skills/setup/optimizely-project-scaffold/) | Scaffold a new Optimizely CMS project from starter templates |
 | [optimizely-cli-workflows](./skills/setup/optimizely-cli-workflows/) | CLI commands for syncing content types with the CMS |
 | [optimizely-observability](./skills/setup/optimizely-observability/) | Add OpenTelemetry tracing and monitoring to the SDK |
+| [optimizely-isr-setup](./skills/setup/optimizely-isr-setup/) | Configure Next.js ISR, cache tags, and on-demand revalidation webhooks |
+| [optimizely-cache-strategy](./skills/setup/optimizely-cache-strategy/) | Configure CDN cache headers, stale-while-revalidate, and edge cache tag purging |
 
 ### Modeling
 
@@ -86,6 +88,7 @@ cp -r optimizely-cms-skills/skills/* ~/.claude/skills/
 | Skill | Description |
 |-------|-------------|
 | [optimizely-cms11-to-12](./skills/migration/optimizely-cms11-to-12/) | Migrate Optimizely CMS 11 (ASP.NET Framework) to CMS 12 (ASP.NET Core) |
+| [optimizely-cms12-to-13-assessment](./skills/migration/optimizely-cms12-to-13-assessment/) | Pre-migration assessment for CMS 12 → 13 (effort, scope, risk) |
 | [optimizely-cms12-to-13](./skills/migration/optimizely-cms12-to-13/) | Migrate Optimizely CMS 12 to CMS 13 (.NET 10, breaking API changes) |
 | [optimizely-find-to-graph](./skills/migration/optimizely-find-to-graph/) | Migrate from Optimizely Find to Content Graph |
 | [optimizely-remko-migration-discovery](./skills/migration/optimizely-remko-migration-discovery/) | **Discovery skill (run first).** Inventories a customer's Remko usage — installed packages, actual imports, patches, wrappers, forked codegen — and routes to the applicable surface-specific migration skills in teardown order |

@@ -78,6 +78,8 @@ cp -r optimizely-cms-skills/skills/* .claude/skills/
 | [optimizely-project-scaffold](../skills/setup/optimizely-project-scaffold/) | Scaffold a new project from starter templates | [Guide](skills/optimizely-project-scaffold.md) |
 | [optimizely-cli-workflows](../skills/setup/optimizely-cli-workflows/) | CLI commands for syncing content types with the CMS | [Guide](skills/optimizely-cli-workflows.md) |
 | [optimizely-observability](../skills/setup/optimizely-observability/) | Add OpenTelemetry tracing and monitoring | [Guide](skills/optimizely-observability.md) |
+| [optimizely-isr-setup](../skills/setup/optimizely-isr-setup/) | Configure Next.js ISR, cache tags, and revalidation webhooks | [Guide](skills/optimizely-isr-setup.md) |
+| [optimizely-cache-strategy](../skills/setup/optimizely-cache-strategy/) | Configure CDN cache headers, stale-while-revalidate, and tag purging | [Guide](skills/optimizely-cache-strategy.md) |
 
 ### Modeling
 
@@ -117,6 +119,7 @@ cp -r optimizely-cms-skills/skills/* .claude/skills/
 | Skill | Description | Docs |
 |-------|-------------|------|
 | [optimizely-cms11-to-12](../skills/migration/optimizely-cms11-to-12/) | Migrate CMS 11 (ASP.NET Framework) to CMS 12 (ASP.NET Core) | [Guide](skills/optimizely-cms11-to-12.md) |
+| [optimizely-cms12-to-13-assessment](../skills/migration/optimizely-cms12-to-13-assessment/) | Pre-migration assessment for CMS 12 → 13 (effort, scope, risk) | [Guide](skills/optimizely-cms12-to-13-assessment.md) |
 | [optimizely-cms12-to-13](../skills/migration/optimizely-cms12-to-13/) | Migrate CMS 12 to CMS 13 (.NET 10, breaking API changes) | [Guide](skills/optimizely-cms12-to-13.md) |
 | [optimizely-find-to-graph](../skills/migration/optimizely-find-to-graph/) | Migrate from Optimizely Find to Content Graph | [Guide](skills/optimizely-find-to-graph.md) |
 | [optimizely-remko-graph-client-to-content-js](../skills/migration/optimizely-remko-graph-client-to-content-js/) | Migrate the Remko Graph client (`@remkoj/optimizely-graph-client`) to the official Content JS SDK — client init, fetching, auth/env (foundational) | [Guide](skills/optimizely-remko-graph-client-to-content-js.md) |

@@ -23,10 +23,6 @@ Each skill is a directory containing:
 
 ## Integrity and Releases
 
-Skills are tracked in `skill-deps.json`, which records:
-- Per-skill SHA-256 hashes (content seal for each SKILL.md)
-- Inter-skill dependency graph
-- Composite `releaseHash` (content seal for the entire skill set)
+Skills are tracked in `skill-deps.json`, which records the inter-skill dependency graph. Change detection uses `git diff` to identify modified files under each skill directory and the dependency graph for transitive impact analysis.
 
 Releases are gated — tagged with semver versions and distributed via the `latest` git tag. See `RELEASING.md` for the full process.
-
