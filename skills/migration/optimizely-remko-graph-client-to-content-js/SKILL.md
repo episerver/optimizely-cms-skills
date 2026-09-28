@@ -52,6 +52,54 @@ conditionally — in the **"Scope carve-out"**, **"Conditional residual"**, and
 `../_shared-references/package-and-import-mapping.md`. Read them before removing
 any package.
 
+## Replace / Retain / Remove (classify before touching code)
+
+Before running Step 1, classify every Remko-touching surface into one of three
+buckets from the official Optimizely migration guide:
+
+| Bucket | Definition | Migration action |
+|--------|------------|------------------|
+| **Replace** | Standard CMS retrieval/rendering currently done by Remko | Follow this skill's Step 5 mappings |
+| **Retain** | Genuine application-specific behaviour that happens to use Remko helpers | Preserve behaviour; port to app-owned code without a Remko import |
+| **Remove** | Infrastructure that exists only because the previous integration required it | Delete outright; do not port |
+
+**This skill's Step 5 API mappings assume Replace.** For Retain items (e.g., LSC's
+34-brand `channelDefs.ts`, custom sitemap crawls, business-specific query
+composition), the correct move is to keep the logic and swap only the type
+substrate (see channel-model preservation pattern in Step 5). For Remove items
+(e.g., helpers that only exist to work around Remko-specific quirks), delete
+without a replacement.
+
+See `../_shared-references/customer-artifacts-and-coexistence.md` for the full
+framework and worked examples.
+
+## Coexistence with other Remko surfaces
+
+This skill handles Graph client only. When it lands but sibling Remko packages
+(`optimizely-cms-react`, `optimizely-cms-nextjs`, `optimizely-graph-functions`,
+`optimizely-cms-api`) remain installed, the migration is partial by design —
+that is the intended flow, not a failure state.
+
+Expect these coexistence effects after this skill's changes land:
+
+- **Mixed clients coexist.** `getClient()` (SDK) and `createClient(...)` (Remko)
+  can both be instantiated in the same runtime; they read the same Graph. Do
+  not force every `createClient(...)` call site to migrate in this pass.
+- **`ctx.client` from `GenericContext` stays typed as `IOptiGraphClient`** until
+  the `optimizely-remko-cms-react-to-content-js` skill runs. Do not retype it
+  early — `@remkoj/optimizely-cms-react` still owns that type.
+- **Codegen output remains valid.** `@/gql/*` typed imports keep resolving as
+  long as `graphql-codegen` still runs — a partially migrated project can call
+  SDK typed methods and codegen'd fragments in the same file.
+- **Expect `pnpm typecheck` errors between phases.** Files that call methods
+  only on Remko's client (`.query()`, `.updateAuthentication()`,
+  `.enablePreview()`) will fail typecheck after `graph.ts` moves to `GraphClient`.
+  Use those errors as a scope map for the next surface, not as a blocker for
+  this one.
+
+Full rules — including what NOT to remove between phases — in
+`../_shared-references/customer-artifacts-and-coexistence.md`.
+
 ## When to Use This Skill
 
 - User wants to migrate from `@remkoj/optimizely-graph-client` to the official
@@ -78,6 +126,27 @@ any package.
 ### Step 1: Assess Current Usage
 
 Before making changes, scan the project to understand migration scope.
+
+**Discovery: customer artifacts (do this BEFORE the symbol scan).** Real
+customer repos rarely have a clean Remko install. Check for these three
+artifact classes first — they change the migration plan, not just the scope:
+
+- **Patches on Remko packages** — `patches/@remkoj+*.patch`,
+  `pnpm.patchedDependencies`, or `resolutions`/`overrides` blocks. Every patch
+  encodes a behaviour the customer's team believed was important enough to
+  fork. Catalogue what each patch changes BEFORE removing the package.
+- **Custom wrappers around Remko types** — files that import a Remko type and
+  re-export an augmented one (e.g., LSC's `remkojExt.ts`). The wrapper's
+  business logic must survive the migration; the Remko type substrate is what
+  moves.
+- **Forked / patched codegen tooling** — `file:` protocol deps, tarball
+  overrides, and patches on `graphql-codegen*` packages. These usually travel
+  as a set; deciding to keep or abandon codegen determines whether all of them
+  move forward.
+
+If any of these exist, read
+`../_shared-references/customer-artifacts-and-coexistence.md` fully before
+proceeding — otherwise you will silently drop customer-specific behaviour.
 
 1. **Detect `@remkoj/optimizely-graph-client` imports**:
    ```bash
@@ -271,6 +340,25 @@ const content = await client.getContentByPath('/en/');
 > flags, translate each one to its `config()`/route-segment equivalent rather
 > than searching for a matching argument.
 
+**Flag translation table (per-flag, concrete):**
+
+| Remko flag | Remko behaviour | Content JS SDK translation |
+|---|---|---|
+| `nextJsFetchDirectives: true` | Emit Next.js-specific `fetch` cache directives on every Graph request | **Default in Next.js 14+ App Router.** No explicit config needed unless overriding — the SDK's underlying `fetch()` respects Next's request cache automatically. Delete the flag; do not search for an equivalent option. |
+| `cache: false` (or `cache: 'no-store'`) | Disable Next.js data cache for Graph responses | Set at the **route segment** that must be uncached: `export const fetchCache = 'force-no-store'` OR `export const revalidate = 0`. If only some fetches must be uncached, use `fetch(..., { cache: 'no-store' })` at the call site (SDK methods pass through Next fetch options). |
+| `cache: true` (default) | Use Next.js data cache | No action needed — this is the default. |
+| `queryCache: false` | Disable Remko's in-memory query dedupe within a single request | **No direct equivalent.** Next.js's built-in `fetch` cache already dedupes identical requests per render. To force a fresh request per call (e.g., different preview tokens), vary something in the request — the SDK's preview flow already varies by `previewToken`, so passing different tokens per call is enough to defeat dedupe. Do not build a custom in-memory cache. |
+| `queryCache: true` (default) | Enable in-memory dedupe | No action needed — Next.js dedupes by default. |
+| `omitEmpty` / `includeDeleted` | Query-shape flags | No direct equivalent. Apply at the fetch call site as filter options where the SDK method exposes them; otherwise drop. |
+
+**LSC case study (2026-09):** `apps/cms/src/lib/graph.ts` called
+`createClient(undefined, undefined, { nextJsFetchDirectives: true, cache: true, queryCache: true })`
+at 11+ sites. The migration deleted all three flags from the client
+construction and let Next.js defaults handle caching; no route-segment
+`fetchCache`/`revalidate` was needed because default behaviour matched
+production intent. Only routes that must bypass caching (preview, publish
+handlers) got explicit `fetchCache = 'force-no-store'`.
+
 ### Step 5: Migrate Per-Symbol API Calls
 
 **See `references/graph-client-api-mapping.md` for the complete symbol
@@ -340,6 +428,76 @@ const content = await client.getContentByPath('/en/about/');
 // Access content[0] for the first match.
 ```
 
+#### (b′) `RouteResolver.getRoutes()` → direct GraphQL against `_Content`
+
+`RouteResolver` also exposes `.getRoutes(baseUrl?, includeDefaultLocale?)` for
+sitemap generation — the "give me every routable page" call. **The SDK has no
+`getClient().getRoutes()` equivalent.** The recommended pattern is a paged
+direct GraphQL query against `_Content` using `graphql-request` (already in
+most Next.js starter deps).
+
+**Before — Remko (`app/sitemap.ts`):**
+
+```ts
+import RouteResolver from '@remkoj/optimizely-graph-client/router';
+import { client } from '@/lib/api';
+
+export default async function sitemap() {
+  const resolver = new RouteResolver(client);
+  return (await resolver.getRoutes(process.env.SITE_URL, true))
+    .map((r) => ({ url: r.url, lastModified: r.changed }));
+}
+```
+
+**After — Content JS SDK (direct GraphQL):**
+
+```ts
+import { GraphQLClient, gql } from 'graphql-request';
+
+const query = gql`
+  query GetSitemapRoutes($skip: Int!, $limit: Int!) {
+    _Content(skip: $skip, limit: $limit) {
+      items {
+        _metadata {
+          url { hierarchical default }
+          locale
+          lastModified
+        }
+      }
+      total
+    }
+  }
+`;
+
+export default async function sitemap() {
+  const gateway = process.env.OPTIMIZELY_GRAPH_GATEWAY;
+  const key = process.env.OPTIMIZELY_GRAPH_SINGLE_KEY;
+  if (!gateway || !key) return []; // fail soft
+
+  const graph = new GraphQLClient(`${gateway}/content/v2`, {
+    headers: { 'epi-single': key },
+  });
+
+  const routes = [];
+  let skip = 0;
+  const limit = 100;
+  while (true) {
+    const { _Content } = await graph.request(query, { skip, limit });
+    routes.push(...(_Content.items ?? []));
+    if (routes.length >= _Content.total) break;
+    skip += limit;
+  }
+  return routes.map((r) => ({
+    url: r._metadata.url.hierarchical ?? r._metadata.url.default,
+    lastModified: r._metadata.lastModified,
+  }));
+}
+```
+
+See LSC's `apps/cms/src/app/sitemap.ts` in the execution log (item 1.4) for a
+production version that also strips the default-locale slug and rewrites the
+base URL.
+
 #### (c) Low-level `request()` → typed methods
 
 **Before — Remko (raw GraphQL):**
@@ -382,6 +540,61 @@ const ancestors = (await client.getPath('/en/about/team')) ?? [];
 ```
 
 See `references/graph-client-api-mapping.md` for the complete list.
+
+#### (e) Channel-model preservation (customer-owned channel type)
+
+Step 4 above says `ChannelRepository.createDefinition(...)` has **no direct
+equivalent** and channel identity moves to `buildConfig()` + `config()` +
+Next.js routing. That is correct for greenfield / starter-shaped apps. For
+customers with a **substantive multi-site channel model keyed to Remko's
+`ChannelDefinition`** (many brands, per-locale metadata, per-brand
+document-type overrides), do **not** try to shoehorn the model into the SDK's
+`config()` / `buildConfig()` shape — the SDK does not model per-channel data.
+
+**Recommended pattern: preserve the channel model, swap only the type
+substrate.** Define an app-owned type file (e.g., `channelTypes.ts`) that
+exports `ChannelDefinition`, `ChannelDefinitionData`, `ChannelDomain`,
+`ChannelLocale` with structurally-identical shape to Remko's exports, then
+switch the app's channel-registry file (e.g., `channelDefs.ts`) to import
+from the app-owned module. This is a **Retain** classification (see
+Replace/Retain/Remove above): the channel data itself is customer business
+logic, and only the type substrate migrates.
+
+**LSC case study (2026-09):** `apps/cms/src/config/channelDefs.ts` was 472
+lines defining 34 brand-specific `ChannelDefinition` instances plus
+`docConfigurationTypeName`, `additionalLocales`, and a `globalChannel()`
+helper. The migration created a 65-line `apps/cms/src/config/channelTypes.ts`
+re-exporting the four types with the same shape LSC previously consumed from
+`@remkoj/optimizely-graph-client`. The 472-line data file was untouched
+except for the import; the 25+ downstream files reading `ChannelDefinition`
+recompiled without changes. See `LSC-Remko-Migration-Execution-Log.md`
+item 1.1.
+
+#### (f) Preview auth: header → searchParam sub-decision
+
+The skill's main preview guidance says HMAC has no target — preview uses a
+per-request `Bearer <preview_token>`. That is complete for greenfield
+projects, but customers with an established custom preview flow face a second
+decision: **how does the preview token get from the request into the SDK
+call?**
+
+The SDK's canonical preview entry point is
+`getClient().getPreviewContent(searchParams)`, which reads the token from
+**URL search params** (the shape the CMS preview UI sends by default).
+Customers with a header-based preview envelope (e.g., LSC's
+`X_LSC_PREVIEW_TOKEN` custom header set by middleware) must choose between:
+
+| Option | How the token reaches the SDK | Best for |
+|---|---|---|
+| **(a) Middleware promotes header → query param** | Middleware on `/preview` reads the custom header and rewrites the request URL to include `?preview_token=...`; page uses `getPreviewContent(searchParams)` unchanged | Projects that want to keep the SDK's canonical preview path and only touch middleware |
+| **(b) Helper bypasses `getPreviewContent`** | Route handler reads the header directly and calls `getClient().getContent(path, { previewToken })` or `getContentByPath(path, { previewToken })` — bypassing `getPreviewContent` entirely | Projects with a multi-header preview envelope (chrome mode, edit mode, channel id) that already flows through app-owned code |
+
+Neither option is wrong; the choice is driven by how many other preview
+headers the customer sends alongside the token. LSC (5-header envelope:
+token, chrome mode, edit mode, channel id, path) picked option (b) — the
+existing `previewHeaders` middleware keeps firing, and Phase 1's `graph.ts`
+exposes a `getPreviewToken(ctx)` helper that callers pass into per-call
+`{ previewToken }` options. See execution-log item 1.3.
 
 ### Step 6: Verify Migration
 
@@ -509,3 +722,22 @@ the runtime smoke test confirms content renders.
 - `../_shared-references/package-and-import-mapping.md` — Package/import subpath mapping
 - `../_shared-references/auth-and-env-mapping.md` — Environment variables + CMS-55679 gotcha
 - `../_shared-references/setup-and-di.md` — Channel/client init + factory registration + context wiring
+- `../_shared-references/customer-artifacts-and-coexistence.md` — Patch/wrapper/fork discovery + Replace-Retain-Remove framework + coexistence rules
+
+## References
+
+- **Official Optimizely migration guide** — *Migrating from Remko.J to the
+  Optimizely CMS JavaScript SDK* (Confluence). Source-of-truth for the
+  Replace/Retain/Remove classification and the "assess, don't rebuild"
+  positioning. Cited in
+  `../_shared-references/customer-artifacts-and-coexistence.md`.
+- **Optimizely CMS JavaScript SDK repo** —
+  https://github.com/episerver/cms-sdk-js
+- **Optimizely CMS SDK + Next.js 16 starter** (primary practical reference) —
+  https://github.com/episerver/cms-sdk-nextjs-starter
+- **Direct-Graph Next.js 15 starter** (supplementary reference, by Szymon
+  Uryga — useful for what does NOT need to become SDK-specific code, e.g.,
+  sitemap crawls, direct GraphQL for `_Content`) —
+  https://github.com/SzymonUryga/optimizely-graph-nextjs-starter
+- **Customer artifacts & coexistence shared reference** —
+  `../_shared-references/customer-artifacts-and-coexistence.md`

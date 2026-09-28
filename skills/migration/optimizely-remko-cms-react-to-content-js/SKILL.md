@@ -52,6 +52,46 @@ conditionally — in the **"Scope carve-out"**, **"Conditional residual"**, and
 `../_shared-references/package-and-import-mapping.md`. Read them before removing
 any package.
 
+## Replace / Retain / Remove — classify before you touch code
+
+The official Optimizely migration guide frames every touched surface as one of
+three buckets. Apply this classification **before** starting Step 1 — the
+mappings in Step 5 assume the site has already landed in **Replace**:
+
+| Bucket | Definition | Action |
+|--------|------------|--------|
+| **Replace** | Standard CMS responsibility currently done via Remko (factory, `CmsContent`, `ServerContext`, `RichText`) | Follow Steps 1–6 below |
+| **Retain** | App-specific behaviour that happens to use a Remko helper (a custom rich-text node, a bespoke content-area filter) | Preserve the behaviour; re-implement without the Remko import |
+| **Remove** | Infrastructure that only existed because Remko required it (`RichTextComponentDictionary` registration, `getDataFragment` statics, `readSetting` helpers) | Delete outright |
+
+See `../_shared-references/customer-artifacts-and-coexistence.md` for the full
+framework and the official guide reference.
+
+## Coexistence with other Remko surfaces
+
+Skills in this suite are landed one at a time. Until each sibling migration
+completes, its symbols remain load-bearing:
+
+- **`ctx.client` from `GenericContext` stays typed as `IOptiGraphClient`**
+  until this skill's migration runs. The graph-client skill deliberately
+  leaves it alone — do NOT retype it early from the graph-client migration.
+  `@remkoj/optimizely-cms-react` still owns `GenericContext` and therefore
+  owns the `ctx.client` type until it is torn out here.
+- **Fragment types (`CmsComponent<FragmentType>`) resolve through codegen**
+  until the graph-functions skill runs. The `contentType()` rewrites in Step
+  5 assume you are willing to move off fragment-typed component props; if
+  the codegen migration is deferred, the `WithContainerKey<T>` wrapper (Step
+  5d) is the seam that lets both patterns coexist per file.
+- **Rendering hybrid trees** — a page that mixes SDK-migrated blocks with
+  Remko-still blocks is expected mid-migration. `<OptimizelyComponent>`
+  routes only through the `initReactComponentRegistry` resolver; a Remko
+  factory-registered block will not render through it unless also
+  re-registered in the resolver. Plan the migration by content-type group,
+  not by file.
+
+See `../_shared-references/customer-artifacts-and-coexistence.md` §Coexistence
+for the full rules.
+
 ## When to Use This Skill
 
 - User wants to migrate from `@remkoj/optimizely-cms-react` to the official
@@ -73,7 +113,24 @@ any package.
 
 ### Step 1: Assess Current Usage
 
-Before making changes, scan the project to understand migration scope.
+**Discovery: customer artifacts — check BEFORE proceeding.** Real Remko
+installs rarely match the reference architecture. Run the discovery in
+`../_shared-references/customer-artifacts-and-coexistence.md` to catalogue:
+
+- **Patches on `@remkoj/optimizely-cms-react`** (`patches/` folder,
+  `pnpm.patchedDependencies`, yarn `resolutions`) — each patch encodes a
+  behaviour the customer's team believed had to survive a swap. Do not swap
+  the package until each patch is reproduced, upstreamed, or explicitly
+  accepted as regression.
+- **Custom wrappers around Remko types** — grep for exports layered on top
+  of Remko imports (see `WithContainerKey<T>` pattern in Step 5d). Wrappers
+  usually carry business logic that must survive; only the imported type
+  substrate moves.
+- **Forked / patched codegen tooling** — signals partial migration will
+  need coordination with the `optimizely-remko-graph-functions-to-content-js`
+  skill (fragment types feed `CmsComponent<FragmentType>` in this skill).
+
+Then scan the project to understand migration scope.
 
 1. **Detect `@remkoj/optimizely-cms-react` imports**:
    ```bash
@@ -338,6 +395,63 @@ export function MyComponent() {
 }
 ```
 
+#### Step 4a: Mid-render context / client swap (architectural, no drop-in)
+
+Some Remko apps build a **different** `ServerContext` mid-render to overlay a
+distinct Graph client for a subtree — typical use case: a page runs its main
+query against the current preview client, then swaps in a stable public
+client to fetch shared global-layout data whose preview token has expired.
+
+LSC hits this in `AuthorPage.tsx` and `CompanyPage.tsx` via a
+`buildDefaultLayoutRenderContext` helper that constructs a fresh
+`ServerContext` and passes it as `ctx={contentCtx}` to a nested
+`CmsContentArea`.
+
+**The SDK has no equivalent seam.** `withAppContext` is a per-request
+singleton — writing a new context value with `setContext(...)` before rendering
+a subtree leaks to siblings and to the rest of the request. Recognise this as
+an **architectural** decision, not a mechanical rewrite. Two supported
+workarounds:
+
+- **Explicit client prop threading.** Instantiate the alternate client at the
+  page level, then thread it as an explicit `client` prop down into the
+  subtree that needs it. The nested components accept a `client: GraphClient`
+  prop and call typed fetch methods directly, bypassing `getContext()` for
+  that data.
+- **Pre-fetch at the page, pass resolved data down.** Instead of handing a
+  different *client* to the subtree, do the alternate fetch at the page and
+  pass **resolved data** into the subtree as props. This is often cleaner
+  when the alternate-client scope is small (a single global layout query,
+  not a whole content area).
+
+Document the choice per site — the two LSC pages plus their downstream
+`AuthorDocListBlock` / `CompanyDocListBlock` blocks all need the same
+decision applied consistently.
+
+#### Step 4b: Non-React helpers that consume `ctx`
+
+`getContext()` only works in **React server-component scope**. It cannot be
+called from:
+
+- Plain runtime service functions that today accept `ctx` as a parameter
+  (LSC has `getPeople({ ctx })`, `getCollectionBlockResults(...)`,
+  `documentsHelpers`, `enrichDocsWithAttribution`).
+- Client components that receive `ctx` from a server component parent
+  (LSC's `SiteChromeClient` receives `ctx` from server `SiteChrome`).
+
+For these, the migration pattern is **explicit parameter threading, not
+`getContext()`**. Two options:
+
+- Change the function signature from `({ ctx })` to `({ client })` and have
+  the calling server component pass `getClient()` (or the per-call preview
+  token). The function stays pure with respect to request scope.
+- If the function needs the preview token specifically, add a
+  `previewToken?: string` parameter and let the caller pass
+  `getContext()?.preview_token` from server scope.
+
+Do NOT rewrite these helpers to call `getContext()` internally — it will
+throw or return `undefined` outside a server-component request.
+
 ### Step 5: Migrate Per-Component Code
 
 Update each CMS component file to use the official SDK imports and patterns.
@@ -407,6 +521,32 @@ export default function Article({ content }: Props) {
 4. **Import paths changed.** `@remkoj/optimizely-cms-react` →
    `@optimizely/cms-sdk`; `@remkoj/optimizely-cms-react/components` →
    `@optimizely/cms-sdk/react/richText`.
+
+5. **`WithContainerKey<T>` and similar structural wrappers preserve.** If
+   the customer has a local generic like
+   `type WithContainerKey<T> = T & { containerKey?: string }` layered on a
+   Remko type (LSC does this in `remkojExt.ts` for
+   `ContentAreaItemDefinition`), the migration pattern is to keep the
+   wrapper and change only the wrapped type. The augmentation itself
+   (spread + optional field) is content-type-agnostic and does not depend
+   on Remko runtime behaviour, so it composes cleanly with the SDK's
+   `ContentProps`:
+
+   ```ts
+   // Before — Remko substrate
+   import type { ContentAreaItemDefinition } from '@remkoj/optimizely-cms-react/rsc';
+   type WithContainerKey<T> = T & { containerKey?: string };
+   type Item = WithContainerKey<ContentAreaItemDefinition>;
+
+   // After — SDK substrate; wrapper unchanged
+   import type { ContentProps } from '@optimizely/cms-sdk';
+   import { XxxContentType } from './XxxContentType';
+   type WithContainerKey<T> = T & { containerKey?: string };
+   type Item = WithContainerKey<ContentProps<typeof XxxContentType>>;
+   ```
+
+   The `WithContainerKey` name and the runtime spread logic that reads
+   `item.containerKey` both survive verbatim.
 
 #### Step 5a: Components with display settings / variants
 
@@ -549,9 +689,33 @@ export async function ExperiencePage({ path }: { path: string }) {
 }
 ```
 
-If a Remko helper depended on `Utils.isNonEmptyString` (used to skip blank
-nodes), it is not exported — inline the one-liner
-(`typeof v === 'string' && v.length > 0`). Do not import a guard.
+**`OptimizelyComposition` prop shape changed (`node` → `nodes`).** Remko's
+component took a single `node` prop pointing at the whole composition
+subtree: `<OptimizelyComposition node={x} />`. The SDK's signature is
+plural: `<OptimizelyComposition nodes={x.nodes} />`. This is not merely a
+guard drop; every call site (LSC has `BlankExperience/index.tsx:11,45` and
+`StartPageExperience/index.tsx:11,48`) must pass the `.nodes` array, not
+the composition object itself. Grep for `<OptimizelyComposition` and
+verify each site.
+
+**Inline replacements for `Utils` helpers.** The Remko `Utils` namespace
+is not exported by the SDK. The two members that appear in LSC:
+
+- `Utils.isNonEmptyString(v)` → inline `typeof v === 'string' && v.length > 0`
+- `Utils.normalizeContentType(types)` → inline
+  `Array.isArray(types) ? types.filter(t => typeof t === 'string' && t.length > 0) : []`
+
+  Remko's `normalizeContentType(types, true)` accepts an optional second
+  argument that biases ordering toward the most-concrete type first. For
+  the common downstream usage (feeding a `Set` and calling `.has(...)` for
+  membership checks — the LSC pattern in `resolvePreviewChromeMode.ts:58`)
+  ordering does not affect behaviour and the argument can be omitted.
+  Verify your call sites: if any consume the array in **iteration order**
+  (e.g., picking the first match), preserve concrete-first ordering by
+  reading the Remko implementation once and inlining the same sort.
+
+Do not import a guard from a shared file — inline the one-liner per
+callsite. There are typically only 1–2 of them per app.
 
 ### Step 6: Verify Migration
 
@@ -678,3 +842,22 @@ runtime smoke test confirms components render.
 - `../_shared-references/package-and-import-mapping.md` — Package/import subpath mapping
 - `../_shared-references/auth-and-env-mapping.md` — Environment variables + CMS-55679 gotcha
 - `../_shared-references/setup-and-di.md` — Channel/client init + factory registration + context wiring
+- `../_shared-references/customer-artifacts-and-coexistence.md` — Patches, wrappers, forked codegen discovery + Replace/Retain/Remove framework + coexistence rules
+
+## References
+
+- **Official Optimizely migration guide** — *Migrating from Remko.J to the
+  Optimizely CMS JavaScript SDK*. Source of the Replace / Retain / Remove
+  framing at the top of this skill and the "assess, don't rebuild"
+  positioning. See
+  `../_shared-references/customer-artifacts-and-coexistence.md` for the
+  full reference.
+- **Optimizely CMS JavaScript SDK repo** (official) —
+  https://github.com/episerver/cms-sdk-js
+- **Optimizely CMS SDK + Next.js 16 starter** (primary practical example
+  for the target architecture demonstrated in this skill) —
+  https://github.com/episerver/cms-sdk-nextjs-starter
+- **Direct-Graph Next.js 15 starter** (Szymon Uryga; supplementary — useful
+  when deciding what should stay as direct-Graph code and what should move
+  into the SDK) —
+  https://github.com/SzymonUryga/optimizely-graph-nextjs-starter

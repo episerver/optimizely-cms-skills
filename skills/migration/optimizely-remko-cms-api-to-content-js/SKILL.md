@@ -40,6 +40,75 @@ Graph client (`getClient()` from `@optimizely/cms-sdk`) reads **published
 content only**. This is a **semantic difference** — `getClient()` is NOT a
 drop-in replacement for `ContentService` reads.
 
+## Discovery: customer artifacts BEFORE migration
+
+Read `../_shared-references/customer-artifacts-and-coexistence.md` first.
+This skill is **more retention-heavy than any other in the suite** — most
+real customers who use `@remkoj/optimizely-cms-api` at runtime will KEEP the
+package installed indefinitely because content write/CRUD, changesets, and
+runtime OAuth have no official SDK equivalent. Detect these three classes
+of artifact before proposing removal:
+
+1. **Patches on `@remkoj/optimizely-cms-api`** — check `patches/` and
+   `pnpm.patchedDependencies`. Patches on this package usually encode
+   Integration-API defect workarounds; carry them forward.
+2. **Custom wrappers around Remko generated types** — files that import
+   from `@remkoj/optimizely-cms-api/dist/client` and re-export augmented
+   shapes usually carry retry, DAM sync, or 409-recovery logic. Preserve
+   the WHY, not the type substrate.
+3. **Editor Save / draft write clients** — files that call
+   `contentPatchVersion`, `contentCreateVersion`, `contentCreate`,
+   `contentDelete`. These are **honest-gap** clients and should be
+   retained (see the Retain matrix below).
+
+## Replace / Retain / Remove framework
+
+From the official Optimizely migration guide. Classify every touched surface
+before opening this skill's Steps. This skill is unusual in that the Retain
+column dominates — plan accordingly.
+
+| Bucket | What it means for `@remkoj/optimizely-cms-api` |
+|--------|------------------------------------------------|
+| **Replace** | Content-type / display-template / property-format management via `ContentTypesService`, `DisplayTemplatesService`, `PropertyFormatsService`, `PropertyGroupsService` → move to `@optimizely/cms-cli` `config push`/`config pull` + code-first `contentType()`/`displayTemplate()`. Published-content READS via `ContentService.get*()` where drafts are not required → move to `getClient()` (Graph). |
+| **Retain** | Editor draft writes (`contentPatchVersion`, `contentCreateVersion`, `contentCreate`, `contentDelete`). Changesets (`ChangesetsService.*`). Runtime OAuth (`getAccessToken`, `getCmsIntegrationApiConfigFromEnvironment`). Migration tooling built on `@remkoj/optimizely-cms-api/dist/client` generated types (rate limiting, 401 retry, DAM sync retry, 409 recovery). All of these stay on Remko; the package remains installed. |
+| **Remove** | Only the imports that correspond to Replace-bucket surfaces above. Do NOT `yarn remove @remkoj/optimizely-cms-api` unless the whole Retain column is empty. |
+
+**Rule of thumb**: If any file in the project imports from
+`@remkoj/optimizely-cms-api/dist/client` for its generated types, or calls
+any of the four editor-write methods above, the package is a **permanent
+resident** — plan indefinite coexistence, not phase-out.
+
+## Coexistence with other Remko surfaces
+
+`@remkoj/optimizely-cms-api` is the source package most likely to remain
+installed after the rest of the Remko surface has migrated. Coexistence
+rules for this specific package (in addition to the general rules in
+`../_shared-references/customer-artifacts-and-coexistence.md`):
+
+1. **Retention does NOT block other skills.** You can complete the
+   `cms-cli`, `graph-client`, `cms-react`, `cms-nextjs`,
+   `graph-functions`, and `graph-cli` migrations to 100% while
+   `@remkoj/optimizely-cms-api` stays installed for editor-writes and
+   migration tooling. That is the intended end state for most customers.
+2. **Generated types are the retention anchor.** Files that use
+   `ContentItem`, `ContentVersion`, `ContentVersionPatch`,
+   `ContentMetadata`, `ContentReference`, `ContentComponent`,
+   `ContentItemPage`, `ApiError` etc. from
+   `@remkoj/optimizely-cms-api/dist/client` will continue to work — the
+   Remko package still ships them. Do not invent shims.
+3. **Env-var reuse is safe across coexistence.**
+   `OPTIMIZELY_CMS_CLIENT_ID`, `OPTIMIZELY_CMS_CLIENT_SECRET`,
+   `OPTIMIZELY_CMS_URL` are consumed by BOTH the retained Remko client
+   AND the new `@optimizely/cms-cli`. No duplication needed.
+4. **Do not migrate migration tooling to raw REST as a first step.** For
+   customers with `cms-migrator`-style adapter packages (30+ adapter
+   files consuming `@remkoj/optimizely-cms-api/dist/client` types PLUS
+   rate limiting / 401 retry / DAM sync retry / 409 recovery — LSC's
+   `packages/cms-migrator/src/library/shared/cms-client.ts` is the
+   canonical example), migrating to raw REST **erases four load-bearing
+   safety nets** the Remko client already handles. Retain the package
+   unless a concrete SDK migration-tooling story lands.
+
 ## Scope & Teardown Order (applies to every skill in this suite)
 
 Three cross-cutting rules govern the whole migration:
@@ -178,6 +247,32 @@ Based on Step 1 findings, categorize each usage by concern:
      calls) for programmatic write/changeset access.
    - **DELETE** code paths that are no longer needed (e.g., automated content
      creation workflows that can be replaced with admin UI).
+
+### Step 2.5: Retain / Remove Decision Matrix
+
+Because `@remkoj/optimizely-cms-api` straddles the entire management +
+runtime-write + auth surface, its per-surface decisions do not collapse
+into one action. Use this matrix to decide surface by surface. The
+default is deliberately conservative — most customers land on Retain for
+half the rows.
+
+| Surface | Default action | Skip / Route elsewhere if... |
+|---------|----------------|------------------------------|
+| `contentPatchVersion` / `contentCreateVersion` / editor draft writes | **Retain** (keep package indefinitely) | Project has NO editor UI that writes back to CMS. LSC's `apps/cms/src/lib/CmsClient.ts` is the canonical Retain case. |
+| `contentCreate` / `contentDelete` (programmatic content lifecycle) | **Retain** | Only used by a one-off seed/migration script scheduled for deletion. |
+| `ChangesetsService.*` | **Retain** | Manual admin-UI changeset management is acceptable AND no CI/CD depends on changesets. |
+| `OauthService` / `getAccessToken` / `getCmsIntegrationApiConfigFromEnvironment` | **Retain** | No custom client instantiation is needed after Retain rows are removed — auth then lives inside the retained Remko client's own bootstrap. |
+| `ContentService.get*()` / `.list()` READS (published only) | **Replace** with `getClient()` (Graph) from `@optimizely/cms-sdk` | Reads require drafts/versions (then this row is Retain). |
+| `ContentTypesService` push/pull | **Replace** — route to the `optimizely-remko-cms-cli-to-content-js` skill (`config push`/`config pull` + code-first `contentType()`) | No content-type management done from code; all authored in admin UI. |
+| `DisplayTemplatesService` push/pull | **Replace** — route to the `optimizely-remko-cms-cli-to-content-js` skill (`config push` + code-first `displayTemplate()`) | No display templates in use. |
+| `PropertyFormatsService` / `PropertyGroupsService` | **Replace** — route to the `optimizely-remko-cms-cli-to-content-js` skill (declare in `buildConfig()`; no dedicated code-first factory) | No custom property formats/groups. |
+| Generated types from `@remkoj/optimizely-cms-api/dist/client` (`ContentItem`, `ContentVersion`, `ContentVersionPatch`, `ContentMetadata`, `ContentReference`, `ContentComponent`, `ContentItemPage`, `ApiError`) | **Retain** — no direct SDK equivalent unless doing a full write→read split | Every consumer file has already been migrated to `ContentProps<typeof XxxContentType>` (from the cms-react/code-first schemas). |
+| `cms-migrator`-style adapter tooling using `/dist/client` generated types + custom rate limit / 401 retry / DAM sync retry / 409 recovery | **Retain** (safety nets outweigh the dependency cost) | Migration tool is being retired entirely. |
+
+**Practical rule**: If any row above lands on Retain, the
+`@remkoj/optimizely-cms-api` package stays installed and **you do NOT
+plan a phase-out for that surface**. Only propose full package removal
+when every row lands on Replace or Remove.
 
 ### Step 3: Migrate Management/Tooling Usage
 
@@ -412,58 +507,101 @@ complete Graph client init and fetching patterns.**
 The official SDK and CLI **have NO equivalents** for:
 
 1. **Content write/CRUD** — `ContentService.create()`, `.update()`,
-   `.delete()`, draft management, version management
+   `.delete()`, draft management, version management (including
+   `contentPatchVersion`, `contentCreateVersion`, `contentCreate`,
+   `contentDelete`)
 2. **Changesets** — `ChangesetsService.*` (create, update, delete, list, apply)
 3. **Runtime OAuth** — `getAccessToken`,
    `getCmsIntegrationApiConfigFromEnvironment` (CLI handles auth internally; no
    runtime helpers in SDK)
 
-**Options:**
+**Recommended path for editor-UI writes: RETAIN the Remko package
+indefinitely.**
 
-- **Use the CMS admin UI** for manual content authoring, draft/version
-  management, and changeset management.
+For customers whose editor UI depends on `contentPatchVersion` /
+`contentCreateVersion` / `contentCreate` / `contentDelete` (LSC's
+`apps/cms/src/lib/CmsClient.ts` is the canonical case, with 183 lines calling
+6 Integration-API methods), **the recommended path is keeping
+`@remkoj/optimizely-cms-api` installed indefinitely** — do NOT plan a
+phase-out for these calls unless there is a concrete SDK feature landing.
+The Remko client is the smallest-surface option and requires no
+authentication or retry code to reimplement. Ask Optimizely product whether
+`contentPatchVersion` / `contentCreateVersion` are on the SDK roadmap before
+proposing any alternative.
 
-- **Keep the source package** (`@remkoj/optimizely-cms-api`) for programmatic
-  write/changeset access. If you keep the source package, you can remove only
-  the management/tooling usage (content types, display templates) and migrate
-  those to the official CLI (Step 3), while keeping content write/changeset
-  code unchanged.
+**Recommended path for migration tooling: RETAIN.**
+
+For customers with substantial migration tooling built around Remko's
+generated types — LSC's `packages/cms-migrator` is the canonical case, with
+30+ adapter files consuming `@remkoj/optimizely-cms-api/dist/client` types
+plus custom rate limiting, 401 retry with re-auth, DAM sync retry, and 409
+recovery behaviour (see
+`packages/cms-migrator/src/library/shared/cms-client.ts:1-80`) — migrating
+to raw REST **erases these safety nets**. Recommend keeping the Remko
+package for the migrator alongside any other retention decision.
+
+**Options (in order of preference for retained surfaces):**
+
+- **KEEP the source package** (`@remkoj/optimizely-cms-api`) for
+  programmatic write/changeset access. This is the recommended default for
+  editor writes and migration tooling. If you keep the source package, you
+  can still remove only the management/tooling usage (content types,
+  display templates) and migrate those to the official CLI (Step 3),
+  keeping write/changeset code unchanged.
 
 - **Use raw Integration API REST calls** — Replace
   `@remkoj/optimizely-cms-api` with direct `fetch()` calls to the Integration
   API endpoints (`/api/episerver/v3.0/content`, `/api/episerver/v3.0/oauth`,
-  etc.). This avoids the dependency on the community package but requires
-  manual request/response handling.
+  etc.). This avoids the dependency on the community package but adds an
+  **authentication + retry + error-handling burden** the Remko client
+  already carries. Only choose this if you have a specific reason to drop
+  the Remko dependency (e.g., patch-triangle removal, security policy).
+
+- **Use the CMS admin UI** for manual content authoring, draft/version
+  management, and changeset management — only viable if writes are
+  infrequent enough that a human can do them.
 
 - **DELETE** code paths that are no longer needed (e.g., automated content
-  creation workflows that can be replaced with manual admin UI authoring).
+  creation workflows that can be replaced with manual admin UI authoring
+  or a one-off script scheduled for deletion).
 
 **Net migration for content WRITE/CRUD:**
 
-- **DELETE**: Code paths that create/update/delete content via
-  `ContentService.create()` / `.update()` / `.delete()` (if manual admin UI
-  authoring is acceptable).
+- **DEFAULT — KEEP**: Retain `@remkoj/optimizely-cms-api` for editor draft
+  writes, `contentPatchVersion` / `contentCreateVersion` / `contentCreate`
+  / `contentDelete`, and content lifecycle scripts. Plan indefinite
+  coexistence.
 
-- **KEEP**: Keep the `@remkoj/optimizely-cms-api` package (or rewrite to raw
-  Integration API REST calls) if programmatic content write/CRUD is required.
+- **DELETE (only if applicable)**: Code paths that create/update/delete
+  content via `ContentService` methods that can be replaced with admin-UI
+  authoring.
+
+- **RAW REST (rare)**: Only if the Remko dependency itself must go — pay
+  the auth + retry cost knowingly.
 
 **Net migration for changesets:**
 
-- **DELETE**: Code paths that manage changesets via `ChangesetsService` (if
-  manual admin UI changeset management is acceptable).
+- **DEFAULT — KEEP**: Retain `@remkoj/optimizely-cms-api` for changeset
+  access unless changesets are unused.
 
-- **KEEP**: Keep the `@remkoj/optimizely-cms-api` package (or rewrite to raw
-  Integration API REST calls) if programmatic changeset access is required.
+- **DELETE (only if applicable)**: Code paths that manage changesets via
+  `ChangesetsService` if manual admin-UI changeset management is
+  acceptable.
 
 **Net migration for runtime OAuth:**
 
-- **DELETE**: Code paths that call `getAccessToken` or
-  `getCmsIntegrationApiConfigFromEnvironment`.
+- **DEFAULT — KEEP**: If the Remko package is retained for writes or
+  changesets, retain the OAuth helpers alongside — they exist to
+  bootstrap that same client.
 
-- **REPLACE WITH**: If you need programmatic token exchange (e.g., for a custom
-  Integration API client), use raw Integration API OAuth endpoints
-  (`/oauth/token`). The CLI's `login` command is for verification only, not
-  runtime use.
+- **REPLACE WITH**: If you need programmatic token exchange without the
+  Remko client (e.g., for a custom Integration API caller), use raw
+  Integration API OAuth endpoints (`/oauth/token`). The CLI's `login`
+  command is for verification only, not runtime use.
+
+- **DELETE (only if applicable)**: Code paths that call `getAccessToken`
+  or `getCmsIntegrationApiConfigFromEnvironment` only after the Retain
+  column above is empty.
 
 ### Step 6: Verify Migration
 
@@ -544,10 +682,12 @@ CRITICAL: Do not report migration complete until you've verified that:
    `OPTIMIZELY_GRAPH_SECRET`).
 
 5. **Deleting the source package too early** — If the project has content
-   write/CRUD or changeset usage, you may need to KEEP the
-   `@remkoj/optimizely-cms-api` package (or rewrite to raw Integration API REST
-   calls) even after migrating management/tooling and read usage to the
-   official packages.
+   write/CRUD, changeset, or migration-tooling usage, you should KEEP the
+   `@remkoj/optimizely-cms-api` package (this is the recommended default,
+   not a fallback). Raw REST is a valid alternative but adds an
+   authentication + retry burden the Remko client already handles. Do not
+   propose full package removal without confirming every row in the
+   Step 2.5 Retain/Remove matrix lands on Replace or Remove.
 
 6. **Assuming the CLI has runtime OAuth helpers** — The official CLI's `login`
    command verifies CMS credentials, but there is NO runtime OAuth helper in
@@ -600,9 +740,55 @@ CRITICAL: Do not report migration complete until you've verified that:
 
 **Shared references (read first)**:
 
+- `../_shared-references/customer-artifacts-and-coexistence.md` —
+  Pre-migration discovery (patches, wrappers, forked codegen) + coexistence
+  rules for leaving Remko installed while migrating around it
 - `../_shared-references/package-and-import-mapping.md` — Package/import subpath
   mapping
 - `../_shared-references/auth-and-env-mapping.md` — Environment variables +
   CMS-55679 gotcha
 - `../_shared-references/setup-and-di.md` — Channel/client init + factory
   registration + context wiring
+
+## References
+
+**Official Optimizely material**
+
+- *Migrating from Remko.J to the Optimizely CMS JavaScript SDK* — Optimizely
+  Confluence guide. Source of the Replace/Retain/Remove framework and the
+  "assess, don't rebuild" positioning. Notes that content modelling +
+  runtime CMS reads move to the SDK, but does not prescribe a target for
+  content writes, changesets, or runtime OAuth — this skill's Step 5 fills
+  that gap.
+- Optimizely CMS JavaScript SDK repo:
+  https://github.com/episerver/cms-sdk-js
+- Optimizely CMS SDK + Next.js 16 starter (primary practical reference):
+  https://github.com/episerver/cms-sdk-nextjs-starter — demonstrates
+  `getClient().getContentByPath()`, `initContentTypeRegistry()`,
+  `initReactComponentRegistry()`, `OptimizelyComponent`, code-first
+  `contentType()`. Does NOT demonstrate any content-write pattern; the
+  absence is a data point supporting the Retain-writes-on-Remko default.
+
+**Field references (from real customer test migrations)**
+
+- **LSC (2026-09)** — Editor Save retention case study.
+  `apps/cms/src/lib/CmsClient.ts` (183 lines) calls 6 Integration-API
+  methods including `contentPatchVersion` and `contentCreateVersion`.
+  Decision D5 in the LSC walk-through resolved to KEEP the Remko
+  package. Walk-through: `LSC-Remko-Migration-Walk-Through.md` §4.6.
+  Execution log: `LSC-Remko-Migration-Execution-Log.md` (Phase 4 safe
+  leaves).
+- **LSC `cms-migrator` package** — Migration-tooling retention case
+  study. `packages/cms-migrator/src/library/shared/cms-client.ts:1-80`
+  documents rate limiting, 401 retry, DAM sync retry, and 409 recovery
+  behaviours built on top of `@remkoj/optimizely-cms-api/dist/client`
+  types across 40+ adapter files. LSC walk-through §4.7 confirms
+  retention is well-founded — the safety nets are load-bearing, not
+  decorative.
+- **Generated-type inventory (from LSC scan)** — `ContentItem`,
+  `ContentVersion`, `ContentVersionPatch`, `ContentMetadata`,
+  `ContentReference`, `ContentComponent`, `ContentItemPage`, `ApiError`.
+  All eight remain valid imports from
+  `@remkoj/optimizely-cms-api/dist/client` while the package is
+  retained. None have a direct SDK equivalent unless the entire
+  write→read split completes.

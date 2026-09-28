@@ -23,8 +23,54 @@ official `@optimizely/cms-cli` manages **CMS content-TYPE definitions + auth**.
 These are **fundamentally different concerns** with **near-zero command
 overlap** — there is essentially NO `opti-graph` command that maps 1:1 to an
 `optimizely-cms-cli` command. This migration is ALMOST ENTIRELY honest gaps:
-most operations move to different surfaces (Graph/CMS admin UI, runtime channel
-config, or are deleted entirely with codegen).
+most operations move to different surfaces (Graph/CMS admin UI, **Graph
+Management API**, runtime channel config, or are deleted entirely with codegen).
+
+## Discovery: customer artifacts
+
+Before applying this skill, read
+`../_shared-references/customer-artifacts-and-coexistence.md` and check for
+patches on `@remkoj/optimizely-graph-cli`, custom wrappers around
+`opti-graph`, and forked codegen tooling (`patches:apply` typically sits on
+top of a patched-codegen triangle: patched `@remkoj/optimizely-graph-functions`
++ patched `@graphql-codegen/typescript` + a locally-built visitor-plugin-common
+tarball). Ignoring the patches silently regresses fail-closed guards, exit
+codes, and codegen correctness.
+
+## Replace / Retain / Remove framework
+
+Classify each `opti-graph` usage BEFORE opening the migration steps:
+
+| Bucket | What this looks like for graph-cli | Migration action |
+|--------|------------------------------------|------------------|
+| **Replace** | Webhook registration invoked from CI (`webhook:create` in a build step gating deploys) | Rewrite the CI script against the **Graph Management API** (see LSC's `register-webhook.mjs` recipe below) |
+| **Retain** | Pure functions inside a CI wrapper (env assertion, path construction, Vercel bypass logic) | Preserve verbatim — the tests keep passing without changes |
+| **Remove** | `config:create` (site-config generation), `patches:apply` (codegen patches), `source:list` (default when running bare `opti-graph`), ad-hoc `webhook:list`/`webhook:delete` scripts | Delete outright; migrate consumers to code-first channel init, runtime queries, or admin UI |
+
+Almost every `opti-graph` command is Remove or "Replace with a direct Graph
+Management API call." **There is no drop-in official CLI replacement.**
+
+## Coexistence
+
+`@remkoj/optimizely-graph-cli` is unusual in the Remko package family: it
+is a **standalone CLI**, typically bound to CI scripts, with no runtime
+type-import surface into application code. That makes it the **cheapest
+migration to sequence at any point** — before or after the client/react/nextjs
+skills — because removing it does not break the rest of the codebase. LSC
+executed it as Phase 5 before touching the Graph client for exactly this
+reason (`LSC-Remko-Migration-Execution-Log.md` Phase 5).
+
+**Internal ordering** (see
+`../_shared-references/customer-artifacts-and-coexistence.md` for full
+coexistence rules): do **not** remove
+`@remkoj/optimizely-graph-cli` from `devDependencies` until every consumer
+(CI script, `package.json` script, README instruction, env-keys comment)
+is migrated. LSC's Phase 5 order was **5.1 (rewrite `register-webhook.mjs`)
+→ 5.2/5.3 (remove scripts) → 5.5 (update docs) → 5.4 (`yarn remove` the dev
+dep)**. Reversing breaks `pnpm install` mid-sequence. Graph credentials
+(`OPTIMIZELY_GRAPH_APP_KEY` + `_SECRET`) remain in `.env` throughout — they
+are also read by the runtime Graph client and by the rewritten CI script
+hitting the Graph Management API.
 
 ## Scope & Teardown Order (applies to every skill in this suite)
 
@@ -222,16 +268,180 @@ export function getChannelForHost(hostname: string) {
 **After — Content JS SDK (no CLI equivalent):**
 
 The official `@optimizely/cms-cli` **has NO webhook topic**. Graph webhook
-management has no CLI equivalent.
+management has no CLI equivalent. Three options exist for the replacement,
+each with real tradeoffs:
+
+| Location | Idempotency | Vercel bypass rotation | Blast radius on failed deploy | Recommended for |
+|----------|-------------|------------------------|-------------------------------|-----------------|
+| **CI script (Graph Management API)** | Manual — check-then-create or accept duplicates | Preserves fail-closed guard if secret missing at build time | Build fails → webhook not (re-)registered → next publish still works from prior registration | **Vercel customers with Deployment Protection** (default) |
+| **Runtime bootstrap** | Idempotent (once-per-process check) | No secret needed — script runs inside the deployed app | Deploy failure = no bootstrap = stale registration silently persists | Non-Vercel or non-Protected deployments |
+| **Admin UI (manual)** | Human-driven | N/A | None (uncoupled from deploy) | Small teams, low change velocity |
+
+**LSC chose (A) — CI script — precisely to preserve their fail-closed guard.
+This is the recommended default for any customer on Vercel with Deployment
+Protection enabled.** (See `LSC-Remko-Migration-Walk-Through.md` D6.)
+
+##### Graph Management API endpoint contract (verify before use)
+
+The rewrite hits three Graph Management endpoints, all under
+`${OPTIMIZELY_GRAPH_GATEWAY}` (typically `https://cg.optimizely.com`) with
+**Basic auth** built from `OPTIMIZELY_GRAPH_APP_KEY:OPTIMIZELY_GRAPH_SECRET`:
+
+| Operation | Method | Path | Body |
+|-----------|--------|------|------|
+| Register | `POST` | `/api/webhooks/` | `{ "request": { "url": "<destination>", "method": "POST" } }` |
+| List | `GET` | `/api/webhooks/` | — |
+| Delete | `DELETE` | `/api/webhooks/{id}` | — |
+
+> **Verify before shipping.** The endpoint path and body shape should be
+> confirmed against the current Optimizely Graph Management API docs — extract
+> the path into a top-of-file constant (see `WEBHOOKS_ENDPOINT_PATH` in the
+> recipe below) so a single edit updates it if Graph relocates it.
+
+##### Replacement recipe: `register-webhook.mjs` (create)
+
+Adapted from LSC's rewrite (full source at
+`C:\Projects\lsc-platform-core-master\lsc-platform-core-master\apps\cms\scripts\register-webhook.mjs`).
+Preserves the two pure functions whose tests survive verbatim
+(`assertPublishWebhookEnv`, `buildPublishWebhookPath`) and adds three impure
+helpers plus the `fetch()` call that replaces the
+`spawnSync('opti-graph', ...)` shell-out. Key idioms:
+
+```js
+#!/usr/bin/env node
+const PUBLISH_PATH = '/api/content/publish';
+const MISSING_BYPASS_SECRET_MESSAGE =
+  'VERCEL_AUTOMATION_BYPASS_SECRET is required on Vercel so Optimizely Graph ' +
+  'can POST /api/content/publish past Deployment Protection.';
+// If Graph Management renames or relocates the endpoint, only this constant
+// needs updating.
+const WEBHOOKS_ENDPOINT_PATH = '/api/webhooks/';
+
+const readBypassSecret = (env) =>
+  env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim() || undefined;
+
+// PURE — preserved verbatim from the pre-migration script; tests unchanged.
+export function assertPublishWebhookEnv(env = process.env) {
+  if (env.VERCEL !== '1') return;
+  if (readBypassSecret(env)) return;
+  throw new Error(MISSING_BYPASS_SECRET_MESSAGE);
+}
+
+// PURE — preserved verbatim; tests unchanged.
+export function buildPublishWebhookPath(env = process.env) {
+  const bypassSecret = readBypassSecret(env);
+  if (!bypassSecret) return PUBLISH_PATH;
+  const search = new URLSearchParams({ 'x-vercel-protection-bypass': bypassSecret });
+  return `${PUBLISH_PATH}?${search.toString()}`;
+}
+
+// Impure helpers: buildDestinationUrl reads SITE_DOMAIN, buildManagementUrl
+// reads OPTIMIZELY_GRAPH_GATEWAY, buildAuthHeader base64-encodes
+// `${OPTIMIZELY_GRAPH_APP_KEY}:${OPTIMIZELY_GRAPH_SECRET}` as `Basic <token>`.
+// Each throws when its required env var is missing (see full file).
+
+export async function registerPublishWebhook(env = process.env) {
+  assertPublishWebhookEnv(env);           // fail-closed on Vercel first
+  const response = await fetch(buildManagementUrl(env), {
+    method: 'POST',
+    headers: {
+      Authorization: buildAuthHeader(env),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      request: { url: buildDestinationUrl(env), method: 'POST' },
+    }),
+  });
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error(`Graph webhook registration failed: ${response.status} ${response.statusText} ${body}`.trim());
+  }
+  return 0;
+}
+```
+
+##### Vercel Deployment Protection: what the fail-closed guard prevents
+
+On Vercel projects with **Deployment Protection** enabled, all non-production
+URLs are behind SSO. If Graph POSTs to `/api/content/publish` without the
+bypass secret in the querystring, SSO intercepts the request → the app never
+receives the publish → **caches never revalidate** → published content stays
+stale until the next full rebuild. Users report this as "Graph webhook fired
+but nothing updated."
+
+The `MISSING_BYPASS_SECRET_MESSAGE` guard **fails the build early** if the
+secret is absent on Vercel (`env.VERCEL === '1'`), forcing the operator to
+enable *Protection Bypass for Automation* before the webhook registration
+ever runs. Preserve this pattern in the rewrite by (a) keeping
+`assertPublishWebhookEnv` unchanged, (b) keeping `buildPublishWebhookPath`
+unchanged (appends `x-vercel-protection-bypass=…` querystring when the
+secret is present), and (c) calling `assertPublishWebhookEnv` first in
+`registerPublishWebhook` so a missing secret aborts before any fetch.
+Non-Vercel runs skip the check (`VERCEL !== '1'`) and register the plain
+unauthenticated path.
+
+##### Wrapper-preservation pattern (pure vs impure functions)
+
+The LSC recipe illustrates a general rule for migrating customer scripts:
+**catalogue which functions are pure and which are impure BEFORE rewriting.**
+Pure functions (assertion, URL construction, config reading from an `env`
+arg) preserve verbatim and their tests survive without changes. Impure
+functions (`spawnSync`, `fetch`, filesystem writes, `process.exit`) are the
+actual rewrite targets. LSC's companion spec
+(`apps/cms/scripts/register-webhook.spec.mjs`, 63 LOC, 5 tests) covers only
+the two pure functions (`assertPublishWebhookEnv` + `buildPublishWebhookPath`),
+so **all 5 tests pass after the rewrite without modification.** LSC's diff
+was +62/−26 against a 118-line script precisely because ~half the file was
+pure and preserved (see `LSC-Remko-Migration-Execution-Log.md` §5.1).
+
+##### List and delete recipes
+
+For interactive teams that keep an ad-hoc `webhook:list` around for
+debugging, the equivalent Management API calls (same Basic auth):
+
+```js
+// List all webhooks for the tenant
+export async function listWebhooks(env = process.env) {
+  const response = await fetch(buildManagementUrl(env), {
+    method: 'GET',
+    headers: { Authorization: buildAuthHeader(env) },
+  });
+  if (!response.ok) throw new Error(`List failed: ${response.status}`);
+  return response.json(); // Array of webhook records with { id, request: { url, method }, … }
+}
+
+// Delete a webhook by id (id returned from listWebhooks or the create response)
+export async function deleteWebhook(id, env = process.env) {
+  const endpoint = `${buildManagementUrl(env).replace(/\/$/, '')}/${encodeURIComponent(id)}`;
+  const response = await fetch(endpoint, {
+    method: 'DELETE',
+    headers: { Authorization: buildAuthHeader(env) },
+  });
+  if (!response.ok && response.status !== 404) {
+    throw new Error(`Delete failed: ${response.status}`);
+  }
+  return response.status;
+}
+```
+
+Wire these behind `pnpm run webhook:list` / `pnpm run webhook:delete <id>`
+scripts if the team relies on them; otherwise delete the scripts and use
+the admin UI.
 
 **Net migration for `webhook:*`:**
 
-- **DELETE**: `webhook:*` scripts from `package.json`. The official CLI has no
-  webhook management.
+- **DELETE**: `webhook:*` scripts from `package.json` that shell out to
+  `opti-graph`.
 
-- **REPLACE WITH**: Manage webhooks via the Graph/CMS admin UI (or the Graph
-  Management API if programmatic access is required). Publish/webhook wiring is
-  handled outside this CLI.
+- **REPLACE WITH**: Either (a) CI script hitting the Graph Management API
+  directly (recommended for Vercel + Deployment Protection), (b) runtime
+  bootstrap inside the app, or (c) admin UI. See the comparison table above.
+
+- **CI ORDER**: If the current `build` step chains `next build && pnpm
+  webhook:create && pnpm cms:push`, the rewritten `register-webhook.mjs`
+  keeps the same script name, so the build chain is behaviour-preserving.
+  LSC deliberately left `build` calling `pnpm webhook:create` unchanged for
+  this reason (see `LSC-Remko-Migration-Execution-Log.md` §5.2).
 
 #### GraphQL-codegen patches (`patches:apply`)
 
@@ -454,8 +664,41 @@ removed and any runtime Graph client usage is verified with the new SDK.
 
 **Shared references (read first)**:
 
+- `../_shared-references/customer-artifacts-and-coexistence.md` — Patches,
+  wrappers, forked codegen; coexistence rules; Replace/Retain/Remove
+  framework
 - `../_shared-references/package-and-import-mapping.md` — Package/import subpath
   mapping
 - `../_shared-references/auth-and-env-mapping.md` — Environment variables + CMS-55679 gotcha
 - `../_shared-references/setup-and-di.md` — Channel/client init + factory
   registration + context wiring
+
+## References
+
+- **Official Optimizely migration guide**: *Migrating from Remko.J to the
+  Optimizely CMS JavaScript SDK* (Confluence). Anchors the
+  Replace/Retain/Remove framing used at the top of this skill and the
+  "publish/revalidation helpers → Next.js webhook + cache invalidation"
+  guidance.
+- **LSC customer test migration — Phase 5 walk-through**:
+  `C:\Users\MoNh\LSC-Remko-Migration-Walk-Through.md` §5.1–5.5 + D6.
+  Documents the CI-script-vs-runtime-vs-admin-UI decision and the fact
+  that all three options require re-implementation (the CLI disappears
+  regardless).
+- **LSC customer test migration — Phase 5 execution log**:
+  `C:\Users\MoNh\LSC-Remko-Migration-Execution-Log.md` §5.1–5.5 (commit
+  `562c352`). Shows the actual `register-webhook.mjs` rewrite (+62/−26
+  against a 118-line file), the internal ordering (5.1 → 5.2 → 5.3 → 5.5 →
+  5.4), and the deliberate deviation of leaving `pnpm webhook:create` in
+  the build chain.
+- **LSC's rewritten CI script (recipe source)**:
+  `C:\Projects\lsc-platform-core-master\lsc-platform-core-master\apps\cms\scripts\register-webhook.mjs`
+  — the code the recipe above is adapted from.
+- **LSC's companion test suite**:
+  `apps/cms/scripts/register-webhook.spec.mjs` (63 LOC, 5 tests). Proves
+  the pure-function preservation pattern — no test edits required.
+- **Optimizely CMS JavaScript SDK repo**:
+  https://github.com/episerver/cms-sdk-js
+- **Optimizely CMS SDK + Next.js 16 starter**:
+  https://github.com/episerver/cms-sdk-nextjs-starter — the primary
+  practical reference the Optimizely guide directs teams at.

@@ -39,6 +39,7 @@
     "./skills/migration/optimizely-cms12-to-13-assessment",
     "./skills/migration/optimizely-cms12-to-13",
     "./skills/migration/optimizely-find-to-graph",
+    "./skills/migration/optimizely-remko-migration-discovery",
     "./skills/migration/optimizely-remko-graph-client-to-content-js",
     "./skills/migration/optimizely-remko-cms-react-to-content-js",
     "./skills/migration/optimizely-remko-cms-nextjs-to-content-js",

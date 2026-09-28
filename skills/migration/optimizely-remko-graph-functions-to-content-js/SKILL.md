@@ -53,6 +53,62 @@ conditionally — in the **"Scope carve-out"**, **"Conditional residual"**, and
 `../_shared-references/package-and-import-mapping.md`. Read them before removing
 any package.
 
+## Replace / Retain / Remove (classify before touching code)
+
+Before running Step 1, classify every `.graphql` file, generated helper, and
+codegen script into one of three buckets from the official Optimizely migration
+guide. **This skill is especially high-stakes for this classification** because
+the guide explicitly warns: *"Do not automatically migrate that entire
+architecture."* Blindly deleting all codegen produces one class of regression;
+blindly rebuilding every fragment as `contentType()` produces another.
+
+| Bucket | Definition | Migration action |
+|--------|------------|------------------|
+| **Replace** | Standard CMS retrieval/rendering: identity fetches (`getContentByPath`, `getContentById`), fragments whose sole purpose is describing a content type's properties | Move fragments to `contentType()` `properties`; delete the identity-fetch queries; let the SDK generate them from the registry |
+| **Retain** | Genuine application-specific queries: filtered lists, faceting, search, pagination, cross-type queries, custom aggregations | Preserve as hand-authored `.graphql` on an app-owned GraphQL client (Apollo, urql, raw `fetch`) and validate results with `toSchema(contentType)` — see Step 4 |
+| **Remove** | Infrastructure that exists only because Remko codegen required it: `opti-patch`, `EmbeddedLoader`, the codegen build step itself, `src/gql/` output directory | Delete outright — no port |
+
+**The guide's phrase to remember:** *"The desired result should normally be less
+CMS plumbing, not an equivalent custom implementation written again."* A codegen
+pipeline rebuilt as a hand-authored query pipeline is a Remove-labelled-as-Replace
+mistake.
+
+See `../_shared-references/customer-artifacts-and-coexistence.md` for the full
+framework and worked examples.
+
+## Coexistence with other Remko surfaces
+
+This skill handles the codegen pipeline only. When it lands but sibling Remko
+packages remain installed, the migration is partial by design — that is the
+intended flow, not a failure state.
+
+**Codegen can keep running while other surfaces migrate.** `graphql-codegen`
+does not depend on `@remkoj/optimizely-cms-react`, `optimizely-cms-nextjs`, or
+`optimizely-cms-api`. Consumers of `@/gql/*` types keep type-checking as long
+as the codegen script still runs. This is what makes "keep codegen for now,
+migrate rendering first" viable — and it is what makes the third option in
+Step 3 (keep codegen, swap preset) even more attractive for staged rollouts.
+
+Expect these coexistence effects during a partial migration:
+
+- **`@/gql/*` type imports keep resolving** in files that have not yet been
+  rewritten to `ContentProps<typeof XxxContentType>`. Do not chase these into
+  every file at once.
+- **Mixed fetch styles coexist.** A component using `getFragmentData` +
+  `TypedDocumentNode` and a sibling using `getClient().getContent()` can live in
+  the same route; both read the same Graph.
+- **Do NOT delete `@remkoj/optimizely-graph-functions`** until every consumer of
+  `@/gql/*` has been rewired. It has no runtime footprint outside codegen, so
+  keeping it installed costs nothing during staged migration.
+- **The Remko preset still needs `getSchemaInfo()`** from
+  `@remkoj/optimizely-graph-client/codegen`. If Step 1 of
+  `optimizely-remko-graph-client-to-content-js` runs before this skill, that
+  subpath is gone and `codegen.ts` breaks. Land this skill first, OR keep the
+  Remko client installed until this skill runs.
+
+Full rules — including what NOT to remove between phases — in
+`../_shared-references/customer-artifacts-and-coexistence.md`.
+
 ## When to Use This Skill
 
 - User wants to migrate from `@remkoj/optimizely-graph-functions` to the
@@ -78,6 +134,30 @@ any package.
 ### Step 1: Assess Current Usage
 
 Before making changes, scan the project to understand migration scope.
+
+**Discovery: customer artifacts (do this BEFORE the symbol scan).** Real
+customer repos rarely have a clean codegen setup. For the graph-functions
+surface specifically, three artifact classes change the migration plan — not
+just its scope:
+
+- **Patches on `@remkoj/optimizely-graph-functions`** — a common pattern is a
+  single-line un-comment to enable the queries loader (LSC ships this at
+  `@remkoj/optimizely-graph-functions@6.0.0-rc.1`). Every patch encodes a
+  behaviour the customer's team believed was important enough to fork;
+  catalogue what each does BEFORE removing the package.
+- **Custom preset wrappers around `OptimizelyGraphPreset`** — a customer may
+  wrap the Remko preset with an allowlist/filtering layer (LSC ships
+  `AllowlistedTypesPreset`, ~500 LOC, filtering `opti-cms:` virtual documents
+  via an `include-types.mjs` allowlist). The wrapper's business logic must be
+  preserved separately from the underlying preset.
+- **Forked / patched codegen tooling** — patches on `@graphql-codegen/*`
+  packages AND `file:` / tarball overrides in `pnpm-lock.yaml` /
+  `package.json`. Codegen forks travel as a set. See the "patched triangle"
+  section in Step 3 below.
+
+If any of these exist, read
+`../_shared-references/customer-artifacts-and-coexistence.md` fully before
+proceeding — otherwise you will silently drop customer-specific behaviour.
 
 1. **Detect `@remkoj/optimizely-graph-functions` imports**:
    ```bash
@@ -139,10 +219,27 @@ Before making changes, scan the project to understand migration scope.
    equivalent** (see Step 4 and the master-query note).
 
 8. **Flag `fragment-masking` consumers separately.** Any file importing from
-   `@/gql/fragment-masking` (the `useFragment`/`FragmentType` helpers) is doing
-   compile-time fragment unmasking that has NO runtime-query-generation
-   analogue. These consumers need the most rework — they are not a mechanical
-   import swap. Count them and call them out in the assessment.
+   `@/gql/fragment-masking` (the `useFragment`/`FragmentType`/`getFragmentData`
+   helpers) is doing compile-time fragment unmasking that has NO
+   runtime-query-generation analogue in the SDK. Count them and call them out
+   in the assessment — they are not a mechanical import swap.
+
+   For customers on this pattern, the migration options are:
+
+   - **Path A (abandon codegen)** — rewrite each call site to consume unmasked
+     data directly. `getClient().getContent()` returns plain objects; delete
+     `getFragmentData(FragmentDoc, raw)` unwrapping and read fields off the
+     result directly. Cost scales linearly with the consumer count.
+   - **Path B (hybrid)** — same rewrite for Replace-classified consumers; keep
+     fragment-masking for Retain queries.
+   - **Path C (keep codegen)** — `fragment-masking` continues to work
+     unchanged; `@graphql-codegen/client-preset` supplies it natively. **This
+     is the single strongest argument for path C** when the consumer count is
+     high.
+
+   A high `fragment-masking` count without a plan to move to path C usually
+   means the migration will hit a wall at Step 4 — surface this in the
+   assessment.
 
 **If the user only asked for assessment, stop here and report** — include the
 inventory table with real counts. Do not proceed to migration steps.
@@ -176,6 +273,87 @@ see the related skills below. For now, only remove
 preset, plugin, or any equivalent.** The Remko codegen approach (build-time
 GraphQL Codegen → typed documents in `src/gql/`) is replaced by **runtime
 query generation from `contentType()` schemas**.
+
+#### Three viable paths — pick before writing code
+
+The official guide's *"do not automatically migrate that entire architecture"*
+language explicitly validates that abandoning codegen is not the only choice.
+For customers with significant fragment/query investment, three paths are
+viable:
+
+| Path | What changes | Preserves | Loses / adds cost |
+|------|--------------|-----------|-------------------|
+| **A. Abandon codegen entirely** (skill's original default) | Delete `codegen.ts`, `.graphql` files, `src/gql/`, `codegen` + `opti-patch` scripts, `@graphql-codegen/*` devDeps | Nothing from the old pipeline | 200+ typed imports must be rewritten to `ContentProps<typeof …>`; `fragment-masking` consumers need the largest rework (see Step 1); patched-triangle dependencies dissolve |
+| **B. Hybrid — keep codegen for `Retain` queries, abandon it for `Replace`** | Delete Remko preset, `injections`, and identity-fetch queries; keep `graphql-codegen` running against a minimal fragment set for filtered/faceted/search queries | The queries that had a real reason to exist | Requires splitting the `.graphql` corpus by Replace/Retain classification (Step's framework) — non-trivial audit |
+| **C. Keep codegen, swap the preset** | Replace `OptimizelyGraphPreset` with stock `@graphql-codegen/client-preset`; drop `injections`; hand-author master-query composition | 200+ typed imports (`@/gql/graphql`, `@/gql/fragment-masking`, `@/gql/client`) work unchanged; `useFragment`/`FragmentType` continues to work (client-preset supplies fragment-masking natively) | Hand-authored master queries per route replace what `injections` composed automatically; if a `AllowlistedTypesPreset`-style wrapper exists it must be adapted to the new preset (the wrapper logic usually preserves — only the underlying preset changes) |
+
+Path C is the most under-documented but often the pragmatically correct choice
+when the customer has: (a) heavy `fragment-masking` usage, (b) a working
+`.graphql` corpus with tested filtered queries, (c) an existing custom preset
+wrapper. It is also the path that **dissolves the patched-triangle problem
+least aggressively** — see below.
+
+**Rule of thumb:** if the query/mutation count from Step 1 is ≥ 20, or the
+`fragment-masking` consumer count is > 5, evaluate path B or C before
+committing to path A. On the LSC codebase (100 fragments, 68 named queries,
+195 consumer files) path A would have required rewriting most of Phase 2 of
+the migration; path C keeps that work bounded.
+
+The Remko-vs-official mapping below is written for path A (the maximum-delta
+case). For path B/C, apply the mapping selectively: keep whatever `.graphql`
+inputs correspond to Retain queries and delete the rest.
+
+#### Customer artifact: the codegen patched triangle
+
+Real codegen setups accrete patches. LSC's setup illustrates the pattern — a
+**patched triangle** of three interdependent dependencies:
+
+1. `@remkoj/optimizely-graph-functions@6.0.0-rc.1` — patched with a single-line
+   un-comment to enable the queries loader.
+2. `@graphql-codegen/typescript@5.0.9` — patched to fix visitor overload
+   signatures.
+3. `graphql-codegen-visitor-plugin-common-v5.8.0-patched.tgz` — a
+   locally-built tarball, forced via `pnpm-lock.yaml` override.
+
+Each patch depends on the others: the Remko preset requires the patched visitor
+plugin, which requires the patched typescript plugin, which was itself pinned
+because of a version cascade in `@graphql-codegen`. This is not unique to LSC —
+`@graphql-codegen` internals are tightly coupled and version-sensitive.
+
+**Detection:**
+
+```bash
+# pnpm — the common case
+ls apps/*/patches/@remkoj__optimizely-graph-functions* 2>/dev/null
+grep -A3 'patchedDependencies' pnpm-lock.yaml package.json 2>/dev/null | \
+  grep -E 'graphql-codegen|graphql-functions'
+grep -E 'file:.*graphql-codegen|link:.*graphql-codegen' apps/*/package.json
+
+# yarn / npm
+ls patches/@remkoj+optimizely-graph-functions*.patch 2>/dev/null
+grep -A3 '"resolutions"\|"overrides"' package.json 2>/dev/null
+```
+
+**How the triangle behaves per path:**
+
+- **Path A (abandon)** — the triangle **dissolves entirely**. All three
+  patched packages are removed with the rest of the codegen pipeline. This
+  is the biggest hidden benefit of path A that the skill's original wording
+  understated.
+- **Path B (hybrid)** — the triangle usually dissolves because the remaining
+  fragment corpus is small enough to work against unpatched codegen. Verify
+  by running `graphql-codegen` against the reduced input set on stock
+  `@graphql-codegen/*` before committing.
+- **Path C (keep codegen)** — the triangle must travel forward. If replacing
+  the Remko preset with stock `@graphql-codegen/client-preset`, the patched
+  visitor-plugin-common tarball can often be dropped (the fork existed to
+  support the Remko preset's specific visitor requirements). The patched
+  `@graphql-codegen/typescript` may or may not still be needed — retest on
+  stock.
+
+Document the triangle's fate in the migration plan explicitly. "Delete the
+patches" without stating why is a Chesterton's-fence violation that will
+regress once the underlying defect resurfaces.
 
 **Before — Remko (`codegen.ts`):**
 
@@ -450,21 +628,44 @@ registered schema without regenerating a typed-document layer.
 
 #### Master-query composition loss (ties to the fetching gap)
 
-> **Call this out explicitly.** Remko's codegen composed a single **master
-> query** per route by injecting every matched fragment into
-> `PageData`/`BlockData`/`ElementData`. One HTTP request returned a whole page
-> tree — page + all nested blocks + all elements — in one round trip.
+> **Call this out explicitly — this is the skill's biggest honest gap.**
+> Remko's codegen composed a single **master query** per route by injecting
+> every matched fragment into `PageData`/`BlockData`/`ElementData`. One HTTP
+> request returned a whole page tree — page + all nested blocks + all elements
+> — in one round trip. There is no automatic equivalent in the official SDK.
 
-The official SDK's `getContent`/`getContentByPath` resolves the page and its
-registered nested types, but **there is no automatic fragment-composition
-mechanism** that stitches arbitrary per-component fragments into one query. If
-the source app depended on that single-request composition (large nested
-experience trees, visual-builder layouts), verify the target still fetches the
-full tree in one call. If it does not, the migration can silently turn one
-request into many (N+1 fetches per block), degrading performance without any
-type error to warn you. Where the composed tree matters, author an explicit
-custom query (per the decision rule above) that selects the full nesting depth
-rather than relying on incidental resolution.
+Three approaches, matched to the paths from Step 3:
+
+1. **Use `getContent{ByPath,ById}` from `@optimizely/cms-sdk` (path A default).**
+   The SDK generates queries generically from the `contentType()` registrations
+   — no fragment composition needed. It resolves the page and its registered
+   nested types automatically. **Trade-off:** per-component depth control is
+   lost — you cannot say "on `HomePage`, fetch nested `HeroBlock` with a
+   deeper selection than on `ArticlePage`." Depth is uniform per content type,
+   determined by the registry. For most sites this is fine; for
+   experience-heavy sites with variable nesting, this can turn one request
+   into many (N+1 fetches per block), degrading performance without any type
+   error to warn you.
+
+2. **Hand-compose queries in `.graphql` files (path B/C, or path A where depth
+   matters).** Use standard GraphQL fragment spreads in `.graphql` files that
+   consuming code imports and spreads manually. This is what
+   `@graphql-codegen/client-preset` supports natively. **Trade-off:** you
+   author and maintain the master query per route — Remko's `injections`
+   pattern (auto-composing all matched fragments) does not have a stock
+   equivalent in `client-preset`. Consider a small custom preset OR a
+   documented pattern where each route file explicitly spreads the fragments
+   it needs.
+
+3. **Own a per-route query on an app GraphQL client (path A + specific
+   performance-critical routes).** For the small number of routes where
+   depth-controlled composition is genuinely load-bearing, drop into the
+   custom-client pattern (per the decision rule above) and hand-author the
+   master query. Validate the result with `toSchema(contentType)`.
+
+The default recommendation is (1). Escalate to (2) or (3) when profiling
+shows the SDK's generic query is fetching too shallow (missing nested
+content) or too deep (over-fetching). Do not assume; measure.
 
 ### Step 5: Verify Migration
 
@@ -584,3 +785,35 @@ re-authored (not dropped), imports are fixed, and `npx tsc --noEmit` succeeds.
 - `../_shared-references/package-and-import-mapping.md` — Package/import subpath mapping
 - `../_shared-references/auth-and-env-mapping.md` — Environment variables + CMS-55679 gotcha
 - `../_shared-references/setup-and-di.md` — Channel/client init + factory registration + context wiring
+- `../_shared-references/customer-artifacts-and-coexistence.md` — Patches, wrappers, forked codegen, Replace/Retain/Remove framework, coexistence rules
+
+## References
+
+- **Official Optimizely migration guide** — *Migrating from Remko.J to the
+  Optimizely CMS JavaScript SDK* (Confluence). The **"GraphQL and code
+  generation"** section (paragraph beginning *"This is often one of the most
+  significant migration areas"*) is the source-of-truth for the
+  Replace/Retain/Remove classification in this skill and for the *"Do not
+  automatically migrate that entire architecture"* language that validates
+  paths B and C in Step 3.
+- **Optimizely CMS JavaScript SDK repo** —
+  https://github.com/episerver/cms-sdk-js
+- **Optimizely CMS SDK + Next.js 16 starter** (primary practical reference) —
+  https://github.com/episerver/cms-sdk-nextjs-starter
+- **Direct-Graph Next.js 15 starter** (supplementary reference, by Szymon
+  Uryga — useful for what does NOT need to become SDK-specific code, e.g.,
+  hand-authored filtered queries against `_Content`) —
+  https://github.com/SzymonUryga/optimizely-graph-nextjs-starter
+- **`@graphql-codegen/client-preset` docs** — the stock preset that replaces
+  `OptimizelyGraphPreset` on path C. Supplies `fragment-masking` natively.
+  https://the-guild.dev/graphql/codegen/plugins/presets/preset-client
+- **`graph-functions-api-mapping.md`** (in this skill's `references/`
+  directory) — complete symbol-by-symbol mapping of
+  `@remkoj/optimizely-graph-functions` exports to their SDK equivalents (or
+  "no equivalent" gaps).
+- **Customer artifacts & coexistence shared reference** —
+  `../_shared-references/customer-artifacts-and-coexistence.md`. Cites the LSC
+  patched-triangle case study (`@remkoj/optimizely-graph-functions@6.0.0-rc.1`
+  patch + `@graphql-codegen/typescript@5.0.9` patch + locally-built
+  `graphql-codegen-visitor-plugin-common-v5.8.0-patched.tgz` tarball) that
+  informs Step 3's patched-triangle section.

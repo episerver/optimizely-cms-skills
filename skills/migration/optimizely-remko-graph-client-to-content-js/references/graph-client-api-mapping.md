@@ -35,6 +35,7 @@ The `RouteResolver` class is replaced by a client method.
 |---|---|---|---|
 | `RouteResolver` (`./router`) | `class RouteResolver(client, channel)` | `GraphClient.getContentByPath()` | No standalone router class. Path-based content retrieval is a method on `GraphClient`: `await client.getContentByPath('/en/about/')` returns an array of matching content. Used directly in Next.js `[...slug]` pages. |
 | `RouteResolver.resolve()` | `async resolve(path): Promise<Content \| null>` | `GraphClient.getContentByPath(path)` | Remko returns a single item or null; target returns an array (access `[0]` for the first match). |
+| `RouteResolver.getRoutes()` | `async getRoutes(baseUrl?: string, includeDefaultLocale?: boolean): Promise<Route[]>` | — **no direct SDK equivalent** | Enumerating every route in the CMS is not a `GraphClient` method. Recommended pattern: paged direct GraphQL query against `_Content` using `graphql-request` (already in most Next.js starter deps), selecting `_metadata.url.hierarchical` (fallback `_metadata.url.default`), `_metadata.locale`, and `_metadata.lastModified` for `lastmod`. Primary caller is `app/sitemap.ts`. **LSC case study (2026-09):** `apps/cms/src/app/sitemap.ts` rewrote `new RouteResolver().getRoutes(baseUrl, true)` as a paged `graphql-request` query against `_Content` reading `OPTIMIZELY_GRAPH_GATEWAY` + `OPTIMIZELY_GRAPH_SINGLE_KEY` directly; preserves default-locale-slug stripping and fails soft (empty sitemap) if env vars are missing. See `LSC-Remko-Migration-Execution-Log.md` item 1.4. |
 
 ## Fetching methods
 

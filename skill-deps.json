@@ -1,7 +1,7 @@
 {
   "$schema": "./scripts/skill-deps.schema.json",
   "version": 1,
-  "generated": "2026-09-16T17:35:46.581Z",
+  "generated": "2026-09-28T16:41:05.657Z",
   "skills": {
     "optimizely-setup": {
       "path": "./skills/setup/optimizely-setup",
@@ -178,6 +178,18 @@
       "path": "./skills/migration/optimizely-find-to-graph",
       "dependencies": [
         "optimizely-setup"
+      ]
+    },
+    "optimizely-remko-migration-discovery": {
+      "path": "./skills/migration/optimizely-remko-migration-discovery",
+      "dependencies": [
+        "optimizely-remko-cms-api-to-content-js",
+        "optimizely-remko-cms-cli-to-content-js",
+        "optimizely-remko-cms-nextjs-to-content-js",
+        "optimizely-remko-cms-react-to-content-js",
+        "optimizely-remko-graph-cli-to-content-js",
+        "optimizely-remko-graph-client-to-content-js",
+        "optimizely-remko-graph-functions-to-content-js"
       ]
     },
     "optimizely-remko-graph-client-to-content-js": {

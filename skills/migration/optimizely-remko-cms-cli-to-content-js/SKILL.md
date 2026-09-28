@@ -24,6 +24,239 @@ and script updates. The official CLI **does not have Visual Builder styles
 commands or Next.js scaffolding/codegen** — those workflows are replaced by
 code-first patterns in the SDK.
 
+## Discovery: customer artifacts
+
+Before applying this skill, read
+`../_shared-references/customer-artifacts-and-coexistence.md` and check for
+patches on `@remkoj/optimizely-cms-cli`, customer-invented schema extensions
+(e.g. `_contract` base types), and wrapper scripts around `opti-cms`
+(`cms-push.mjs`, `cms-pull.mjs`, `resolve-opti-cms-entry.mjs`,
+`normalize-cms-component-paths.mjs` style post-processors). CI wrappers on
+this CLI carry deploy-gate behaviour (fail-closed exit codes, three-phase
+push orchestration, sequential push, data-loss acknowledgment headers).
+Ignoring them silently ships broken schemas.
+
+**Case study — LSC (2026-09):** patched `@remkoj/optimizely-cms-cli@6.0.0-rc.5`
+with **8 behaviour changes / 9 code paths** and a **702-line normalizer**, plus
+a **three-phase push orchestrator** (`cms-push.mjs`) driving `types:push` per
+key. The patch, orchestrator, and normalizer are what this skill's "spike
+against the official CLI" work item calls out — see the two new sections
+below (**Customer artifact: `_contract` base types** and **Patch
+reproduction**).
+
+## Replace / Retain / Remove framework
+
+Classify each `opti-cms` usage BEFORE opening the migration steps:
+
+| Bucket | What this looks like for cms-cli | Migration action |
+|--------|----------------------------------|------------------|
+| **Replace** | `types:push` / `types:pull` / `cms:reset` invocations from `package.json`, CI scripts, or shell aliases | Rewrite to `config push` / `config pull` / `danger delete-all-content-types` per Step 3 |
+| **Retain** | Wrapper-script pure logic (env assertion, path construction, bin resolution) AND customer patch behaviours that guard real defects (fail-closed exit code, `createdBy` stripping, `_section` exclusion, `_contract` routing, Ajv defect relaxations) | Preserve script scaffolding; reproduce patch behaviour against the target CLI (spike per **Patch reproduction** section) or keep the patched Remko CLI alongside the new one |
+| **Remove** | `styles:*` + `style:create`, `nextjs:*`, `cms:version`, `schema:vscode` (`sdk:update`) | Delete outright — no target equivalent; replace with code-first display templates, manual React authoring, or nothing |
+
+Nearly every `opti-cms` command is Replace or Remove. The Retain column is
+where the migration is genuinely load-bearing: **customer patch behaviours and
+wrapper-script orchestration must be reproduced or deliberately abandoned** —
+they do not survive a bare package swap.
+
+## Coexistence
+
+The CLI is **standalone** — no runtime type surface leaks into application
+code, so it migrates in isolation from client/react/nextjs skills. Two
+facts drive planning:
+
+1. **Both CLIs can be installed side-by-side.** Bins (`opti-cms` vs
+   `optimizely-cms-cli`) do not collide; both read the same
+   `OPTIMIZELY_CMS_CLIENT_ID/_SECRET/_URL`. This is the **only supported
+   mode when a patched Remko CLI is in play** — keep the patched CLI while
+   spiking the official one, cut over once patch reproduction is confirmed.
+2. **Wrapper scripts can call either bin.** During coexistence a push
+   orchestrator can invoke `opti-cms types:push` for phases that need
+   patched behaviour and `optimizely-cms-cli config push` for phases that
+   don't.
+
+Do **not** remove `@remkoj/optimizely-cms-cli` until every `opti-cms`
+invocation is migrated AND patch reproduction is confirmed — LSC's Phase 4
+execution deliberately skipped `4.1/4.2/4.5` because `_contract` support
+in the official CLI is unconfirmed
+(`LSC-Remko-Migration-Execution-Log.md`, D2). Full coexistence rules in
+`../_shared-references/customer-artifacts-and-coexistence.md`.
+
+## Customer artifact: `_contract` base types
+
+Some customers extend the CMS schema with an invented base type — LSC calls
+it `_contract` — used as an abstract interface for content-type inheritance.
+This is **not part of the standard CMS schema**; the Remko CLI had to be
+patched to support it, and the official CLI's support is **unconfirmed**.
+
+**Detection:**
+
+```bash
+# 1. Look in the config file
+grep -n 'isContract' apps/*/optimizely.config.mjs 2>/dev/null
+
+# 2. Look in generated type sidecars (Remko convention)
+grep -rn 'isContract' apps/*/src --include='*.opti-type.json' 2>/dev/null
+
+# 3. Look in patches for _contract handling
+grep -n '_contract\|isContract\|allowNullBaseContract' apps/*/patches/@remkoj__* 2>/dev/null
+```
+
+**Signal:** In LSC's patch (see `@remkoj__optimizely-cms-cli@6.0.0-rc.5.patch`),
+`_contract` support required **three separate patch hunks**:
+
+- L20–24: `getContentTypePaths` routes contracts to a `_contract` folder
+  instead of using `baseType` (which is `null` for contracts).
+- L40–51: `getContentTypes` bypasses the base-type filter with
+  `allowNullBaseContract` so contracts with `baseType: null` are pullable.
+- The three-phase push orchestrator (`cms-push.mjs`) pushes contracts **after**
+  implementers, because implementers must exist before they can be linked to
+  their contract.
+
+**Blocker:** `@optimizely/cms-cli` may reject content types with
+`isContract: true` or `baseType: null`. Until this is confirmed empirically,
+`config push` cannot proceed against a schema that uses contracts. This is
+the same blocker as LSC's D2.
+
+**Options (customer decision, not a skill prescription):**
+
+1. **Keep the patched Remko CLI** for `_contract` types only (side-by-side
+   with `@optimizely/cms-cli` for everything else — see **Coexistence**).
+2. **Contribute `_contract` support upstream** to `@optimizely/cms-cli`
+   (open an issue at https://github.com/episerver/cms-sdk-js).
+3. **Restructure the schema away from contracts** — flatten abstract
+   inheritance into concrete types. Expensive; changes the CMS content
+   model, not just the CLI plumbing.
+
+**Verification spike (afternoon effort):** install `@optimizely/cms-cli`,
+define a type with `isContract: true` in `optimizely.config.mjs`, run
+`config push`. If it errors, option (1) or (2) is unavoidable.
+
+## Patch reproduction
+
+If a customer patches `@remkoj/optimizely-cms-cli` (detect per **Discovery**
+above), each patched behaviour must be spike-tested against the official CLI
+before removing the Remko package. **LSC's patch modifies 8 distinct
+behaviours across 9 code paths** — some are likely upstream, others are
+customer-specific:
+
+| # | Patch behaviour | Patch location | Likely upstream? | If not upstream, action |
+|---|-----------------|---------------|------------------|-------------------------|
+| 1 | **Fail-closed exit code** — `createOptiCmsApp` `.fail()` sets `process.exitCode = 1` so Vercel builds don't ship green after a silent push failure | L9–13 | **High** — generic quality fix, expected in official CLI | Confirm via a deliberately broken push; if not upstream, wrap `optimizely-cms-cli config push` in a script that checks exit code |
+| 2 | **`_contract` path routing** — `getContentTypePaths` writes contracts to a `_contract` folder | L20–24 | **Low** — customer-specific schema extension | See **Customer artifact: `_contract` base types** section |
+| 3 | **`_section` exclusion default** — added to `excludeBaseTypes` in **two places** (`ContentTypesArgsDefaults` L31–32, `TypesPushCommand` builder L263–264) | L27–35, L262–264 | **Medium** — reasonable default; may or may not be upstream | If not upstream, pass `--excludeBaseTypes _section` (or equivalent flag) on every invocation |
+| 4 | **Null-baseType contract bypass** — `getContentTypes` `allowNullBaseContract` lets contracts with `baseType: null` through the filter | L40–51 | **Low** — customer-specific | Bundle with (2) — `_contract` decision drives this |
+| 5 | **`createdBy` stripping (both push and pull)** — pull command strips `createdBy` on serialize (L58–60); push command strips it before request (L285–287) | L58–60, L285–287 | **Medium** — audit-field noise, likely upstream | Empirical: pull an existing type twice; diff for `createdBy`. Push a type with `createdBy` set; check whether CLI silently strips or errors. |
+| 6 | **`relaxSpecDefects` — three Ajv/OpenAPI defect relaxations**: scalar `oneOf` → `anyOf`, `null` property definitions for JSON Merge Patch deletes, wildcard `mayContainTypes` `minLength` drop | L75–144 | **High** — spec-side defects Optimizely likely fixed upstream in CLI or CMS OpenAPI spec | Spike: push a type with `minimum: 0`, a property set to `null`, `mayContainTypes: ["*"]`. If any rejects, the defect persists; port the relaxation OR pass `--force` (loses other validation — same trade-off Remko's patch documents) |
+| 7 | **`$ref` + annotation-key handling** — `processSchema` treats `$ref` with sibling annotations (`description`, `title`, `example`, ...) as still a plain ref, not a merged object; without this, `types:push` fails Ajv compile before any request | L240, L248–255 | **High** — spec-side defect | Same spike strategy as (6) |
+| 8 | **TypesPushCommand overhaul** — sequential push (`for` loop instead of `Promise.all`); `cms-ignore-data-loss-warnings` header on remove/tighten operations (L312–334); structured `formatPushError`/`formatPushRequest` output with request URL + property counts; **process.exit(1) on any failure** (L372–384); wider `colWidths` + `wordWrap` for the results table | L268–350, L358–384 | **Mixed** — sequential push + fail-nonzero are likely upstream; data-loss ack header + structured errors may not be | Spike each: run a push with parallel type edits (does official CLI serialize?); run a push that removes a property (does it send the data-loss header, or require `--force`?); observe error output shape |
+
+**Recommended workflow:**
+
+1. Install `@optimizely/cms-cli` in a scratch repo alongside the patched
+   Remko CLI (they coexist — see **Coexistence**).
+2. Sort the 8 behaviours by "likely upstream" — start with (1), (5), (6),
+   (7), (8-sequential/exit), because these are generic quality fixes.
+3. Spike each empirically: run `optimizely-cms-cli config push` against a
+   type that would trigger the patched behaviour; observe.
+4. For behaviours that persist, decide: reproduce in a wrapper script,
+   upstream the fix, or keep the patched Remko CLI for affected operations
+   (via side-by-side coexistence).
+
+**LSC's execution log deferred all of Phase 4.1/4.2/4.5 for exactly this
+reason** — empirical spike work is required and cannot be resolved from
+docs alone (`LSC-Remko-Migration-Execution-Log.md`, D2/D3).
+
+## Three-phase orchestrator pattern
+
+LSC's `cms-push.mjs` drives `opti-cms types:push` in **three sequential
+phases** using per-key selection:
+
+1. **Retirements** — types being retired, pushed first so their references
+   are cleared before implementers change.
+2. **Implementers** — concrete types (blocks, pages, sections). Must exist
+   before contracts can be linked.
+3. **Contracts** — abstract `_contract` types linked to already-created
+   implementers.
+
+Each phase invokes `types:push -t <key1> -t <key2> ...` (positive selection)
+or `--excludeTypes <k>` (negative). The `-t` (`--types`) flag repeated per
+key is load-bearing.
+
+**Migration risk:** if `@optimizely/cms-cli config push` does NOT support
+per-key `-t` / `--excludeTypes` filters, the three-phase model breaks. Skill
+recommendations, in order of preference:
+
+**Option A — split `optimizely.config.mjs` per phase.** One config file per
+phase (retirements/implementers/contracts). Wrapper invokes `config push
+--config ./optimizely.<phase>.config.mjs` three times. Cleanest option if
+the official CLI honours `--config`.
+
+**Option B — serialize with a wrapper script.** Keep one
+`optimizely.config.mjs`; the wrapper filters `components` per phase and
+writes a temp config file per invocation, then runs `config push --config
+<temp>`. Preserves LSC's existing `cms-push.mjs` shape but replaces
+`spawnSync('opti-cms', ['types:push', '-t', ...])` with per-phase temp
+files.
+
+**Option C — upstream `--types` / `--excludeTypes` filter support.** If
+this is a genuinely missing feature, opening an issue against
+`@optimizely/cms-cli` is the durable fix. Ties the migration to upstream
+release cadence.
+
+LSC's `cms-push.spec.ts` (363 lines) locks the argv shape and needs
+rewriting whichever option is chosen. Do not skip the test port.
+
+## Wrapper-script migration
+
+Customers commonly wrap `opti-cms` with scripts. Two categories, different
+migration effort:
+
+**Bin-resolution wrappers (trivial rename).** Scripts like LSC's
+`resolve-opti-cms-entry.mjs` read
+`node_modules/@remkoj/optimizely-cms-cli/package.json` `bin['opti-cms']` and
+invoke the resolved entry directly, bypassing `.bin/*.cmd` shims (Windows/Vercel
+parity). Migration: single-line rename to `@optimizely/cms-cli`
+`bin['optimizely-cms-cli']`. Preserve the wrapper — dropping it reintroduces
+`.bin` shim dependency.
+
+**Behaviour wrappers (real re-authoring).** Scripts like `cms-push.mjs` that
+implement phased orchestration, per-key selection, or output post-processing.
+Migration = re-author, not rename. See **Three-phase orchestrator pattern**
+and **`normalize-cms-component-paths.mjs` decision pattern**.
+
+**Pull wrappers.** `cms-pull.mjs`-style scripts invoking `types:pull -t
+<keys...>` or `--all` migrate to `config pull --group` (or `--individual` /
+`--single-file` — see `references/cms-cli-command-mapping.md`). Re-evaluate the
+attached normalizer per the next section.
+
+**Test coverage travels with the wrapper.** LSC's `cms-push.spec.ts` (363
+lines) argv-shape assertions break on any re-author — include spec rewrite in
+the estimate.
+
+## `normalize-cms-component-paths.mjs` decision pattern
+
+LSC's 702-line normalizer post-processes Remko-CLI pull output. It fixes
+three categories of defect: (1) contracts under the wrong folder (a Remko
+side-effect of LSC's own `_contract` patch — see **Patch reproduction** #2);
+(2) slugified folder names when the code convention is PascalCase
+(`my-hero-block/` vs `MyHeroBlock/`); (3) Windows backslashes in generated
+import statements.
+
+**Decision procedure (empirical, do NOT skip):**
+
+1. Run `optimizely-cms-cli config pull --group --output <scratch>` against
+   the customer's CMS.
+2. Inspect: contracts in the expected folder? PascalCase folders? Forward
+   slashes on Windows? Each "yes" retires one category.
+3. Retain only surviving categories. LSC's 702 lines is almost certainly
+   reducible to <100 after `config pull` output is inspected — often to
+   nothing.
+
+If all three retire, delete the script + its 4 call sites (`format:fix`,
+`cms:normalize-paths`, `compile`, `cms-pull.mjs:170`) and the 105-line
+spec.
+
 ## Scope & Teardown Order (applies to every skill in this suite)
 
 Three cross-cutting rules govern the whole migration:
@@ -463,6 +696,31 @@ working (`login` succeeds) and all `opti-cms` references are removed.
 
 **Shared references (read first)**:
 
+- `../_shared-references/customer-artifacts-and-coexistence.md` — Patch/wrapper/fork detection + Replace/Retain/Remove framework + coexistence rules
 - `../_shared-references/package-and-import-mapping.md` — Package/import subpath mapping
 - `../_shared-references/auth-and-env-mapping.md` — Environment variables + CMS-55679 gotcha
 - `../_shared-references/setup-and-di.md` — Channel/client init + factory registration + context wiring
+
+## References
+
+- **Official Optimizely migration guide**: *Migrating from Remko.J to the
+  Optimizely CMS JavaScript SDK* (Confluence). Source of the
+  Replace/Retain/Remove framework.
+- **Optimizely CMS JavaScript SDK repo**: https://github.com/episerver/cms-sdk-js
+- **Official CLI package**: https://www.npmjs.com/package/@optimizely/cms-cli
+- **Optimizely CMS SDK + Next.js starter** (canonical config-push target):
+  https://github.com/episerver/cms-sdk-nextjs-starter
+- **LSC customer artifacts (case study)**:
+  - Patched Remko CLI (8 behaviours / 9 code paths) —
+    `apps/cms/patches/@remkoj__optimizely-cms-cli@6.0.0-rc.5.patch` (388 lines)
+  - Three-phase push orchestrator — `apps/cms/scripts/cms-push.mjs`
+    (walk-through: `LSC-Remko-Migration-Walk-Through.md` §4.1)
+  - Pull wrapper — `apps/cms/scripts/cms-pull.mjs`
+  - Bin-resolution wrapper — `apps/cms/scripts/resolve-opti-cms-entry.mjs`
+  - Output normalizer — `apps/cms/scripts/normalize-cms-component-paths.mjs`
+    (702 lines; walk-through §4.5)
+  - Execution log (Phase 4 items deferred pending `_contract` spike) —
+    `LSC-Remko-Migration-Execution-Log.md` §"Phase 4 non-leaves"
+- **`references/cms-cli-command-mapping.md`** (in-skill) — full command
+  mapping table with flag detail for `config push` / `config pull` /
+  `danger delete-all-content-types` / `login`

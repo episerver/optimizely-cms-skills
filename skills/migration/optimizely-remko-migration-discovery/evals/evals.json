@@ -1,0 +1,20 @@
+{
+  "skill_name": "optimizely-remko-migration-discovery",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Our codebase uses @remkoj/optimizely-cms-react, @remkoj/optimizely-cms-nextjs, @remkoj/optimizely-graph-client, @remkoj/optimizely-graph-functions, @remkoj/optimizely-graph-cli, @remkoj/optimizely-cms-cli, and @remkoj/optimizely-cms-api. Which migration skills do we need and in what order?",
+      "expected_output": "Names all 7 surface-specific Remko migration skills. Orders them with graph-client first, cms-react before cms-nextjs, and cms-api last. Prompts the user to check for patches, wrappers, and forked codegen before starting. Applies the Replace/Retain/Remove framework."
+    },
+    {
+      "id": 2,
+      "prompt": "We only import from @remkoj/optimizely-cms-react and @remkoj/optimizely-cms-nextjs. Should we install all seven migration skills?",
+      "expected_output": "Says no — only the two applicable skills apply. Notes cms-react must run before cms-nextjs. Confirms cms-api, cms-cli, graph-cli, and graph-functions are not needed if they are not imported."
+    },
+    {
+      "id": 3,
+      "prompt": "We have apps/cms/patches/@remkoj__optimizely-cms-cli@6.0.0-rc.5.patch. Migration plan?",
+      "expected_output": "Flags the patch as a customer artifact requiring reconciliation. Advises reading the patch to catalogue behaviours before removing the package. References the customer-artifacts-and-coexistence shared reference."
+    }
+  ]
+}
