@@ -1,8 +1,8 @@
 {
   "$schema": "./scripts/skill-deps.schema.json",
   "version": 1,
-  "generated": "2026-09-16T17:03:39.985Z",
-  "releaseHash": "sha256:9a83c2872f412375e528e8f3f0c122f3af48e526ac54c960b9dbb69febe9ae75",
+  "generated": "2026-09-28T16:31:04.088Z",
+  "releaseHash": "sha256:d7d5161b26a3fae270fda9ade5909af89886f716dcce8b8da1d2a165b7f3f6a3",
   "skills": {
     "optimizely-setup": {
       "path": "./skills/setup/optimizely-setup",
@@ -169,9 +169,14 @@
         "optimizely-setup"
       ]
     },
+    "optimizely-remko-migration-discovery": {
+      "path": "./skills/migration/optimizely-remko-migration-discovery",
+      "hash": "sha256:45b4322ff619eca25c066afe1e3d09e3f641a2f2f4d33cfb11a4d51c37cda172",
+      "dependencies": []
+    },
     "optimizely-remko-graph-client-to-content-js": {
       "path": "./skills/migration/optimizely-remko-graph-client-to-content-js",
-      "hash": "sha256:ece78f51108cab2553079bc38defe5c795242635c8b1a4df87acf2f46133b04b",
+      "hash": "sha256:452cd23ed2e664c12597a01e51d4367597150a4ac9449923358f36ef57186984",
       "dependencies": [
         "optimizely-remko-cms-api-to-content-js",
         "optimizely-remko-cms-cli-to-content-js",
@@ -183,7 +188,7 @@
     },
     "optimizely-remko-cms-react-to-content-js": {
       "path": "./skills/migration/optimizely-remko-cms-react-to-content-js",
-      "hash": "sha256:738767d01d866a18852168b551449f216a0e865604af250f89b57af97f07232e",
+      "hash": "sha256:73fa7e0e7feb7dd2112ec4c4e2591fb50cbd8814d081768818e881da9174a144",
       "dependencies": [
         "optimizely-remko-cms-api-to-content-js",
         "optimizely-remko-cms-cli-to-content-js",
@@ -195,7 +200,7 @@
     },
     "optimizely-remko-cms-nextjs-to-content-js": {
       "path": "./skills/migration/optimizely-remko-cms-nextjs-to-content-js",
-      "hash": "sha256:9535752a186a2c85d6908d36671be9ba6c5c1a08eade5158359c4a65f33fa370",
+      "hash": "sha256:8034e16f2b0a679f53856e4f891e9678eb4b5574a95888ddcfa691d19851b599",
       "dependencies": [
         "optimizely-remko-cms-api-to-content-js",
         "optimizely-remko-cms-cli-to-content-js",
@@ -207,7 +212,7 @@
     },
     "optimizely-remko-graph-functions-to-content-js": {
       "path": "./skills/migration/optimizely-remko-graph-functions-to-content-js",
-      "hash": "sha256:3acdcbf21c49cd6893235d9123cd0b810dd4ed1807b53ed657d576eb852a8f0b",
+      "hash": "sha256:90feb3bd9785697b9c7b4cb74099fbac66c2a1e9903c0fbdc9393ef99ba2770e",
       "dependencies": [
         "optimizely-remko-cms-api-to-content-js",
         "optimizely-remko-cms-cli-to-content-js",
@@ -219,7 +224,7 @@
     },
     "optimizely-remko-cms-api-to-content-js": {
       "path": "./skills/migration/optimizely-remko-cms-api-to-content-js",
-      "hash": "sha256:f2f96be70f7b09cf30fbda47b5a5c38a1b0e8dcd4aca9ec57d554530d3b98e12",
+      "hash": "sha256:0a5a5f8abce912f6853c372e72835764d619b1a25569262305dd735a49de4291",
       "dependencies": [
         "optimizely-remko-cms-cli-to-content-js",
         "optimizely-remko-cms-nextjs-to-content-js",
@@ -231,7 +236,7 @@
     },
     "optimizely-remko-cms-cli-to-content-js": {
       "path": "./skills/migration/optimizely-remko-cms-cli-to-content-js",
-      "hash": "sha256:b606fbf7a78471b23083ecf0e65ddfba8fc81d071aa40a7bdc144667a6f6a3c1",
+      "hash": "sha256:8f9702a58e8fff6f74de7da7dffdbf6d042c0cc8252167e811f011cbf6757c1e",
       "dependencies": [
         "optimizely-remko-cms-api-to-content-js",
         "optimizely-remko-cms-nextjs-to-content-js",
@@ -243,7 +248,7 @@
     },
     "optimizely-remko-graph-cli-to-content-js": {
       "path": "./skills/migration/optimizely-remko-graph-cli-to-content-js",
-      "hash": "sha256:89e7a463fc63bb43bbaa00d4a49cd8cb9e4022729bb33790730534097a3ff273",
+      "hash": "sha256:46f33c35d4b17013c9ffac1dee8c9a50bcb78bb23b69a9f357879738057ea740",
       "dependencies": [
         "optimizely-remko-cms-api-to-content-js",
         "optimizely-remko-cms-cli-to-content-js",

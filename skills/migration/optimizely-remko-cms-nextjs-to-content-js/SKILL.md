@@ -24,6 +24,72 @@ preview/OPE wiring, and publish/revalidate handlers. Complete the
 `optimizely-remko-cms-react-to-content-js` migrations first (the Graph client
 and React rendering surface are the foundation for Next.js pages).
 
+## Discovery: customer artifacts
+
+Before opening this skill's steps, run the shared discovery in
+`../_shared-references/customer-artifacts-and-coexistence.md`. Real Next.js
+migrations regularly stumble on artifacts the mapping tables below do not
+cover: patches on `@remkoj/optimizely-cms-nextjs`, LSC-authored catch-all
+factory-option builders (`sharedCreatePageOptions.paramsToLocale`,
+`propsToCmsPath`), custom `previewHeaders`-style middleware, and multi-brand
+per-host channel selection. Catalogue these before touching the catch-all —
+each is a Retain candidate that must be re-hosted app-side, not deleted.
+
+## Replace / Retain / Remove
+
+Before rewriting the catch-all, preview route, or publish handler, classify
+every symbol in your Remko Next.js surface into one of three buckets (from
+the official Optimizely-produced guide — see the shared reference):
+
+- **Replace** — Standard responsibilities the SDK now owns:
+  `createPage` / `createEditPageComponent` / `createPublishApi` factories,
+  Remko's `.well-known/publish` handler wiring, the "escalate to HMAC on
+  `draftMode()`" pattern on the catch-all, generated master queries.
+- **Retain** — Application-specific behaviour that happens to live inside a
+  Remko factory: `generateMetadata` shape, per-host channel resolution,
+  multi-brand fallback loops, LSC-authored `paramsToLocale` / vanity-URL
+  rewrites, `optimizePublish` payload interpretation, custom
+  `previewHeaders` middleware, additional `revalidatePath` targets
+  (`sitemap.xml`, `robots.txt`).
+- **Remove** — Infrastructure that only existed because Remko needed it:
+  the `client: (_, scope) => …` two-arg draft-escalation callback,
+  `updateAuthentication` / `enablePreview` calls, `AuthMode` imports,
+  `refreshTimeout` factory option (subsumed by `NextPreviewComponent`
+  props).
+
+Only Replace items follow Steps 3–5 mechanically. Retain items get
+re-hosted in app-owned code with their behaviour preserved; Remove items
+get deleted with no target. See
+`../_shared-references/customer-artifacts-and-coexistence.md` for the full
+framework.
+
+## Coexistence with other Remko surfaces
+
+**This skill BLOCKS on the `cms-react` skill completing.** The catch-all
+retype in Step 3 — swapping `OptimizelyNextPage as CmsComponent` type
+imports (LSC counted **61 files** across `components/cms/{page,experience}/*`
+in the walk-through) — is a **hard compile gate**: all 61 files must land
+in the same commit AND all 61 corresponding `contentType()` factories must
+already exist. Attempting Step 3 before the cms-react migration has landed
+those factories will fail `pnpm typecheck` across the whole app.
+
+Order of operations, non-negotiable:
+
+1. Complete `optimizely-remko-graph-client-to-content-js` (Step 1 —
+   `getClient()` and `config()` exist).
+2. Complete `optimizely-remko-cms-react-to-content-js` in full — every
+   `contentType()` factory + `ContentProps<>` typing exists for every
+   block, page, and experience.
+3. Then run this skill. Catch-all rewrite (Step 3), preview rewrite
+   (Step 4), publish handler rewrite (Step 5), and the 61-file type
+   import cascade can now compile together.
+
+Do **not** attempt a partial Next.js migration while cms-react is
+mid-flight; the type-import cascade will not compile and rollback is
+harder than sequencing correctly the first time. See
+`../_shared-references/customer-artifacts-and-coexistence.md` "Coexistence"
+rules 5 and 6.
+
 ## Scope & Teardown Order (applies to every skill in this suite)
 
 Three cross-cutting rules govern the whole migration:
@@ -247,6 +313,72 @@ export default withAppContext(Page);
    renders empty after migration, confirm the content types are registered, not
    that a master query is missing.
 
+7. **Multi-site metadata fallback is app-owned (G16).** Real customers rarely
+   have a single `getContentByPath` — they walk **channels** for
+   `generateMetadata` and fall back site → global. LSC's catch-all
+   (`apps/cms/src/app/[lang]/(site)/[[...path]]/page.tsx:131-161` +
+   `apps/cms/src/lib/cmsContent/content.ts:353-385`) iterates channels per
+   request and calls `createPage` **three** times per request:
+   `baseCmsPage` for `generateStaticParams`, per-channel for
+   `generateMetadata`, per-channel for `CmsPage` render. The single
+   `getContentByPath` above collapses that. For multi-brand customers you must
+   port the per-channel loop into an app-owned `generateMetadata` yourself:
+
+   ```tsx
+   export async function generateMetadata({ params }: Props): Promise<Metadata> {
+     const { path } = await params;
+     const channels = await getChannelsForRequest(); // app-owned
+     for (const channel of channels) {
+       // app-owned per-channel client factory — see "channel option gap" below
+       const client = getClientForChannel(channel);
+       const content = await client.getContentByPath(`/${(path ?? []).join('/')}/`);
+       if (content[0]) return buildMetadata(content[0], channel);
+     }
+     return buildMetadata(await getGlobalFallback(), null);
+   }
+   ```
+
+   If your project doesn't do multi-brand, ignore this note. If it does, the
+   number of `createPage` sites in your existing catch-all is the number of
+   loop iterations you must reproduce in app code.
+
+8. **`dynamic` mode is a semantic behaviour shift (G17).** LSC's existing
+   catch-all uses `export const dynamic = 'force-dynamic'`; this skill's
+   target uses `dynamic = 'error'`. These are not equivalent:
+
+   - `'force-dynamic'` opts the route in to per-request rendering — reading
+     `cookies()`, `headers()`, `searchParams`, or any dynamic API renders
+     fine at request time.
+   - `'error'` **prevents any dynamic behaviour** from silently rendering
+     statically — reading a dynamic API throws at build time.
+
+   Before switching a mature catch-all from `'force-dynamic'` to `'error'`,
+   audit whether it (or components it renders) call `cookies()`,
+   `headers()`, `draftMode()`, `searchParams`, or fetches with `cache:
+   'no-store'`. If it does, either (a) keep `'force-dynamic'`, or (b) move
+   those calls into a dedicated dynamic route and leave the catch-all as
+   `'error'`. Do not switch blind.
+
+9. **`channel` option has no `getClient()` equivalent (G18).** Remko's
+   `createPage(factory, { channel, … })` per-request pattern accepts a
+   `channel` factory option; LSC's `sharedCreatePageOptions` uses this to
+   select a brand-specific channel per host. `getClient()` in the target
+   takes no `channel` argument. Two workarounds:
+
+   - **Multi-tenant per-host:** call `config({ channel })` scoped by
+     request host at the top of your `generateMetadata`/page function.
+     `config()` mutates a module-level singleton, so this is only safe if
+     every downstream call in the request completes before the next
+     request arrives — verify your Next.js runtime does not interleave.
+   - **Per-request client factory (safer):** keep an app-layer
+     `getClientForChannel(channel)` helper that instantiates a fresh
+     `GraphClient` per channel and passes it down explicitly instead of
+     relying on the singleton. This is the pattern LSC's `content.ts`
+     already uses; port it forward.
+
+   Neither is a one-line change. Add the workaround decision to your
+   migration plan before touching the catch-all.
+
 ### Step 4: Migrate Preview Route
 
 **See `references/cms-nextjs-api-mapping.md` for the complete before/after
@@ -367,6 +499,61 @@ export default withAppContext(Page);
    the CMS instance's Graph credentials before debugging the preview route. See
    `../_shared-references/auth-and-env-mapping.md`.
 
+8. **Preview acceptance checklist (from the official Optimizely guide).**
+   The guide explicitly states that "preview must be treated as a separate
+   acceptance criterion" and enumerates eight scenarios that must be
+   verified against the migrated preview route. Do not mark preview
+   migration complete until every applicable box is checked:
+
+   - [ ] **Drafts / unpublished content** load in preview (not just
+         published)
+   - [ ] **Site / channel context** — the correct site or channel is
+         resolved in preview (matches the editor's active site)
+   - [ ] **Multilingual preview** — locale routing works and preview
+         reflects the editor's selected language
+   - [ ] **Global / shared content** — shared blocks / global settings
+         render correctly inside the preview
+   - [ ] **Authentication** — preview auth (Bearer `preview_token` in the
+         target) accepts editor sessions without extra prompts
+   - [ ] **Visual Builder** — VB compositions render and mutate correctly
+         in preview (`OptimizelyComposition` receives `nodes={x.nodes}`,
+         not `node={x}`)
+   - [ ] **Editor iframe behaviour** — the CMS iframe correctly boots the
+         communication injector, receives soft-refresh signals, and does
+         not double-render
+   - [ ] **Nested editable content** — nested / content-area editable
+         fields respect `data-epi-*` attributes injected by
+         `OptimizelyComponent`
+
+   Assumed-working preview is the #1 migration regression. Test each
+   scenario against a real CMS instance before signing off. The list comes
+   directly from the guide's "Migrate preview/editing deliberately"
+   section.
+
+9. **Header-based preview must reconcile with `searchParams` (G19).** LSC's
+   `previewHeaders` middleware sets `X_LSC_PREVIEW_TOKEN` (plus 4 other
+   headers) on requests to `/…/preview`; the target's
+   `getPreviewContent(searchParams)` reads from **URL searchParams**, not
+   headers. If your project has a middleware-set header-based preview
+   pipeline (LSC does), pick one:
+
+   - **(a) Promote header → query string in middleware.** Rewrite the
+     `previewHeaders` middleware to append the token as a `?preview_token=…`
+     query param before the request hits `/preview`. Cleanest — the SDK's
+     `getPreviewContent(await searchParams)` then works unmodified.
+   - **(b) Bypass `getPreviewContent` and call `getContentByPath` with
+     an explicit preview token.** In the preview route body, read the
+     header directly and pass it as an option to a per-call fetch:
+     `getContentByPath(path, { previewToken })`. Loses `getPreviewContent`'s
+     auto-context population — you must manually push `locale`, `key`,
+     `version`, `mode` into the SDK context yourself.
+
+   Option (a) is preferred; (b) is only worth it if you have header-only
+   deployment constraints. Either way, do not leave the header-set
+   `previewHeaders` middleware live alongside an unmodified
+   `getPreviewContent(await searchParams)` call — the token will silently
+   be missing and preview will render as published.
+
 ### Step 5: Migrate Publish/Revalidate + `.well-known` Routes
 
 **See `references/cms-nextjs-api-mapping.md` for the complete before/after
@@ -435,6 +622,41 @@ export const GET = POST; // Some CMS webhooks use GET for verification
    `https://yourdomain.com/.well-known/publish`) when content is published. The
    payload typically includes the content key/path. Parse it and call
    `revalidatePath` / `revalidateTag` accordingly.
+
+5. **`optimizePublish: true` semantics must be re-derived (G20).** Remko's
+   `optimizePublish` factory option quietly implemented a specific
+   revalidation policy — typically only the changed path plus its parents,
+   not the whole app. The skill's minimal example above only handles the
+   single-path case (`revalidatePath(body.path)`). To reimplement the
+   `optimizePublish: true` semantics faithfully you must know Remko's
+   webhook **payload contract** — typically `{ key, path, locale, action }`
+   for LSC-style setups, but verify against your customer's actual Graph
+   webhook configuration (inspect one live payload from the CMS's publish
+   event log, or read the Remko source at
+   `@remkoj/optimizely-cms-nextjs/publish` to derive the exact shape).
+   Common fields to handle:
+
+   - `path` — pass to `revalidatePath(path)` (and optionally
+     `revalidatePath(path, 'layout')` to invalidate segment layouts).
+   - `key` — content key; useful for tag-based revalidation
+     (`revalidateTag(\`content:${key}\`)`) if your fetches use tags.
+   - `locale` — for multi-locale apps, revalidate only the matching
+     locale's path (`/${locale}${path}`).
+   - `action` — `'publish' | 'delete' | 'revert'`; delete/revert should
+     also revalidate the parent to remove stale nav entries.
+
+6. **`additionalPaths` is a trivial addendum but must run on every
+   webhook.** LSC's Remko handler passes `additionalPaths:
+   ['/sitemap.xml', '/robots.txt']`. Port this as an unconditional call
+   at the top or bottom of the POST handler:
+
+   ```tsx
+   const ADDITIONAL_PATHS = ['/sitemap.xml', '/robots.txt'];
+   for (const p of ADDITIONAL_PATHS) revalidatePath(p);
+   ```
+
+   Do not gate it on `body.path` — the sitemap must invalidate on every
+   publish regardless of which content triggered it.
 
 ### Step 6: Verify Migration
 
@@ -579,3 +801,29 @@ Additional related skills:
 - `../_shared-references/package-and-import-mapping.md` — Package/import subpath mapping
 - `../_shared-references/auth-and-env-mapping.md` — Environment variables + CMS-55679 gotcha
 - `../_shared-references/setup-and-di.md` — Channel/client init + factory registration + context wiring
+- `../_shared-references/customer-artifacts-and-coexistence.md` — Patched packages, wrappers, Replace/Retain/Remove framework, coexistence rules
+
+## References
+
+- **Official Optimizely migration guide** — *Migrating from Remko.J to
+  the Optimizely CMS JavaScript SDK* (Confluence). Source of the
+  Replace/Retain/Remove framework and the eight preview acceptance
+  criteria (Step 4, note 8).
+- **Optimizely CMS JavaScript SDK repo** —
+  https://github.com/episerver/cms-sdk-js. Read
+  `packages/cms-sdk/src/react/nextjs` for `NextPreviewComponent` internals
+  and `packages/cms-sdk/src/client` for `getPreviewContent` /
+  `getContentByPath` semantics.
+- **Optimizely CMS SDK + Next.js 16 starter** (primary practical
+  reference) — https://github.com/episerver/cms-sdk-nextjs-starter. The
+  minimal working shape of every route this skill covers: catch-all,
+  preview, publish handler, root layout registry init. Diff your project
+  against it during Step 6 verification.
+- **Direct-Graph Next.js 15 starter (Szymon Uryga)** — supplementary
+  reference. https://github.com/SzymonUryga/optimizely-graph-nextjs-starter.
+  Useful for deciding what does **not** need to become SDK-specific code
+  (Draft Mode, Visual Builder, multi-language, webhook-driven cache
+  revalidation without Remko).
+- **Shared discovery reference** —
+  `../_shared-references/customer-artifacts-and-coexistence.md`. Read
+  before Step 1 assessment.
