@@ -1,0 +1,273 @@
+{
+  "$schema": "./scripts/skill-deps.schema.json",
+  "version": 1,
+  "generated": "2026-09-28T16:41:05.657Z",
+  "skills": {
+    "optimizely-setup": {
+      "path": "./skills/setup/optimizely-setup",
+      "dependencies": []
+    },
+    "optimizely-project-scaffold": {
+      "path": "./skills/setup/optimizely-project-scaffold",
+      "dependencies": [
+        "optimizely-cli-workflows",
+        "optimizely-model",
+        "optimizely-setup"
+      ]
+    },
+    "optimizely-cli-workflows": {
+      "path": "./skills/setup/optimizely-cli-workflows",
+      "dependencies": [
+        "optimizely-model",
+        "optimizely-project-scaffold",
+        "optimizely-setup"
+      ]
+    },
+    "optimizely-observability": {
+      "path": "./skills/setup/optimizely-observability",
+      "dependencies": [
+        "optimizely-setup",
+        "optimizely-troubleshoot-graph"
+      ]
+    },
+    "optimizely-isr-setup": {
+      "path": "./skills/setup/optimizely-isr-setup",
+      "dependencies": [
+        "optimizely-content-fetching",
+        "optimizely-content-navigation",
+        "optimizely-model",
+        "optimizely-multisite-locale",
+        "optimizely-observability",
+        "optimizely-preview",
+        "optimizely-setup",
+        "optimizely-troubleshoot-graph"
+      ]
+    },
+    "optimizely-cache-strategy": {
+      "path": "./skills/setup/optimizely-cache-strategy",
+      "dependencies": [
+        "optimizely-graphql-optimization",
+        "optimizely-isr-setup",
+        "optimizely-multisite-locale",
+        "optimizely-observability",
+        "optimizely-preview",
+        "optimizely-troubleshoot-graph"
+      ]
+    },
+    "optimizely-model": {
+      "path": "./skills/modeling/optimizely-model",
+      "dependencies": [
+        "optimizely-model-react",
+        "optimizely-setup"
+      ]
+    },
+    "optimizely-display-templates": {
+      "path": "./skills/modeling/optimizely-display-templates",
+      "dependencies": [
+        "optimizely-model",
+        "optimizely-model-react",
+        "optimizely-setup"
+      ]
+    },
+    "optimizely-model-react": {
+      "path": "./skills/rendering/optimizely-model-react",
+      "dependencies": [
+        "optimizely-model"
+      ]
+    },
+    "optimizely-richtext-rendering": {
+      "path": "./skills/rendering/optimizely-richtext-rendering",
+      "dependencies": [
+        "optimizely-experience-composition",
+        "optimizely-model",
+        "optimizely-model-react"
+      ]
+    },
+    "optimizely-dam-assets": {
+      "path": "./skills/rendering/optimizely-dam-assets",
+      "dependencies": [
+        "optimizely-model",
+        "optimizely-model-react",
+        "optimizely-richtext-rendering"
+      ]
+    },
+    "optimizely-experience-composition": {
+      "path": "./skills/rendering/optimizely-experience-composition",
+      "dependencies": [
+        "optimizely-model",
+        "optimizely-model-react",
+        "optimizely-setup"
+      ]
+    },
+    "optimizely-content-fetching": {
+      "path": "./skills/data/optimizely-content-fetching",
+      "dependencies": [
+        "optimizely-model",
+        "optimizely-multisite-locale",
+        "optimizely-preview",
+        "optimizely-setup"
+      ]
+    },
+    "optimizely-content-navigation": {
+      "path": "./skills/data/optimizely-content-navigation",
+      "dependencies": [
+        "optimizely-content-fetching",
+        "optimizely-model",
+        "optimizely-multisite-locale"
+      ]
+    },
+    "optimizely-graphql-optimization": {
+      "path": "./skills/data/optimizely-graphql-optimization",
+      "dependencies": [
+        "optimizely-content-fetching",
+        "optimizely-model",
+        "optimizely-multisite-locale"
+      ]
+    },
+    "optimizely-multisite-locale": {
+      "path": "./skills/data/optimizely-multisite-locale",
+      "dependencies": [
+        "optimizely-content-fetching",
+        "optimizely-content-navigation",
+        "optimizely-setup"
+      ]
+    },
+    "optimizely-schema-validation": {
+      "path": "./skills/data/optimizely-schema-validation",
+      "dependencies": [
+        "optimizely-content-fetching",
+        "optimizely-model"
+      ]
+    },
+    "optimizely-preview": {
+      "path": "./skills/editing/optimizely-preview",
+      "dependencies": []
+    },
+    "optimizely-troubleshoot-graph": {
+      "path": "./skills/editing/optimizely-troubleshoot-graph",
+      "dependencies": [
+        "optimizely-cli-workflows",
+        "optimizely-model",
+        "optimizely-observability"
+      ]
+    },
+    "optimizely-cms11-to-12": {
+      "path": "./skills/migration/optimizely-cms11-to-12",
+      "dependencies": [
+        "optimizely-model",
+        "optimizely-setup"
+      ]
+    },
+    "optimizely-cms12-to-13-assessment": {
+      "path": "./skills/migration/optimizely-cms12-to-13-assessment",
+      "dependencies": [
+        "optimizely-cms12-to-13",
+        "optimizely-find-to-graph"
+      ]
+    },
+    "optimizely-cms12-to-13": {
+      "path": "./skills/migration/optimizely-cms12-to-13",
+      "dependencies": [
+        "optimizely-cms12-to-13-assessment",
+        "optimizely-find-to-graph",
+        "optimizely-model",
+        "optimizely-setup"
+      ]
+    },
+    "optimizely-find-to-graph": {
+      "path": "./skills/migration/optimizely-find-to-graph",
+      "dependencies": [
+        "optimizely-setup"
+      ]
+    },
+    "optimizely-remko-migration-discovery": {
+      "path": "./skills/migration/optimizely-remko-migration-discovery",
+      "dependencies": [
+        "optimizely-remko-cms-api-to-content-js",
+        "optimizely-remko-cms-cli-to-content-js",
+        "optimizely-remko-cms-nextjs-to-content-js",
+        "optimizely-remko-cms-react-to-content-js",
+        "optimizely-remko-graph-cli-to-content-js",
+        "optimizely-remko-graph-client-to-content-js",
+        "optimizely-remko-graph-functions-to-content-js"
+      ]
+    },
+    "optimizely-remko-graph-client-to-content-js": {
+      "path": "./skills/migration/optimizely-remko-graph-client-to-content-js",
+      "dependencies": [
+        "optimizely-remko-cms-api-to-content-js",
+        "optimizely-remko-cms-cli-to-content-js",
+        "optimizely-remko-cms-nextjs-to-content-js",
+        "optimizely-remko-cms-react-to-content-js",
+        "optimizely-remko-graph-cli-to-content-js",
+        "optimizely-remko-graph-functions-to-content-js"
+      ]
+    },
+    "optimizely-remko-cms-react-to-content-js": {
+      "path": "./skills/migration/optimizely-remko-cms-react-to-content-js",
+      "dependencies": [
+        "optimizely-remko-cms-api-to-content-js",
+        "optimizely-remko-cms-cli-to-content-js",
+        "optimizely-remko-cms-nextjs-to-content-js",
+        "optimizely-remko-graph-cli-to-content-js",
+        "optimizely-remko-graph-client-to-content-js",
+        "optimizely-remko-graph-functions-to-content-js"
+      ]
+    },
+    "optimizely-remko-cms-nextjs-to-content-js": {
+      "path": "./skills/migration/optimizely-remko-cms-nextjs-to-content-js",
+      "dependencies": [
+        "optimizely-remko-cms-api-to-content-js",
+        "optimizely-remko-cms-cli-to-content-js",
+        "optimizely-remko-cms-react-to-content-js",
+        "optimizely-remko-graph-cli-to-content-js",
+        "optimizely-remko-graph-client-to-content-js",
+        "optimizely-remko-graph-functions-to-content-js"
+      ]
+    },
+    "optimizely-remko-graph-functions-to-content-js": {
+      "path": "./skills/migration/optimizely-remko-graph-functions-to-content-js",
+      "dependencies": [
+        "optimizely-remko-cms-api-to-content-js",
+        "optimizely-remko-cms-cli-to-content-js",
+        "optimizely-remko-cms-nextjs-to-content-js",
+        "optimizely-remko-cms-react-to-content-js",
+        "optimizely-remko-graph-cli-to-content-js",
+        "optimizely-remko-graph-client-to-content-js"
+      ]
+    },
+    "optimizely-remko-cms-api-to-content-js": {
+      "path": "./skills/migration/optimizely-remko-cms-api-to-content-js",
+      "dependencies": [
+        "optimizely-remko-cms-cli-to-content-js",
+        "optimizely-remko-cms-nextjs-to-content-js",
+        "optimizely-remko-cms-react-to-content-js",
+        "optimizely-remko-graph-cli-to-content-js",
+        "optimizely-remko-graph-client-to-content-js",
+        "optimizely-remko-graph-functions-to-content-js"
+      ]
+    },
+    "optimizely-remko-cms-cli-to-content-js": {
+      "path": "./skills/migration/optimizely-remko-cms-cli-to-content-js",
+      "dependencies": [
+        "optimizely-remko-cms-api-to-content-js",
+        "optimizely-remko-cms-nextjs-to-content-js",
+        "optimizely-remko-cms-react-to-content-js",
+        "optimizely-remko-graph-cli-to-content-js",
+        "optimizely-remko-graph-client-to-content-js",
+        "optimizely-remko-graph-functions-to-content-js"
+      ]
+    },
+    "optimizely-remko-graph-cli-to-content-js": {
+      "path": "./skills/migration/optimizely-remko-graph-cli-to-content-js",
+      "dependencies": [
+        "optimizely-remko-cms-api-to-content-js",
+        "optimizely-remko-cms-cli-to-content-js",
+        "optimizely-remko-cms-nextjs-to-content-js",
+        "optimizely-remko-cms-react-to-content-js",
+        "optimizely-remko-graph-client-to-content-js",
+        "optimizely-remko-graph-functions-to-content-js"
+      ]
+    }
+  }
+}

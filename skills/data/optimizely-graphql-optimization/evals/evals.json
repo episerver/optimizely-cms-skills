@@ -1,0 +1,23 @@
+{
+  "skill_name": "optimizely-graphql-optimization",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I'm getting a GraphFragmentThresholdError that says 'Fragment count (247) exceeds threshold (100) for property mainContent on type StandardPage'. We have a lot of content types registered and the mainContent area doesn't have any type restrictions. How do I fix this?",
+      "expected_output": "Should explain that the error occurs because the content area has no type constraints, so the SDK generates fragments for all 247 registered content types. Should recommend adding allowedTypes to the mainContent property in the StandardPage content type definition to whitelist only the types that should appear in that area. Should show the contentType() pattern with allowedTypes on the array items. Should mention that restrictedTypes is an alternative for blacklisting. Should warn that typeFilter is a workaround but bypasses caching. Should suggest running config push after updating the content type.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "I want to exclude some internal content types from GraphQL queries without modifying the content type definitions. We have TestBlock, DebugWidget, and InternalNote types that are used internally but shouldn't appear in frontend queries. Is there a way to filter them out?",
+      "expected_output": "Should show the typeFilter option in config() that receives a content type key and returns a boolean. Should provide an example that excludes TestBlock, DebugWidget, and InternalNote by returning false for those keys. Should warn that typeFilter bypasses query caching because the filter function is not statically analyzable. Should recommend using allowedTypes or restrictedTypes on content area properties instead if possible, as those are cache-friendly.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Our Optimizely site is getting slow page loads and I think it's related to GraphQL query performance. What caching options does the SDK provide? Also, we're about to push some content type changes and I don't want any downtime during the schema rebuild.",
+      "expected_output": "Should explain the cache option in config() which defaults to true for server-side caching. Should show how to disable caching globally or per-request. Should explain when to disable caching (preview, personalization, post-publish verification). Should explain the slot mechanism: 'Current' vs 'New' slots, how Content Graph rebuilds in the background, and how the swap happens automatically. Should describe the deployment workflow: push changes, Graph rebuilds in New slot, app serves from Current, swap happens automatically.",
+      "files": []
+    }
+  ]
+}

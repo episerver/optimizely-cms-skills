@@ -1,0 +1,51 @@
+{
+  "name": "optimizely-cms-skills",
+  "version": "0.2.1",
+  "description": "Agent Skills for Optimizely CMS development",
+  "author": {
+    "name": "Optimizely",
+    "url": "https://github.com/episerver/optimizely-cms-skills.git"
+  },
+  "homepage": "https://github.com/episerver/optimizely-cms-skills.git",
+  "repository": "https://github.com/episerver/optimizely-cms-skills.git",
+  "license": "Apache-2.0",
+  "keywords": [
+    "optimizely",
+    "cms",
+    "skills",
+    "development"
+  ],
+  "skills": [
+    "./skills/setup/optimizely-setup",
+    "./skills/setup/optimizely-project-scaffold",
+    "./skills/setup/optimizely-cli-workflows",
+    "./skills/setup/optimizely-observability",
+    "./skills/setup/optimizely-isr-setup",
+    "./skills/setup/optimizely-cache-strategy",
+    "./skills/modeling/optimizely-model",
+    "./skills/modeling/optimizely-display-templates",
+    "./skills/rendering/optimizely-model-react",
+    "./skills/rendering/optimizely-richtext-rendering",
+    "./skills/rendering/optimizely-dam-assets",
+    "./skills/rendering/optimizely-experience-composition",
+    "./skills/data/optimizely-content-fetching",
+    "./skills/data/optimizely-content-navigation",
+    "./skills/data/optimizely-graphql-optimization",
+    "./skills/data/optimizely-multisite-locale",
+    "./skills/data/optimizely-schema-validation",
+    "./skills/editing/optimizely-preview",
+    "./skills/editing/optimizely-troubleshoot-graph",
+    "./skills/migration/optimizely-cms11-to-12",
+    "./skills/migration/optimizely-cms12-to-13-assessment",
+    "./skills/migration/optimizely-cms12-to-13",
+    "./skills/migration/optimizely-find-to-graph",
+    "./skills/migration/optimizely-remko-migration-discovery",
+    "./skills/migration/optimizely-remko-graph-client-to-content-js",
+    "./skills/migration/optimizely-remko-cms-react-to-content-js",
+    "./skills/migration/optimizely-remko-cms-nextjs-to-content-js",
+    "./skills/migration/optimizely-remko-graph-functions-to-content-js",
+    "./skills/migration/optimizely-remko-cms-api-to-content-js",
+    "./skills/migration/optimizely-remko-cms-cli-to-content-js",
+    "./skills/migration/optimizely-remko-graph-cli-to-content-js"
+  ]
+}

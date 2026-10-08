@@ -1,0 +1,253 @@
+{
+  "skill_name": "optimizely-remko-graph-client-to-content-js",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I have a Next.js app using @remkoj/optimizely-graph-client. Help me migrate to the official @optimizely/cms-sdk.",
+      "expected_output": "Should follow the 6-step migration workflow: Step 1 assess current usage (grep for @remkoj/optimizely-graph-client imports, scan for ChannelRepository/createDefinition/ContentGraphClient/RouteResolver/createHmacFetch/config helpers/utils, check env vars, categorize effort), Step 2 swap packages (yarn remove @remkoj/optimizely-graph-client, yarn add @optimizely/cms-sdk), Step 3 migrate env vars (CONTENTGRAPH_* to GRAPH_*, explain that the runtime client needs only the Single Key and that App Key + Secret HMAC is codegen/CLI only, explain the CMS-55679 empty-render gotcha as a CMS-instance credential issue), Step 4 migrate channel/client setup (createDefinition/ChannelRepository replaced by buildConfig + config + Next.js routing, createClient replaced by config + getClient, note the 3-arg createClient flags have no positional analogue), Step 5 migrate per-symbol (ContentGraphClient to GraphClient, RouteResolver to getContentByPath, request to typed methods), Step 6 verify (tsc, yarn build, yarn dev, empty render check). MUST mention the CMS-55679 empty-render trap. MUST reference the three shared-references files.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Follows 6-step workflow",
+          "check": "Output includes all 6 steps in sequential order"
+        },
+        {
+          "name": "Mentions CMS-55679 gotcha",
+          "check": "Explains stale App Key/Secret causes empty renders (EnsureSchemaInitializationModule abort)"
+        },
+        {
+          "name": "References shared files",
+          "check": "Links to package-and-import-mapping.md, auth-and-env-mapping.md, and setup-and-di.md"
+        },
+        {
+          "name": "Includes verification step",
+          "check": "Ends with tsc, yarn build, yarn dev, and empty render check"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Can you assess my project's use of @remkoj/optimizely-graph-client and tell me what it would take to migrate to the official SDK? Don't make any changes yet.",
+      "expected_output": "Should perform assessment only (Step 1) without making changes. MUST grep for @remkoj/optimizely-graph-client imports. MUST scan for ChannelRepository, createDefinition, ContentGraphClient, createClient, RouteResolver, createHmacFetch, config helpers (readEnvironmentVariables, validateConfig, applyConfigDefaults), and utils (localeToGraphLocale, contentLinkIsEqual, normalizeContentLink, isContentLink). MUST check env vars (CONTENTGRAPH_*, GRAPH_*). MUST categorize effort (minimal/moderate/significant). SHOULD stop after assessment and report findings — the instruction 'If the user only asked for assessment, stop here and report' must be followed. SHOULD NOT proceed to package swap or code changes.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Assessment only, no changes",
+          "check": "Reports findings without modifying code or packages"
+        },
+        {
+          "name": "Scans for key symbols",
+          "check": "Greps for imports and mentions ChannelRepository, createDefinition, ContentGraphClient, RouteResolver, utils"
+        },
+        {
+          "name": "Categorizes effort",
+          "check": "Outputs minimal, moderate, or significant effort assessment"
+        },
+        {
+          "name": "Stops after Step 1",
+          "check": "Does not proceed to package swap or code migration"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "After migrating to @optimizely/cms-sdk, my Graph client throws an error saying OPTIMIZELY_GRAPH_SINGLE_KEY is undefined, but I have OPTIMIZELY_CONTENTGRAPH_SINGLE_KEY set in my .env. What's wrong?",
+      "expected_output": "Should identify that the official SDK does not support the legacy CONTENTGRAPH_* aliases. MUST explain that the canonical env var names are OPTIMIZELY_GRAPH_GATEWAY and OPTIMIZELY_GRAPH_SINGLE_KEY (not CONTENTGRAPH_*). MUST provide before/after .env showing the rename. SHOULD mention that CI secrets and .env.local also need to be updated. SHOULD reference auth-and-env-mapping.md. SHOULD NOT suggest adding a compatibility shim.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies env-var rename",
+          "check": "Explains CONTENTGRAPH_* aliases are not supported, use GRAPH_*"
+        },
+        {
+          "name": "Provides before/after .env",
+          "check": "Shows OPTIMIZELY_CONTENTGRAPH_SINGLE_KEY renamed to OPTIMIZELY_GRAPH_SINGLE_KEY"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I migrated to @optimizely/cms-sdk and the build succeeds, but every page renders blank. No content shows up even though the queries are the same. The Single Key is correct. What could be wrong?",
+      "expected_output": "Should identify this as the CMS-55679 empty-render gotcha and frame it as content rendering empty (empty arrays), NOT an auth error. MUST explain that the root cause is invalid or rotated Graph HMAC credentials ON THE CMS INSTANCE ITSELF (a server-side configuration), which makes the CMS EnsureSchemaInitializationModule abort at startup; when that module aborts, the _Content type is never published to Graph, so every Graph query returns empty even though the frontend Single Key is valid and the SDK code is correct. MUST instruct the user to first verify the CMS instance's own Graph sync credentials (server side) and check the CMS startup logs for EnsureSchemaInitializationModule errors / that the types-schema endpoint is populated. MUST clarify this is a CMS-instance configuration problem, NOT a frontend .env problem and NOT a preview-auth bug. MUST say to only debug SDK/query code after the instance schema is confirmed published. SHOULD reference auth-and-env-mapping.md. SHOULD NOT suggest downgrading packages, clearing caches, or editing the frontend App Key/Secret as the primary fix.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies CMS-55679",
+          "check": "Mentions EnsureSchemaInitializationModule abort and _Content never published"
+        },
+        {
+          "name": "Points to CMS-instance credentials, not frontend .env",
+          "check": "Says the invalid/rotated Graph credentials are on the CMS instance itself (server side), explicitly not the frontend .env and not a preview-auth bug"
+        },
+        {
+          "name": "Explains empty content, not auth error",
+          "check": "Frames the symptom as content rendering empty even though the frontend Single Key is valid, and defers SDK/query debugging until the instance schema is confirmed published"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "My Remko code has a ChannelRepository.createDefinition() call. What's the equivalent in @optimizely/cms-sdk?",
+      "expected_output": "Should clearly state that ChannelRepository and createDefinition() have NO direct equivalent in @optimizely/cms-sdk. MUST explain that channel identity (name, domains, locales, CMS URL) is replaced by buildConfig() in optimizely.config.mjs (CLI-facing, for component discovery), a single config() call in the root layout (runtime Graph credentials), and Next.js routing for host/locale (e.g. [locale] route segment). MUST provide before/after code showing channel.ts removed and replaced with buildConfig + config + Next.js routing. SHOULD reference setup-and-di.md. SHOULD NOT invent a ChannelRepository shim or suggest implementing one.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "States no direct equivalent",
+          "check": "Clearly says ChannelRepository and createDefinition have no equivalent"
+        },
+        {
+          "name": "Provides replacement pattern",
+          "check": "Shows buildConfig + config + Next.js routing as the replacement"
+        },
+        {
+          "name": "Does not invent shim",
+          "check": "Does not suggest building a ChannelRepository compatibility layer"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "I use RouteResolver from @remkoj/optimizely-graph-client/router to fetch content by path. What's the equivalent in the official SDK?",
+      "expected_output": "Should identify that RouteResolver is replaced by GraphClient.getContentByPath(). MUST explain that there is no standalone router class — path-based content retrieval is a method on GraphClient. MUST provide before/after code showing new RouteResolver(client, channel).resolve(path) replaced by client.getContentByPath(path). MUST mention that Remko's resolve() returned a single item or null, but the target's getContentByPath() returns an array (access [0] for the first match). SHOULD mention getContentByPath() is used directly in Next.js [...slug] pages. SHOULD reference graph-client-api-mapping.md.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies replacement method",
+          "check": "Explains RouteResolver replaced by GraphClient.getContentByPath()"
+        },
+        {
+          "name": "Provides before/after code",
+          "check": "Shows RouteResolver.resolve() replaced by client.getContentByPath()"
+        },
+        {
+          "name": "Mentions return-type difference",
+          "check": "Clarifies that getContentByPath() returns an array, not a single item"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "After migrating to @optimizely/cms-sdk, I get a TypeScript error saying createHmacFetch is not exported. I was using it to authenticate preview requests. How do I fix this?",
+      "expected_output": "Should identify that createHmacFetch has no equivalent AND that the target runtime GraphClient has no HMAC path at all. MUST explain that the runtime client signs nothing: published reads use the epi-single Single Key header and preview uses a per-request Bearer <preview_token> taken from the preview URL. MUST state that GraphOptions has no secret field, so passing one is a type error, and that App Key + Secret HMAC survives only in codegen/CLI tooling (schema sync), never at runtime and never for preview. MUST correct the user's assumption that preview needs HMAC — preview authentication uses the Bearer preview_token via getPreviewContent / getClient, not App Key + Secret. SHOULD reference auth-and-env-mapping.md and the optimizely-remko-cms-nextjs-to-content-js skill for the preview route. SHOULD NOT suggest implementing a custom HMAC fetch wrapper or passing a secret to config()/GraphClient.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "States runtime client has no HMAC path",
+          "check": "Explains createHmacFetch has no equivalent and the runtime GraphClient signs nothing (no secret field on GraphOptions)"
+        },
+        {
+          "name": "Corrects preview auth model",
+          "check": "Says preview uses a per-request Bearer preview_token from the URL, not App Key + Secret HMAC"
+        },
+        {
+          "name": "Scopes HMAC to codegen/CLI only",
+          "check": "States App Key + Secret HMAC survives only for codegen/CLI, and does not suggest a custom HMAC wrapper or passing a secret"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "I use localeToGraphLocale() and graphLocaleToLocale() from @remkoj/optimizely-graph-client/utils to convert locale strings. What's the equivalent in the official SDK?",
+      "expected_output": "Should clearly state that localeToGraphLocale and graphLocaleToLocale have NO direct equivalent in @optimizely/cms-sdk. MUST explain that most usages disappear once content is fetched as typed objects with _metadata.locale. SHOULD say that if custom locale normalization is needed, stop and document the use case rather than reimplementing Remko's private helpers. SHOULD mention that locales are handled by Next.js route segments (e.g. [locale]) and the _metadata.locale field on fetched content. SHOULD reference graph-client-api-mapping.md. SHOULD NOT invent a replacement function.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "States no direct equivalent",
+          "check": "Clearly says localeToGraphLocale and graphLocaleToLocale have no equivalent"
+        },
+        {
+          "name": "Explains usages disappear",
+          "check": "Mentions that fetched content has _metadata.locale, so conversion is usually unnecessary"
+        },
+        {
+          "name": "Recommends stop-and-document for custom needs",
+          "check": "Says to stop and document if custom locale normalization is required"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "My Remko code uses isContentLink() and normalizeContentLink() from the utils. What do I replace these with in @optimizely/cms-sdk?",
+      "expected_output": "Should clearly state that isContentLink, normalizeContentLink, contentLinkIsEqual, and the ContentLink type have NO direct equivalent in @optimizely/cms-sdk. MUST explain that the target SDK does not expose a ContentLink type — content is fetched by key/path and returned as typed objects. MUST say that if comparing content identity, use _metadata.key or _metadata.id instead of ContentLink structures. SHOULD say that if the code relies heavily on ContentLink manipulation, stop and document the use case. SHOULD reference graph-client-api-mapping.md. SHOULD NOT invent a ContentLink shim.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "States no direct equivalent",
+          "check": "Explains ContentLink type and utils have no equivalent"
+        },
+        {
+          "name": "Provides alternative approach",
+          "check": "Recommends using _metadata.key or _metadata.id for content identity"
+        },
+        {
+          "name": "Does not invent shim",
+          "check": "Does not suggest building a ContentLink compatibility layer"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "I have code that calls readEnvironmentVariables() and validateConfig() from @remkoj/optimizely-graph-client/config. What's the equivalent in the official SDK?",
+      "expected_output": "Should identify that readEnvironmentVariables and validateConfig have NO direct equivalent in @optimizely/cms-sdk. MUST explain that env-var reading and validation is built into config() / new GraphClient() — you do not call helpers yourself. MUST say that invalid config throws an error from config() or the GraphClient constructor. SHOULD say to remove explicit calls to readEnvironmentVariables() and validateConfig() and just pass env vars to config(). SHOULD reference auth-and-env-mapping.md and graph-client-api-mapping.md. SHOULD NOT suggest implementing custom config validation.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "States no direct equivalent",
+          "check": "Explains readEnvironmentVariables and validateConfig have no public equivalent"
+        },
+        {
+          "name": "Explains validation is internal",
+          "check": "Says validation happens inside config() / GraphClient constructor"
+        },
+        {
+          "name": "Recommends removal",
+          "check": "Says to remove explicit config helper calls and just pass env vars to config()"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "My Remko app calls createClient(undefined, undefined, { nextJsFetchDirectives: true, cache: true, queryCache: true }). How do I pass those same options to the official SDK's client?",
+      "expected_output": "Should recognize the 3-arg Remko signature createClient(config?, token?, flags?) and identify that the THIRD argument is a flags bag (queryCache, cache, nextJsFetchDirectives, omitEmpty, includeDeleted), NOT a config/options object. MUST state that these flags have NO positional analogue in the target — you cannot pass them as new GraphClient(apiKey, options) arguments, and GraphClient/config() do not take a flags bag. MUST explain that caching and fetch behavior are expressed through config() / GraphOptions and Next.js fetch settings (fetchCache, revalidate) instead, and that each flag should be translated to its config()/route-segment equivalent rather than mapped to an argument. MUST NOT invent a third GraphClient constructor argument or a flags option on config(). MUST NOT pass a secret. SHOULD reference graph-client-api-mapping.md.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies the 3-arg flags signature",
+          "check": "Recognizes createClient(config?, token?, flags?) and that the third arg is a flags bag (queryCache/cache/nextJsFetchDirectives/omitEmpty/includeDeleted), not options"
+        },
+        {
+          "name": "States flags have no positional analogue",
+          "check": "Explains the flags do not map onto new GraphClient(apiKey, options) and config() has no flags bag"
+        },
+        {
+          "name": "Translates to config/route-segment equivalents",
+          "check": "Directs caching/fetch behavior to config()/GraphOptions and Next.js fetchCache/revalidate rather than inventing a client argument"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "I've finished migrating @remkoj/optimizely-graph-client. Now clean up package.json for me — just uninstall every @remkoj/* package we still have so nothing community is left.",
+      "expected_output": "MUST NOT blindly remove every @remkoj/* package. Three cross-cutting rules apply. (1) Optimizely One carve-out: @remkoj/optimizely-one-nextjs has NO target mapping and is a KNOWN, PERMITTED residual — it must be LEFT INSTALLED, and its presence must NOT be treated as an incomplete migration. The agent must explicitly exclude it from the removal set and explain why. (2) Conditional residual: @remkoj/optimizely-cms-api mostly migrates (management -> @optimizely/cms-cli; published reads -> @optimizely/cms-sdk getClient()), but content write/CRUD, changesets, and runtime OAuth are honest gaps with no official equivalent — so it must be LEFT INSTALLED (or those paths rewritten to raw Integration API REST) IF the project uses any of them, and stripped only after confirming it does not. (3) Removal order: the @remkoj/* packages are interdependent, so the agent must NOT global-delete/uninstall them all at once (that transiently breaks the build). It must follow the staged teardown order (client -> codegen/functions -> content-type registry -> display-template + React registries -> components -> pages/preview -> remove packages) and use the exact `yarn remove` command that omits optimizely-one-nextjs unconditionally and stages optimizely-cms-api conditionally. MUST reference the \"Scope carve-out\", \"Conditional residual\", and \"Removal order\" sections of ../_shared-references/package-and-import-mapping.md. SHOULD NOT emit `yarn remove @remkoj/*` or otherwise strip every @remkoj package indiscriminately.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Preserves Optimizely One carve-out",
+          "check": "Does NOT remove @remkoj/optimizely-one-nextjs; states it is a permitted residual with no target mapping and not a sign of incomplete migration"
+        },
+        {
+          "name": "Handles cms-api as conditional residual",
+          "check": "Does NOT blindly remove @remkoj/optimizely-cms-api; treats it as a conditional residual — kept (or its paths rewritten to raw Integration API REST) if the project uses content write/CRUD, changesets, or runtime OAuth, and stripped only after confirming it does not"
+        },
+        {
+          "name": "Rejects global delete of @remkoj/*",
+          "check": "Does not uninstall all @remkoj/* at once; follows the staged teardown order instead"
+        },
+        {
+          "name": "References removal-order reference",
+          "check": "Points to the Scope carve-out, Conditional residual, and Removal order sections of package-and-import-mapping.md and uses the yarn remove command that omits optimizely-one-nextjs unconditionally and stages optimizely-cms-api conditionally"
+        }
+      ]
+    }
+  ]
+}

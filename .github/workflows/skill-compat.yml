@@ -1,0 +1,170 @@
+name: Skill Compatibility Check
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to run against'
+        required: true
+      post_comment:
+        description: 'Post results as a PR comment'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  copilot-requests: write
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      affected_skills: ${{ steps.affected.outputs.skills }}
+      has_affected: ${{ steps.affected.outputs.has_affected }}
+      pr_number: ${{ steps.pr.outputs.number }}
+    steps:
+      - name: Resolve PR ref
+        id: pr
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_DATA=$(gh api repos/${{ github.repository }}/pulls/${{ inputs.pr_number }} --jq '{head_ref: .head.ref, number: .number}')
+          echo "head_ref=$(echo "$PR_DATA" | jq -r '.head_ref')" >> "$GITHUB_OUTPUT"
+          echo "number=$(echo "$PR_DATA" | jq -r '.number')" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout PR branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.pr.outputs.head_ref || github.head_ref }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Validate skill structure
+        run: node scripts/validate-skills.js --ci
+
+      - name: Check skill dependencies are up to date
+        run: |
+          node scripts/update-skill-deps.js --scan-deps
+          if ! git diff --quiet skill-deps.json; then
+            echo "::error::skill-deps.json is out of date. Run 'npm run update-deps -- --scan-deps' locally or run the 'Update Skill Dependencies' workflow for this PR."
+            exit 1
+          fi
+
+      - name: Detect changed skills
+        id: affected
+        run: |
+          CHANGED_FILES=$(git diff --name-only origin/main...HEAD -- 'skills/**')
+
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "has_affected=false" >> "$GITHUB_OUTPUT"
+            echo "skills=[]" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          SKILLS=$(CHANGED_FILES="$CHANGED_FILES" node scripts/ci/detect-affected.js)
+          echo "skills=$SKILLS" >> "$GITHUB_OUTPUT"
+          COUNT=$(echo "$SKILLS" | jq 'length')
+          if [ "$COUNT" -gt 0 ]; then
+            echo "has_affected=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_affected=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  run-evals:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_affected == 'true'
+    uses: ./.github/workflows/skill-evals.yml
+    with:
+      skills: ${{ needs.detect-changes.outputs.affected_skills }}
+    secrets: inherit
+
+  post-comment:
+    needs: [detect-changes, run-evals]
+    if: always() && needs.detect-changes.outputs.has_affected == 'true' && (github.event_name == 'pull_request' || inputs.post_comment)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download eval results
+        if: needs.run-evals.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: eval-results
+          path: eval-results/
+        continue-on-error: true
+
+      - name: Post PR comment
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const skills = JSON.parse(process.env.AFFECTED_SKILLS);
+
+            let body = '## Skill Compatibility Report\n\n';
+
+            if (skills.length > 0) {
+              body += '### Affected Skills\n';
+              for (const s of skills) {
+                body += `- \`${s.name}\` (${s.path})\n`;
+              }
+              body += '\n';
+            }
+
+            // Include eval results if available
+            const evalPath = 'eval-results/eval-results.json';
+            if (fs.existsSync(evalPath)) {
+              try {
+                const evalResults = JSON.parse(fs.readFileSync(evalPath, 'utf-8'));
+                body += '### Evaluation Results\n\n';
+                body += '| Skill | Score | Status |\n';
+                body += '|-------|-------|--------|\n';
+                for (const skill of evalResults.skills || []) {
+                  const icon = skill.passed ? '✅' : '❌';
+                  body += `| \`${skill.skill}\` | ${skill.score}% | ${icon} |\n`;
+                }
+                body += `\n**Overall: ${evalResults.summary.passed}/${evalResults.summary.total} passed** `;
+                body += `(${evalResults.summary.passedAssertions}/${evalResults.summary.totalAssertions} assertions)\n\n`;
+              } catch (e) {
+                body += '### Evaluation Results\n\n';
+                body += '⚠️ Could not parse eval results.\n\n';
+              }
+            } else if (process.env.EVALS_RESULT === 'failure') {
+              body += '### Evaluation Results\n\n';
+              body += '❌ Evaluation workflow failed. Check the [workflow run](https://github.com/' + context.repo.owner + '/' + context.repo.repo + '/actions) for details.\n\n';
+            } else if (process.env.EVALS_RESULT === 'skipped') {
+              body += '### Evaluation Results\n\n';
+              body += '⏭️ No evaluations were needed.\n\n';
+            }
+
+            body += "Run the 'Update Skill Dependencies' workflow for this PR to update `skill-deps.json` if needed.";
+
+            const prNumber = process.env.PR_NUMBER || context.issue.number;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body,
+            });
+        env:
+          AFFECTED_SKILLS: ${{ needs.detect-changes.outputs.affected_skills }}
+          PR_NUMBER: ${{ needs.detect-changes.outputs.pr_number }}
+          EVALS_RESULT: ${{ needs.run-evals.result }}
+
+  ok-to-merge:
+    needs: [detect-changes]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check results
+        run: |
+          if [ "${{ needs.detect-changes.result }}" = "failure" ]; then
+            echo "::error::Skill checks failed. Run 'npm run update-deps -- --scan-deps' locally or run the 'Update Skill Dependencies' workflow for this PR to fix."
+            exit 1
+          fi
+          echo "All checks passed"

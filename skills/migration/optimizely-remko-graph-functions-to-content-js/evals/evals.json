@@ -1,0 +1,285 @@
+{
+  "skill_name": "optimizely-remko-graph-functions-to-content-js",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I have a Next.js app using @remkoj/optimizely-graph-functions for GraphQL Codegen. Help me migrate to the official @optimizely/cms-sdk.",
+      "expected_output": "Should follow the 5-step migration workflow: Step 1 assess current usage (grep for @remkoj/optimizely-graph-functions imports, scan for codegen.ts/codegen.yml, .graphql files, src/gql/ directory, codegen script in package.json, opti-patch usage, @graphql-codegen/* devDependencies, check preset usage, check injections, check imports from src/gql/, categorize effort), Step 2 swap packages (yarn remove @remkoj/optimizely-graph-functions, yarn remove @graphql-codegen/* deps, yarn add @optimizely/cms-sdk), Step 3 migrate the codegen pipeline (MUST state plainly there is NO codegen preset equivalent; delete codegen.ts, .graphql files, src/gql/, codegen/opti-patch scripts; create contentType() definitions, register via initContentTypeRegistry()), Step 4 migrate generated-query usage (replace imports from src/gql/ with getContent/getContentByPath), Step 5 verify (tsc, confirm codegen artifacts deleted, confirm no dangling imports, confirm package.json scripts clean). MUST mention that the official SDK has NO GraphQL Codegen preset and uses runtime query generation instead. MUST reference the three shared-references files.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Follows 5-step workflow",
+          "check": "Output includes all 5 steps in sequential order"
+        },
+        {
+          "name": "States no codegen preset equivalent",
+          "check": "Clearly states there is NO GraphQL Codegen preset in @optimizely/cms-sdk; explains runtime query generation from contentType() schemas"
+        },
+        {
+          "name": "References shared files",
+          "check": "Links to package-and-import-mapping.md, auth-and-env-mapping.md, and setup-and-di.md"
+        },
+        {
+          "name": "Includes verification step",
+          "check": "Ends with tsc check, codegen artifact deletion check, dangling import check, and package.json script check"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Can you assess my project's use of @remkoj/optimizely-graph-functions and tell me what it would take to migrate to the official SDK? Don't make any changes yet.",
+      "expected_output": "Should perform assessment only (Step 1) without making changes. MUST grep for @remkoj/optimizely-graph-functions imports. MUST scan for codegen.ts/codegen.yml, .graphql files, src/gql/ directory, codegen script, opti-patch usage, @graphql-codegen/* devDependencies. MUST check preset usage (OptimizelyGraphPreset). MUST check injections (into PageData/BlockData/ElementData, pathRegex). MUST check imports from src/gql/ to identify components depending on typed documents. MUST categorize effort (minimal/moderate/significant). SHOULD stop after assessment and report findings — the instruction 'If the user only asked for assessment, stop here and report' must be followed. SHOULD NOT proceed to package swap or code changes.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Assessment only, no changes",
+          "check": "Reports findings without modifying code or packages"
+        },
+        {
+          "name": "Scans for key artifacts",
+          "check": "Mentions codegen.ts, .graphql files, src/gql/, codegen script, opti-patch, preset usage, injections"
+        },
+        {
+          "name": "Categorizes effort",
+          "check": "Outputs minimal, moderate, or significant effort assessment"
+        },
+        {
+          "name": "Stops after Step 1",
+          "check": "Does not proceed to package swap or code migration"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "What's the @optimizely/cms-sdk equivalent of the @remkoj/optimizely-graph-functions GraphQL Codegen preset? I need to migrate my codegen.ts file.",
+      "expected_output": "Should clearly state that there is NO GraphQL Codegen preset equivalent in @optimizely/cms-sdk. MUST explain that the Remko codegen approach (build-time GraphQL Codegen → typed documents in src/gql/) is replaced by runtime query generation from contentType() schemas. MUST explain that you delete codegen.ts, .graphql files, src/gql/, and codegen/opti-patch scripts, and replace with contentType() definitions registered via initContentTypeRegistry(). MUST provide before/after code showing codegen.ts (Remko) removed and replaced with contentType() definition + initContentTypeRegistry() in layout.tsx. SHOULD mention that the SDK builds GraphQL queries internally at runtime when you call getContent/getContentByPath. SHOULD NOT invent a preset, plugin, or compatibility layer.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "States no preset equivalent",
+          "check": "Clearly says there is NO GraphQL Codegen preset in @optimizely/cms-sdk"
+        },
+        {
+          "name": "Explains runtime query generation",
+          "check": "Mentions runtime query generation from contentType() schemas registered via initContentTypeRegistry()"
+        },
+        {
+          "name": "Provides before/after code",
+          "check": "Shows codegen.ts removed and replaced with contentType() + initContentTypeRegistry()"
+        },
+        {
+          "name": "Does not invent preset",
+          "check": "Does not suggest building a preset, plugin, or compatibility layer"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I migrated to @optimizely/cms-sdk and deleted my codegen.ts file, but now I have a bunch of broken imports from 'src/gql/'. What should I do?",
+      "expected_output": "Should identify that src/gql/ is the generated output directory from Remko codegen and must be deleted. MUST explain that the official SDK does not generate typed-document files — queries are built at runtime from contentType() schemas. MUST recommend deleting the src/gql/ directory and replacing imports from src/gql/ with calls to getContent/getContentByPath (which build queries internally). MUST provide before/after code showing a component importing from src/gql/ (Remko) replaced with getClient().getContent() (target). SHOULD cross-reference the graph-client skill for getContent/getContentByPath usage. SHOULD NOT suggest keeping src/gql/ or generating typed documents manually.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies src/gql/ must be deleted",
+          "check": "Explains src/gql/ is generated output and must be deleted"
+        },
+        {
+          "name": "Recommends getContent/getContentByPath",
+          "check": "Says to replace imports from src/gql/ with getContent/getContentByPath calls"
+        },
+        {
+          "name": "Provides before/after code",
+          "check": "Shows component importing from src/gql/ replaced with getClient().getContent()"
+        },
+        {
+          "name": "Does not suggest keeping src/gql/",
+          "check": "Does not suggest keeping src/gql/ or generating typed documents manually"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "My Remko codegen.ts has injections that spread fragments into PageData, BlockData, and ElementData via pathRegex matching. What's the equivalent in @optimizely/cms-sdk?",
+      "expected_output": "Should clearly state that fragment injections have NO direct equivalent in @optimizely/cms-sdk. MUST explain that the Remko injections (spread fragments into PageData/BlockData/ElementData via pathRegex) are not applicable because the official SDK does not use fragments. MUST explain that the property schema that used to live in .graphql fragments now lives in the contentType() definition's properties. MUST provide before/after code showing a .graphql fragment (Remko) and injections config replaced with a contentType() definition (target). SHOULD mention that the receiving fragments (PageData/BlockData/ElementData) do not exist in the target — the contentType() definition is the schema itself. SHOULD NOT suggest building an injection system or compatibility layer.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "States no injection equivalent",
+          "check": "Clearly says fragment injections have NO equivalent in @optimizely/cms-sdk"
+        },
+        {
+          "name": "Explains contentType() schema",
+          "check": "Mentions that property schema moves from .graphql fragments to contentType() properties"
+        },
+        {
+          "name": "Provides before/after code",
+          "check": "Shows .graphql fragment + injections config replaced with contentType() definition"
+        },
+        {
+          "name": "Does not invent injection system",
+          "check": "Does not suggest building an injection system or compatibility layer"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "After migrating to @optimizely/cms-sdk, I still have a 'yarn codegen' script in my package.json. Should I keep it?",
+      "expected_output": "Should clearly state that the 'yarn codegen' script is no longer needed and must be removed. MUST explain that the official SDK does not use codegen — queries are built at runtime from contentType() schemas. MUST recommend removing the codegen script from package.json and the @graphql-codegen/* devDependencies. SHOULD mention that if codegen.ts and .graphql files are deleted, the codegen script has nothing to run. SHOULD NOT suggest keeping the codegen script or running it manually.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "States codegen script must be removed",
+          "check": "Clearly says the 'yarn codegen' script is no longer needed and must be removed"
+        },
+        {
+          "name": "Recommends removing @graphql-codegen/* deps",
+          "check": "Says to remove @graphql-codegen/* devDependencies"
+        },
+        {
+          "name": "Does not suggest keeping script",
+          "check": "Does not suggest keeping the codegen script"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "I see my Remko project uses opti-patch to fix the generated codegen output. What's the @optimizely/cms-sdk equivalent?",
+      "expected_output": "Should clearly state that opti-patch has NO equivalent in @optimizely/cms-sdk because there is no codegen step. MUST explain that the official SDK builds queries at runtime, so there is no generated output to patch. MUST recommend removing opti-patch usage and the @remkoj/optimizely-graph-functions devDependency. SHOULD mention that opti-patch was a post-codegen script from @remkoj/optimizely-graph-functions/bin. SHOULD NOT suggest building a patching script or keeping opti-patch.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "States no opti-patch equivalent",
+          "check": "Clearly says opti-patch has NO equivalent because there is no codegen step"
+        },
+        {
+          "name": "Recommends removing opti-patch",
+          "check": "Says to remove opti-patch usage and the @remkoj/optimizely-graph-functions devDependency"
+        },
+        {
+          "name": "Does not suggest patching script",
+          "check": "Does not suggest building a patching script or keeping opti-patch"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "My Remko codegen uses DefaultFunctions, fragments, and queries from @remkoj/optimizely-graph-functions/documents. What are the @optimizely/cms-sdk equivalents?",
+      "expected_output": "Should clearly state that the DefaultFunctions, fragments, and queries CODEGEN exports have NO direct equivalents in @optimizely/cms-sdk. MUST explain that the Remko built-in CMS12/CMS13 fragments and queries were for the codegen preset. MUST explain that the official SDK does not ship these codegen artifacts, and that content fetched by identity is generated at runtime from contentType() schemas. MUST NOT collapse 'no codegen exports' into 'you never write queries' — filtered/faceted/search/paginated queries of other content types are still hand-authored against a custom GraphQL client and validated with toSchema(contentType). MUST recommend replacing the built-in fragments with contentType() definitions for each content type. SHOULD mention that identity queries are built internally when you call getContent/getContentByPath. SHOULD NOT suggest importing built-in codegen fragments or queries.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "States no codegen-export equivalent",
+          "check": "Clearly says the DefaultFunctions, fragments, and queries codegen exports have NO equivalents"
+        },
+        {
+          "name": "Explains runtime query generation for identity fetches",
+          "check": "Mentions identity queries are generated at runtime from contentType() schemas via getContent/getContentByPath"
+        },
+        {
+          "name": "Does not deny the custom-query escape hatch",
+          "check": "Does NOT claim you never write queries; acknowledges filtered/search/paginated queries are hand-authored + validated with toSchema"
+        },
+        {
+          "name": "Recommends contentType() definitions",
+          "check": "Says to replace built-in fragments with contentType() definitions"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "Before I start ripping out codegen, how big is this migration really? My project has a bunch of .graphql fragments and a src/gql/ folder.",
+      "expected_output": "Should treat deleting codegen as re-authoring the entire typed-data layer and rewiring every consumer, NOT a config edit. MUST direct the user to produce hard counts before touching anything: number of `fragment X on Y` definitions, number of query/mutation definitions, total .graphql files, number of consumer files importing generated output, and number of generated-output import lines. MUST provide grep/find commands to measure these. MUST flag fragment-masking consumers (@/gql/fragment-masking, useFragment/FragmentType) separately as the highest-rework category with no runtime-query-generation analogue. MUST state that the query/mutation definition count is the most important number because those artifacts have no automatic runtime equivalent. SHOULD present the inventory as a table. SHOULD NOT quote the reference-demo numbers (33 fragments, 14 queries, 35 consumers, 46 import lines) as if they were the user's — they are illustrative; the user must run the commands against their own project.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Frames blast radius honestly",
+          "check": "States deleting codegen re-authors the typed-data layer and rewires all consumers, not just a config change"
+        },
+        {
+          "name": "Requires a counted inventory",
+          "check": "Directs the user to count fragment defs, query/mutation defs, consumer files, and import lines with concrete grep/find commands"
+        },
+        {
+          "name": "Flags fragment-masking separately",
+          "check": "Calls out @/gql/fragment-masking (useFragment/FragmentType) consumers as highest-rework with no runtime analogue"
+        },
+        {
+          "name": "Prioritizes query/mutation count",
+          "check": "Identifies the query/mutation definition count as most important because those have no automatic runtime equivalent"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "The migration says the SDK builds all queries for me. But I have a getBlogPosts.ts that filters and paginates articles, and a search page. How do those work after I delete the .graphql files?",
+      "expected_output": "Should explicitly reject the false-absolute 'you never write queries.' MUST explain the decision rule: content fetched by identity (by key or path) uses getContent/getContentByPath, but filtered/faceted/search/paginated queries of other content types are NOT covered by runtime generation and must be hand-authored against a custom GraphQL client (Apollo, urql, or raw fetch). MUST show the escape hatch: author the GraphQL query yourself, execute it, then validate/shape the result with toSchema(contentType) from @optimizely/cms-sdk/schema (Zod schema; .parse or .safeParse; { strict: true } vs passthrough for undeclared fields like _metadata). MUST warn that deleting a filtered/search query without re-authoring silently drops the feature with no TypeScript error. SHOULD reference content-JS docs/5-fetching.md. SHOULD NOT tell the user getContent alone can replace a filtered list.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Rejects the false-absolute",
+          "check": "Explicitly states you DO still write queries for filtered/faceted/search/paginated cases"
+        },
+        {
+          "name": "Gives the decision rule",
+          "check": "Distinguishes identity fetches (getContent/getContentByPath) from filtered/search queries (custom client)"
+        },
+        {
+          "name": "Shows toSchema validation recipe",
+          "check": "Recommends toSchema(contentType) from @optimizely/cms-sdk/schema to validate the hand-authored query result (parse/safeParse)"
+        },
+        {
+          "name": "Warns about silent feature loss",
+          "check": "Warns that deleting a filtered/search query without re-authoring drops the feature with no type error"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "My Remko codegen composed a master query per page that injected all the block and element fragments, so one request loaded the whole page tree. Does getContentByPath do the same thing?",
+      "expected_output": "Should call out master-query composition loss explicitly. MUST explain that Remko's codegen injections composed a single master query per route (PageData/BlockData/ElementData) so one HTTP request returned the full page + nested blocks + elements. MUST explain that the official SDK's getContent/getContentByPath resolves the page and its registered nested types but has NO automatic arbitrary-fragment-composition mechanism. MUST warn that if the app depended on single-request composition (large nested experience trees, visual-builder layouts), the migration can silently turn one request into many (N+1 per block) with no type error, degrading performance. MUST recommend verifying the full tree is fetched in one call, and where it is not, authoring an explicit custom query that selects the full nesting depth. SHOULD NOT claim getContentByPath automatically reproduces the composed master query for arbitrary per-component fragments.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Explains the composed master query",
+          "check": "Describes Remko injections composing one master query per route returning the full page tree in one request"
+        },
+        {
+          "name": "States no automatic composition in target",
+          "check": "Says the SDK has no automatic arbitrary-fragment-composition mechanism equivalent to the injected master query"
+        },
+        {
+          "name": "Warns about N+1 / silent perf regression",
+          "check": "Warns migration can turn one request into many with no type error, degrading performance"
+        },
+        {
+          "name": "Recommends verifying and custom query if needed",
+          "check": "Recommends verifying the full tree loads in one call and authoring an explicit custom query where it does not"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "I've finished migrating @remkoj/optimizely-graph-functions. Now clean up package.json for me — just uninstall every @remkoj/* package we still have so nothing community is left.",
+      "expected_output": "MUST NOT blindly remove every @remkoj/* package. Three cross-cutting rules apply. (1) Optimizely One carve-out: @remkoj/optimizely-one-nextjs has NO target mapping and is a KNOWN, PERMITTED residual — it must be LEFT INSTALLED, and its presence must NOT be treated as an incomplete migration. The agent must explicitly exclude it from the removal set and explain why. (2) Conditional residual: @remkoj/optimizely-cms-api mostly migrates (management -> @optimizely/cms-cli; published reads -> @optimizely/cms-sdk getClient()), but content write/CRUD, changesets, and runtime OAuth are honest gaps with no official equivalent — so it must be LEFT INSTALLED (or those paths rewritten to raw Integration API REST) IF the project uses any of them, and stripped only after confirming it does not. (3) Removal order: the @remkoj/* packages are interdependent, so the agent must NOT global-delete/uninstall them all at once (that transiently breaks the build). It must follow the staged teardown order (client -> codegen/functions -> content-type registry -> display-template + React registries -> components -> pages/preview -> remove packages) and use the exact `yarn remove` command that omits optimizely-one-nextjs unconditionally and stages optimizely-cms-api conditionally. MUST reference the \"Scope carve-out\", \"Conditional residual\", and \"Removal order\" sections of ../_shared-references/package-and-import-mapping.md. SHOULD NOT emit `yarn remove @remkoj/*` or otherwise strip every @remkoj package indiscriminately.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Preserves Optimizely One carve-out",
+          "check": "Does NOT remove @remkoj/optimizely-one-nextjs; states it is a permitted residual with no target mapping and not a sign of incomplete migration"
+        },
+        {
+          "name": "Handles cms-api as conditional residual",
+          "check": "Does NOT blindly remove @remkoj/optimizely-cms-api; treats it as a conditional residual — kept (or its paths rewritten to raw Integration API REST) if the project uses content write/CRUD, changesets, or runtime OAuth, and stripped only after confirming it does not"
+        },
+        {
+          "name": "Rejects global delete of @remkoj/*",
+          "check": "Does not uninstall all @remkoj/* at once; follows the staged teardown order instead"
+        },
+        {
+          "name": "References removal-order reference",
+          "check": "Points to the Scope carve-out, Conditional residual, and Removal order sections of package-and-import-mapping.md and uses the yarn remove command that omits optimizely-one-nextjs unconditionally and stages optimizely-cms-api conditionally"
+        }
+      ]
+    }
+  ]
+}

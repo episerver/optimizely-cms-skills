@@ -1,0 +1,197 @@
+{
+  "skill_name": "optimizely-remko-graph-cli-to-content-js",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need to assess my project's usage of opti-graph before migrating. Can you scan the codebase and tell me what Graph CLI commands we're using?",
+      "expected_output": "The skill should grep for opti-graph usage in package.json, check .env for GRAPH credentials (OPTIMIZELY_GRAPH_APP_KEY, OPTIMIZELY_GRAPH_SECRET, OPTIMIZELY_GRAPH_SINGLE_KEY), scan for generated site-config files importing SiteConfig/ChannelDefinition, and categorize migration effort (minimal/moderate/significant). It should STOP AFTER STEP 1 and report findings without proceeding to migration steps, because the user only asked for assessment.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "stops_after_assessment",
+          "check": "The skill stops after Step 1 (Assess Current Usage) and does not proceed to Step 2 (Swap/Remove Dev Dependency) or later steps when the user only asks for assessment."
+        },
+        {
+          "name": "greps_for_opti_graph",
+          "check": "The skill runs grep commands to detect opti-graph usage in package.json scripts (config:create, webhook:, source:, patches:)."
+        },
+        {
+          "name": "scans_env_for_graph_creds",
+          "check": "The skill checks .env for GRAPH credentials (OPTIMIZELY_GRAPH_APP_KEY, OPTIMIZELY_GRAPH_SECRET, OPTIMIZELY_GRAPH_SINGLE_KEY, OPTIMIZELY_GRAPH_GATEWAY)."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "What's the optimizely-cms-cli equivalent of opti-graph webhook:create?",
+      "expected_output": "The skill should state clearly that there is NO equivalent. The official CLI has no webhook topic. Graph webhook management has no CLI equivalent. It should recommend managing webhooks via the Graph/CMS admin UI or Graph Management API, and advise DELETING webhook:* scripts from package.json.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "states_no_equivalent",
+          "check": "The skill explicitly states that optimizely-cms-cli has NO webhook:create equivalent and no webhook topic."
+        },
+        {
+          "name": "recommends_admin_ui",
+          "check": "The skill recommends managing webhooks via the Graph/CMS admin UI or Graph Management API."
+        },
+        {
+          "name": "advises_deletion",
+          "check": "The skill advises DELETING webhook:* scripts from package.json (not renaming them)."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "How do I migrate opti-graph source:list and source:delete to the official CLI?",
+      "expected_output": "The skill should state clearly that there is NO equivalent. The official CLI has no source topic. It should note that source:list is the DEFAULT command when running bare opti-graph (no args), warn about CI scripts that run opti-graph with no args, and recommend managing content sources via the Graph/CMS admin UI or Graph Management API.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "states_no_source_topic",
+          "check": "The skill explicitly states that optimizely-cms-cli has no source topic and no source:list/source:delete equivalent."
+        },
+        {
+          "name": "warns_about_bare_opti_graph",
+          "check": "The skill notes that source:list is the DEFAULT command when running bare opti-graph (no args) and warns about CI scripts that invoke opti-graph with no args."
+        },
+        {
+          "name": "recommends_admin_ui_for_sources",
+          "check": "The skill recommends managing content sources via the Graph/CMS admin UI or Graph Management API."
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I'm migrating from opti-graph to the official CLI. How do I migrate config:create?",
+      "expected_output": "The skill should state clearly that there is NO CLI equivalent for config:create. It should explain that the official SDK does not generate a SiteConfig/ChannelDefinition file from a CLI — channel/site config is defined in code and the client is initialized at runtime. It MUST warn that config:create (Graph site-config generation) is COMPLETELY DIFFERENT from optimizely-cms-cli config push/pull (CMS content-TYPE sync). It should provide a code-first replacement example (config()/getClient() from @optimizely/cms-sdk, plus a channel routing function) and advise DELETING the generated site-config file.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "states_no_config_create_equivalent",
+          "check": "The skill explicitly states that there is NO CLI equivalent for opti-graph config:create."
+        },
+        {
+          "name": "warns_against_confusion",
+          "check": "The skill explicitly warns NOT to confuse config:create (Graph site-config generation) with optimizely-cms-cli config push/pull (CMS content-TYPE sync), stating they are COMPLETELY DIFFERENT."
+        },
+        {
+          "name": "provides_code_first_replacement",
+          "check": "The skill provides a code-first replacement example showing config()/getClient() from @optimizely/cms-sdk and a channel routing function (getChannelForHost or similar)."
+        },
+        {
+          "name": "advises_deleting_site_config_file",
+          "check": "The skill advises DELETING generated site-config files (e.g., src/site-config.ts importing SiteConfig/ChannelDefinition from @remkoj/optimizely-graph-client)."
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "What happened to opti-graph patches:apply in the official CLI?",
+      "expected_output": "The skill should state clearly that there is NO equivalent for patches:apply. The official SDK has NO GraphQL codegen (no fragments, no queries, no patches to apply). Runtime query generation from contentType() schemas replaces codegen. It should reference the optimizely-remko-graph-functions-to-content-js skill and advise DELETING patches:apply usage.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "states_no_patches_equivalent",
+          "check": "The skill explicitly states that there is NO equivalent for patches:apply and the official SDK has no GraphQL codegen."
+        },
+        {
+          "name": "references_graph_functions_skill",
+          "check": "The skill references the optimizely-remko-graph-functions-to-content-js skill for runtime query generation."
+        },
+        {
+          "name": "advises_deleting_patches_apply",
+          "check": "The skill advises DELETING patches:apply scripts and the codegen workflow."
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "I'm switching from opti-graph to optimizely-cms-cli. Do I need to change my environment variables?",
+      "expected_output": "The skill should explain that opti-graph uses GRAPH credentials (OPTIMIZELY_GRAPH_APP_KEY, OPTIMIZELY_GRAPH_SECRET, OPTIMIZELY_GRAPH_SINGLE_KEY, OPTIMIZELY_GRAPH_GATEWAY) while optimizely-cms-cli uses CMS credentials (OPTIMIZELY_CMS_CLIENT_ID, OPTIMIZELY_CMS_CLIENT_SECRET, OPTIMIZELY_CMS_URL, optional OPTIMIZELY_CMS_API_URL). It MUST state that these are DIFFERENT credentials for DIFFERENT services (Graph vs CMS). It should note that GRAPH credentials are STILL NEEDED AT RUNTIME because the runtime Graph client (getClient() from @optimizely/cms-sdk) uses them to fetch content — only the CLI's credentials change.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "explains_graph_vs_cms_creds",
+          "check": "The skill explains that GRAPH credentials (App Key/Secret/Single Key) are different from CMS credentials (Client ID/Secret) and are for different services."
+        },
+        {
+          "name": "lists_both_credential_sets",
+          "check": "The skill lists both GRAPH env vars (OPTIMIZELY_GRAPH_APP_KEY, OPTIMIZELY_GRAPH_SECRET, OPTIMIZELY_GRAPH_SINGLE_KEY, OPTIMIZELY_GRAPH_GATEWAY) and CMS env vars (OPTIMIZELY_CMS_CLIENT_ID, OPTIMIZELY_CMS_CLIENT_SECRET, OPTIMIZELY_CMS_URL, OPTIMIZELY_CMS_API_URL, NODE_TLS_REJECT_UNAUTHORIZED)."
+        },
+        {
+          "name": "notes_graph_creds_still_needed",
+          "check": "The skill notes that GRAPH credentials are still needed at runtime because the runtime Graph client (getClient() from @optimizely/cms-sdk) uses them to fetch content."
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "We have a CI script that runs `opti-graph` with no arguments. What does that do and how do we migrate it?",
+      "expected_output": "The skill should identify that source:list is the DEFAULT command when running bare opti-graph with no args (verified from the yargs $0 registration). It should state that this was listing all Graph content sources. It should advise REMOVING the bare opti-graph invocation (there is no CLI replacement) and recommend managing sources via the Graph/CMS admin UI or Graph Management API if the team still needs to list sources.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "identifies_source_list_as_default",
+          "check": "The skill identifies that source:list is the DEFAULT command when running opti-graph with no args."
+        },
+        {
+          "name": "advises_removing_bare_invocation",
+          "check": "The skill advises REMOVING the bare opti-graph invocation from CI (there is no CLI replacement)."
+        },
+        {
+          "name": "recommends_admin_ui_alternative",
+          "check": "The skill recommends managing sources via the Graph/CMS admin UI or Graph Management API if the team still needs to list sources."
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "I see we have both opti-graph and opti-cms in our project. What's the difference between migrating these two CLIs?",
+      "expected_output": "The skill should explain that opti-graph (Graph CLI, this skill) manages GRAPH infrastructure (webhooks, content sources, site-config generation, GraphQL-codegen patches) while opti-cms (CMS CLI, the optimizely-remko-cms-cli-to-content-js skill) manages CMS operations (content-type sync, scaffolding, styles). It should note that BOTH skills share the same TARGET CLI (optimizely-cms-cli) but the opti-graph migration is MOSTLY honest gaps (almost no commands map) while the opti-cms migration has SOME direct maps (types:push → config push, types:pull → config pull). It should reference the optimizely-remko-cms-cli-to-content-js skill for the CMS CLI migration.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "distinguishes_graph_vs_cms_cli",
+          "check": "The skill distinguishes opti-graph (GRAPH infrastructure) from opti-cms (CMS operations) and explains their different concerns."
+        },
+        {
+          "name": "notes_shared_target_cli",
+          "check": "The skill notes that both skills share the same TARGET CLI (optimizely-cms-cli)."
+        },
+        {
+          "name": "references_cms_cli_skill",
+          "check": "The skill references the optimizely-remko-cms-cli-to-content-js skill for the CMS CLI migration."
+        },
+        {
+          "name": "contrasts_migration_patterns",
+          "check": "The skill contrasts the migration patterns: opti-graph is mostly honest gaps (almost no commands map) while opti-cms has some direct maps (types:push → config push, types:pull → config pull)."
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "I've finished migrating @remkoj/optimizely-graph-cli. Now clean up package.json for me — just uninstall every @remkoj/* package we still have so nothing community is left.",
+      "expected_output": "MUST NOT blindly remove every @remkoj/* package. Three cross-cutting rules apply. (1) Optimizely One carve-out: @remkoj/optimizely-one-nextjs has NO target mapping and is a KNOWN, PERMITTED residual — it must be LEFT INSTALLED, and its presence must NOT be treated as an incomplete migration. The agent must explicitly exclude it from the removal set and explain why. (2) Conditional residual: @remkoj/optimizely-cms-api mostly migrates (management -> @optimizely/cms-cli; published reads -> @optimizely/cms-sdk getClient()), but content write/CRUD, changesets, and runtime OAuth are honest gaps with no official equivalent — so it must be LEFT INSTALLED (or those paths rewritten to raw Integration API REST) IF the project uses any of them, and stripped only after confirming it does not. (3) Removal order: the @remkoj/* packages are interdependent, so the agent must NOT global-delete/uninstall them all at once (that transiently breaks the build). It must follow the staged teardown order (client -> codegen/functions -> content-type registry -> display-template + React registries -> components -> pages/preview -> remove packages) and use the exact `yarn remove` command that omits optimizely-one-nextjs unconditionally and stages optimizely-cms-api conditionally. MUST reference the \"Scope carve-out\", \"Conditional residual\", and \"Removal order\" sections of ../_shared-references/package-and-import-mapping.md. SHOULD NOT emit `yarn remove @remkoj/*` or otherwise strip every @remkoj package indiscriminately.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Preserves Optimizely One carve-out",
+          "check": "Does NOT remove @remkoj/optimizely-one-nextjs; states it is a permitted residual with no target mapping and not a sign of incomplete migration"
+        },
+        {
+          "name": "Handles cms-api as conditional residual",
+          "check": "Does NOT blindly remove @remkoj/optimizely-cms-api; treats it as a conditional residual — kept (or its paths rewritten to raw Integration API REST) if the project uses content write/CRUD, changesets, or runtime OAuth, and stripped only after confirming it does not"
+        },
+        {
+          "name": "Rejects global delete of @remkoj/*",
+          "check": "Does not uninstall all @remkoj/* at once; follows the staged teardown order instead"
+        },
+        {
+          "name": "References removal-order reference",
+          "check": "Points to the Scope carve-out, Conditional residual, and Removal order sections of package-and-import-mapping.md and uses the yarn remove command that omits optimizely-one-nextjs unconditionally and stages optimizely-cms-api conditionally"
+        }
+      ]
+    }
+  ]
+}

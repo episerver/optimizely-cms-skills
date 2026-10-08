@@ -1,0 +1,92 @@
+{
+  "skill_name": "optimizely-cache-strategy",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "We're on Next.js 15 with Optimizely CMS, deployed behind Cloudflare Enterprise. ISR is set up and the Graph publish webhook works - I can see revalidateTag('optimizely:content:...') firing in the logs and the origin returns the new content if I curl it directly. But visitors still get the old page for about an hour after an editor publishes, which is exactly our revalidate interval. I was thinking of having the webhook warm the page first by fetching it, then purging. Can you write the fix?",
+      "expected_output": "Should identify that revalidateTag only clears the Next.js server cache and does nothing to Cloudflare, which keeps serving its copy until s-maxage expires. Should reject the user's proposed warm-then-purge ordering: a fetch of the public hostname before the purge is answered by the unpurged edge and never reaches the origin. Should establish the correct order - clear the Next.js cache first, purge the edge second - and explain that purging first would let the repopulating request refill the edge from the still-stale origin cache. Critically, it should NOT justify that ordering with the false claim that revalidateTag leaves the origin serving stale HTML, and should not add origin-render polling or retry loops to compensate for that non-problem. Should show a concrete Cloudflare purge call wired into the existing webhook, using tag purge with a Cache-Tag header, and should say where that header comes from - a page component cannot set response headers, so it needs middleware or a route handler. Should warn the RSC payload is a separate cache object. Should note Cloudflare does not cache HTML without a Cache Rule. Should give curl verification. Any purge limit it cites must be a real documented figure.",
+      "files": [],
+      "assertions": [
+        "Rejects the user's proposed warm-then-purge ordering, explaining a pre-purge fetch of the public hostname is answered by the unpurged edge and never reaches the origin",
+        "Establishes the correct ordering - clear the Next.js cache first, purge the edge second - and explains the failure mode of the reverse order, without inserting an origin-freshness gate or any extra step justified by the origin being stale after revalidateTag",
+        "Identifies that revalidateTag clears only the Next.js server cache and does nothing to Cloudflare",
+        "Wires the Cloudflare purge into the existing webhook handler rather than proposing a separate process",
+        "Uses tag-based purge driven by a Cache-Tag response header",
+        "States how the Cache-Tag header reaches the HTML response (middleware or a route handler), rather than implying a page component can set response headers",
+        "Warns that the RSC payload is a separate cache object that must also be purged",
+        "Notes Cloudflare does not cache HTML by default and needs a Cache Rule",
+        "Provides curl verification inspecting Age or cf-cache-status",
+        "Does not claim revalidateTag leaves the origin serving stale HTML on the next request, and does not add origin-render polling to compensate for that",
+        "States that the tag written on the response and the tag used in the purge call must come from one shared helper",
+        "Any Cloudflare purge limit it cites matches the documented values (100 operations per request on all plans; 500 URLs per single-file request on Enterprise, 100 on other plans). A fabricated figure such as a 30-item cap fails this assertion even though it is concrete."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Every time marketing launches a campaign our Optimizely site gets slow and our Graph query usage spikes, even though the landing pages barely change. All the campaign traffic comes in on links with utm_source/utm_campaign/gclid on them. Next.js 15 app router, CDN in front.",
+      "expected_output": "Should diagnose tracking parameters fragmenting the CDN cache key so every campaign variant is a cold object - but should attribute that to the slowness, not to the Graph spike. Should be precise about the Graph link rather than hand-waving: an edge miss on an ISR route falls through to the Next.js server cache and need not reach Graph at all, so a Graph spike proportional to traffic points at the route being dynamic (searchParams/headers/cookies read during render) or at a cold/per-instance origin cache, rather than at the cache key. Should give a diagnostic that distinguishes the two causes before prescribing a fix. Should recommend normalizing the cache key to ignore utm_/gclid while explicitly allow-listing _rsc. Should recommend stale-while-revalidate to prevent a stampede on expiry. Should note middleware runs behind the CDN and cannot change the edge cache key. Should not recommend long or infinite origin revalidate intervals without an edge purge path, which trades a Graph spike for permanent staleness.",
+      "files": [],
+      "assertions": [
+        "Attributes the campaign slowdown to tracking parameters fragmenting the CDN cache key, and distinguishes that from the cause of the Graph spike rather than blaming both on the cache key",
+        "States that an edge miss on an ISR route falls through to the Next.js server cache and need not reach Graph at all",
+        "Does not assert anywhere, including in summary or introductory framing, that every edge cache miss produces a Graph query",
+        "Concludes that a Graph spike proportional to traffic points at an origin-side cause (dynamic rendering, or a cold/per-instance origin cache) rather than at the edge cache key alone",
+        "Gives a diagnostic that distinguishes edge cache-key fragmentation from the origin-side cause before prescribing a fix",
+        "Recommends ignoring utm_* and gclid in the cache key while explicitly allow-listing _rsc",
+        "Recommends a stale-while-revalidate window to avoid an origin stampede on expiry",
+        "Notes that middleware runs behind the CDN and cannot influence the edge cache key",
+        "States that revalidateTag / revalidatePath do not purge the CDN",
+        "Does not recommend a long or infinite origin revalidate interval without also establishing an edge purge path"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Setting up caching properly for our Optimizely CMS site behind Fastly. Two things: (1) what Cache-Control should our pages and our /api/navigation route handler actually be sending, and (2) our content editors keep saying they see stale pages in their normal browser but everything is fine in incognito. Can you tell me what headers to set and where?",
+      "expected_output": "Should use Fastly's Surrogate-Control for the edge TTL and Surrogate-Key (space-separated) for tags, NOT CDN-Cache-Control, which Fastly ignores and silently falls back to Cache-Control for. The Surrogate-Control value it prescribes must be well-formed - a single stale-while-revalidate directive, no s-maxage - and must not be built by concatenating the origin's existing Cache-Control, which produces duplicate directives where the first one wins. Should send max-age=0, must-revalidate to the browser, and should explain the browser mechanism correctly: stale-while-revalidate is not shared-cache-only, so a response with no max-age authorises the browser to serve its own stale copy for the SWR window. Should treat the incognito symptom as having more than one candidate layer - the browser HTTP cache and the Next.js Client Router Cache (in-memory, no network request, survives any server-side purge) - and give a concrete way to tell them apart rather than assuming one. Should check the project's actual Next.js version rather than assuming, and prescribe the matching lever while noting the other version's lever would silently do nothing. Should state that Next.js owns Cache-Control on rendered routes rather than it being hand-set in middleware, and should give the emitted stale-while-revalidate as expire minus revalidate. Should show a concrete /api/navigation route handler. Should recommend stale-if-error. Should note that 404s inherit the page TTL at the edge. Any VCL shown must be valid for its subroutine (no beresp in vcl_deliver).",
+      "files": [],
+      "assertions": [
+        "Uses Surrogate-Control as the Fastly edge TTL header",
+        "Explicitly states that Fastly ignores CDN-Cache-Control and falls back to Cache-Control, rather than merely not mentioning it",
+        "Uses Surrogate-Key for tags and states it is space-separated",
+        "The Surrogate-Control value prescribed is well-formed: exactly one stale-while-revalidate directive, no s-maxage, and not constructed by concatenating the origin's existing Cache-Control",
+        "Sends max-age=0 / must-revalidate to the browser and explains browser-cached HTML cannot be purged",
+        "Explains that stale-while-revalidate also applies to the browser's private cache, so a response with no max-age lets the browser serve its own stale copy - rather than attributing browser staleness only to heuristic freshness",
+        "Identifies the Next.js Client Router Cache as a candidate cause of the incognito discrepancy, not only the browser HTTP cache",
+        "Gives a concrete way to tell the Client Router Cache apart from the browser HTTP cache, and the test given actually distinguishes them",
+        "Checks the project's actual Next.js version rather than assuming one",
+        "Prescribes the version-appropriate lever (cacheLife/'use cache' under cacheComponents, route-segment revalidate otherwise) after checking what the project actually uses, and states accurately what would happen if the other lever were used. On a 15.5.4 fixture the accurate statement is that 'use cache' is a build error without the experimental flag - an answer claiming it would silently do nothing or emit unchanged headers fails this assertion.",
+        "States that Next.js sets Cache-Control on rendered routes itself, so any value the project wants must either override it deliberately or be carried on a separate CDN-targeted header",
+        "Gives the stale-while-revalidate = expire - revalidate relationship",
+        "Warns that revalidateTag / revalidatePath do not purge Fastly",
+        "Surrogate-Key values set on responses are generated the same way as the keys used in the purge call, and the answer states this requirement rather than merely being internally consistent",
+        "Keeps _rsc or the rsc header in the Fastly cache key, or otherwise handles the RSC payload as a separate cache object",
+        "Shows a concrete /api/navigation route handler with explicit cache headers",
+        "States that route handlers emit no Cache-Control at all by default, so the CDN applies its own default TTL to them until headers are set explicitly",
+        "Recommends stale-if-error",
+        "Notes that 404 / not-found responses inherit the page TTL at the edge and need a shorter one",
+        "Any VCL shown is valid for its subroutine (no beresp reference inside vcl_deliver)"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Our Optimizely site is on Cloudflare's Pro plan - we don't have Enterprise so no cache tags and no purge-by-tag. A single shared 'promo banner' block is embedded on about 400 pages. When an editor updates that block, what's the right way to get all 400 pages updated at the edge? I'm assuming we have to enumerate all 400 URLs and batch-purge them. Next.js 15, app router, ISR with revalidateTag already working on the origin side.",
+      "expected_output": "The premise is false and correcting it is the whole test. Cloudflare opened purge by tag, prefix and hostname to every plan including Free on 1 April 2025; the user's Pro plan supports Cache-Tag purge, and a great deal of still-circulating advice says otherwise. Should correct the user on this before designing anything, then give the tag-purge solution: set Cache-Tag on responses, purge the shared block's tag on publish, 400 pages clear in one call. Should say where the Cache-Tag header comes from, since a page component cannot set response headers. Should note the Pro rate limit of 5 tag-purge requests per second and the 100-operations-per-request cap, and that the response-side tag and the purge-side tag must come from one shared helper or the purge silently clears nothing. Should mention that tag purge reaches the RSC variant for free because the tag is set on both objects, which is the strongest argument against the URL-enumeration plan the user proposed. Should be explicit that revalidateTag already handles the origin so only the edge is in question, and should keep the Next.js-cache-first, edge-purge-second ordering. Should NOT build the content-key-to-path index and batched URL purge the user asked for, except as a brief aside for genuinely tag-less CDNs, and should NOT fall back to purge_everything as the routine response to one editorial publish.",
+      "files": [],
+      "assertions": [
+        "Corrects the user's false premise: Cloudflare purge-by-tag is available on the Pro plan, not Enterprise-only",
+        "Does NOT accept the plan constraint at face value and design around a limitation that does not exist",
+        "Recommends Cache-Tag purge as the primary solution, clearing all 400 pages in one call",
+        "States how the Cache-Tag header reaches the response (middleware or a route handler), rather than implying a page component can set response headers",
+        "Does NOT make a content-key-to-path index plus batched URL enumeration the primary recommendation",
+        "Does NOT recommend purge_everything as the routine response to a single editorial publish",
+        "States that revalidateTag already handles the origin, so only the edge layer is in question",
+        "Keeps the ordering: clear the Next.js cache first, purge the edge second",
+        "Notes that tag purge covers the RSC payload for free because the tag is set on both objects",
+        "Argues against URL enumeration on the grounds that _rsc values are per-request and cannot be enumerated, rather than only on the grounds that tags are more convenient. Treating _rsc as a build-time constant fails this assertion.",
+        "States that the tag written on the response and the tag used in the purge call must come from one shared helper",
+        "Any Cloudflare purge limit it cites matches the documented values (100 operations per request on all plans; 5 tag-purge requests per second on Pro). A fabricated figure such as a 30-URL cap fails this assertion even though it is concrete.",
+        "Cites no CVE identifier, security advisory, or version-specific vulnerability claim that it did not actually look up during the run"
+      ]
+    }
+  ]
+}

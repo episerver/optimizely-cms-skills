@@ -1,0 +1,23 @@
+{
+  "skill_name": "optimizely-multisite-locale",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "We run three different brand websites (brand-a.com, brand-b.com, brand-c.com) from a single Optimizely CMS instance. All brands share the same CMS but have completely different content. How do I make sure each website only shows its own content when fetching pages?",
+      "expected_output": "Should explain using the host parameter to filter content to a specific domain. Should show setting a default host in config() or on the GraphClient constructor. Should show per-request host override on getContentByPath. Should provide a multi-site pattern showing how to detect the hostname from the incoming request (e.g., via Next.js middleware or headers) and pass it to getContentByPath. Should warn that without host filtering, content from all sites may be returned for matching paths.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Our site supports English, Swedish, and French. I need to build a language switcher and also make sure the navigation menu shows page names in the user's selected language. How do I handle locale-specific content with the Optimizely SDK?",
+      "expected_output": "Should show locale filtering with the locales option on getItems for navigation: client.getItems('/', { locales: ['sv'] }). Should show fetching the same content in different locales using getContent with a GraphReference that includes the locale field. Should provide a language switcher pattern that fetches the same content key in each available locale using Promise.all. Should show a React LanguageSwitcher component with aria-label for accessibility. Should mention getPath also supports the locales option for locale-aware breadcrumbs.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "We want to A/B test different versions of our pricing page. The experiment is already set up in the CMS. How do I fetch the correct variation of the page content using the SDK?",
+      "expected_output": "Should show using the variation option on getContentByPath: client.getContentByPath('/pricing', { variation: { include: 'SOME', value: ['experiment-id'] } }). Should explain the variation options: include set to 'SOME' and value as an array of experiment/variation IDs. Should show a pattern for integrating with feature flags or experiment SDKs to determine which experiments are active for the current user. Should mention that variation only applies to getContentByPath.",
+      "files": []
+    }
+  ]
+}

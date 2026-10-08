@@ -1,0 +1,137 @@
+{
+  "skill_name": "optimizely-display-templates",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I want editors to choose between card and list views for my Article type. The card view should have a setting to pick a background color (white, gray, or blue) and the list view should have a toggle to show or hide the publish date. We already have an Article content type defined. Can you create the display templates and set up the variant components?",
+      "expected_output": "Should create two display template definitions using displayTemplate() from '@optimizely/cms-sdk'. First template: key like 'ArticleCardTemplate', contentType: 'Article', tag: 'ArticleCard', isDefault: false, settings with a color setting using editor: 'select' with choices for white, gray, blue each having displayName and sortOrder. Second template: key like 'ArticleListTemplate', contentType: 'Article', tag: 'ArticleList', isDefault: false, settings with a showDate setting using editor: 'checkbox' with choices for true/false. Should create variant React components (ArticleCard and ArticleList) that accept displaySettings typed as ContentProps<typeof DisplayTemplate> and access settings with optional chaining (displaySettings?.color, displaySettings?.showDate). Should register both templates in initDisplayTemplateRegistry. Should register variant components in initReactComponentRegistry using tags object pattern: Article: { default: Article, tags: { ArticleCard: ArticleCard, ArticleList: ArticleList } }. Tag keys MUST match the tag values in the display template definitions. Should remind about config push.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Imports displayTemplate from @optimizely/cms-sdk",
+          "check": "File contains: import { displayTemplate } from '@optimizely/cms-sdk' or similar combined import"
+        },
+        {
+          "name": "Creates card display template with tag",
+          "check": "Contains displayTemplate() call with contentType: 'Article', tag matching a card variant name, and settings with color using editor: 'select'"
+        },
+        {
+          "name": "Creates list display template with tag",
+          "check": "Contains displayTemplate() call with contentType: 'Article', tag matching a list variant name, and settings with showDate using editor: 'checkbox'"
+        },
+        {
+          "name": "Select editor has choices with displayName and sortOrder",
+          "check": "Color setting choices include keys like white/gray/blue each with displayName and sortOrder"
+        },
+        {
+          "name": "Checkbox editor has true/false choices",
+          "check": "showDate setting has choices with true and false keys, each with displayName and sortOrder"
+        },
+        {
+          "name": "Variant components accept displaySettings prop",
+          "check": "Variant component props include displaySettings?: ContentProps<typeof SomeDisplayTemplate>"
+        },
+        {
+          "name": "Settings accessed with optional chaining",
+          "check": "Component code uses displaySettings?.color or displaySettings?.showDate"
+        },
+        {
+          "name": "Tags object keys match display template tag values",
+          "check": "initReactComponentRegistry tags object keys exactly match the tag field values from the display template definitions"
+        },
+        {
+          "name": "Both templates registered in initDisplayTemplateRegistry",
+          "check": "initDisplayTemplateRegistry array includes both card and list display template objects"
+        },
+        {
+          "name": "Mentions config push command",
+          "check": "Response mentions 'config push' or 'npx @optimizely/cms-cli'"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "How do I add a color picker setting to a display template? I want editors to choose between red, green, blue, and purple for a component's accent color. The template should apply to my Banner content type.",
+      "expected_output": "Should create a display template using displayTemplate() with contentType: 'Banner', isDefault: false, and a settings object containing a color setting with editor: 'select', displayName like 'Accent Color', sortOrder, and choices object with keys red, green, blue, purple each having displayName and sortOrder. Should explain that the select editor creates a dropdown for single selection. Should show how to access the setting value in a React component using displaySettings?.color with ContentProps<typeof BannerColorTemplate> typing. Should mention that the returned value is the choice key string (e.g., 'red', 'blue'). Should remind about config push.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Uses editor: 'select' for color choices",
+          "check": "Settings contain a color-related setting with editor: 'select'"
+        },
+        {
+          "name": "Includes all four color choices",
+          "check": "Choices object includes keys for red, green, blue, and purple"
+        },
+        {
+          "name": "Each choice has displayName and sortOrder",
+          "check": "Every choice entry has both displayName and sortOrder fields"
+        },
+        {
+          "name": "Targets Banner content type",
+          "check": "Display template includes contentType: 'Banner'"
+        },
+        {
+          "name": "Shows how to access setting in component",
+          "check": "Demonstrates displaySettings?.color or similar optional chaining access pattern"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I need a display template for rows with padding options. Editors should be able to choose none, small, medium, or large padding for any row in the visual builder. Can you create this?",
+      "expected_output": "Should create a display template using displayTemplate() with nodeType: 'row' (NOT contentType or baseType), isDefault: false, key and displayName describing padded row, and settings with a padding setting using editor: 'select'. The padding setting should have choices for none, small, medium, large each with displayName and sortOrder. Should explain that nodeType: 'row' applies to structural row nodes in the visual builder. Should register in initDisplayTemplateRegistry. Should remind about config push.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Uses nodeType: 'row'",
+          "check": "Display template definition includes nodeType: 'row'"
+        },
+        {
+          "name": "Does NOT use contentType or baseType",
+          "check": "Display template does NOT include contentType or baseType fields"
+        },
+        {
+          "name": "Padding setting uses select editor",
+          "check": "Settings contain a padding setting with editor: 'select'"
+        },
+        {
+          "name": "Includes all four padding choices",
+          "check": "Choices include none, small, medium, and large options"
+        },
+        {
+          "name": "Registered in initDisplayTemplateRegistry",
+          "check": "Template added to initDisplayTemplateRegistry array"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "How do I register a display template variant component? I have a SquareDisplayTemplate with tag: 'Square' and I need to register the SquareTile React component so it renders when that template is selected. The content type is Tile.",
+      "expected_output": "Should show two registration steps. First: register the template in initDisplayTemplateRegistry([SquareDisplayTemplate]). Second: register the variant component in initReactComponentRegistry using the tags object pattern: resolver: { Tile: { default: Tile, tags: { Square: SquareTile } } }. CRITICAL: the key 'Square' in the tags object MUST match the tag: 'Square' from SquareDisplayTemplate. Should import initDisplayTemplateRegistry from '@optimizely/cms-sdk' and initReactComponentRegistry from '@optimizely/cms-sdk/react/server'. Should explain that the default property holds the base component and tags holds variant components keyed by their display template tag values. Should warn that mismatched tag values cause the variant to never render.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Registers template in initDisplayTemplateRegistry",
+          "check": "Shows initDisplayTemplateRegistry([SquareDisplayTemplate]) or similar"
+        },
+        {
+          "name": "Uses tags object pattern in initReactComponentRegistry",
+          "check": "Shows Tile: { default: Tile, tags: { Square: SquareTile } } pattern"
+        },
+        {
+          "name": "Tag key 'Square' matches display template tag value",
+          "check": "The key in the tags object is 'Square' matching tag: 'Square' from the display template"
+        },
+        {
+          "name": "Imports from correct packages",
+          "check": "initDisplayTemplateRegistry from '@optimizely/cms-sdk' and initReactComponentRegistry from '@optimizely/cms-sdk/react/server'"
+        },
+        {
+          "name": "Explains tag matching requirement",
+          "check": "Response explains that the tag key must match the display template's tag field value"
+        }
+      ]
+    }
+  ]
+}

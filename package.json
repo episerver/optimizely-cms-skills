@@ -1,0 +1,16 @@
+{
+  "name": "optimizely-cms-skills",
+  "version": "0.2.1",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "update-deps": "node scripts/update-skill-deps.js",
+    "affected-evals": "node scripts/run-skill-evals.js",
+    "validate": "node scripts/validate-skills.js",
+    "evaluate": "node scripts/evaluate-skills.js"
+  },
+  "devDependencies": {}
+}

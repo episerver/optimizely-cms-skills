@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Skill Dependencies Manifest",
+  "description": "Tracks the dependency graph for Optimizely CMS skills",
+  "type": "object",
+  "required": ["version", "generated", "skills"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference for editor validation"
+    },
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version"
+    },
+    "generated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when this manifest was generated"
+    },
+    "skills": {
+      "type": "object",
+      "description": "Map of skill name to its metadata",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["path", "dependencies"],
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Relative path to the skill directory from repo root",
+            "pattern": "^\\.\/skills\\/"
+          },
+          "dependencies": {
+            "type": "array",
+            "description": "Skill names this skill depends on",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          }
+        }
+      }
+    }
+  }
+}

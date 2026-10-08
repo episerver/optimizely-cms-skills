@@ -1,0 +1,23 @@
+{
+  "skill_name": "optimizely-dam-assets",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "How do I render responsive images from the CMS? I have a Hero component with a heroImage content reference and I want it to load different sizes on mobile vs desktop. We're using the Optimizely SDK with plain HTML img tags, not Next.js Image.",
+      "expected_output": "Should show importing damAssets from '@optimizely/cms-sdk' and getPreviewUtils from '@optimizely/cms-sdk/react/server'. Should demonstrate calling damAssets(content) to get getSrcset and getAlt helpers. Should use src() from getPreviewUtils to get the image URL. Should render an <img> tag with src from src(content.heroImage), srcSet from getSrcset(content.heroImage), a sizes attribute with responsive breakpoints like '(max-width: 768px) 100vw, 50vw', and alt from getAlt(content.heroImage, 'fallback text'). Should include null checks: content.heroImage && imageUrl before rendering.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "My content can have images, videos, or files in the same media property. How do I handle rendering different types of DAM assets? I need to show an img for images, a video player for videos, and a download link for files.",
+      "expected_output": "Should demonstrate using type guards from damAssets(content): isDamImageAsset, isDamVideoAsset, and isDamRawFileAsset. Should show conditional rendering with each type guard checking the content reference. For images: render <img> with src, srcSet from getSrcset, and alt from getAlt. For videos: render <video> with controls and a <source> element. For files: render an <a> tag with download attribute. Should mention that type guards provide TypeScript narrowing, unlocking type-specific properties (Renditions, AltText, Width, Height for images; Url, Title, MimeType for files). Should also mention getDamAssetType() as an alternative for switch-case patterns.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Next.js Image component won't load my DAM images. I'm getting an error about invalid src prop or the images just show broken. I'm using the Optimizely SDK with damAssets and src() to get the URL, and it works fine with plain <img> tags but not with Next.js <Image>.",
+      "expected_output": "Should explain that Next.js blocks external images by default and you need to add the DAM hostname to remotePatterns in next.config.ts. Should show the configuration with images.remotePatterns including { protocol: 'https', hostname: '*.cms.optimizely.com' } and { protocol: 'https', hostname: '*.cg.optimizely.com' }. Should mention that the hostname must match the actual DAM URL and can be checked in the browser console. Should note that the dev server must be restarted after changing next.config.ts. Should provide a working Next.js Image example: <Image src={imageUrl} alt={getAlt(content.image)} width={400} height={300} />.",
+      "files": []
+    }
+  ]
+}

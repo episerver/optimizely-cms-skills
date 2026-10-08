@@ -1,0 +1,23 @@
+{
+  "skill_name": "optimizely-project-scaffold",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I want to start a new Optimizely project from scratch. I'm familiar with Next.js and want to get up and running quickly with some example content types to learn from. What's the fastest way to get started?",
+      "expected_output": "Should recommend using npx @optimizely/cms-create-app and selecting Template mode. Should suggest the nextjs-starter template for a minimal learning setup, or nextjs-stride/nextjs-alloy for more comprehensive examples. Should explain the interactive wizard flow: choose template, enter project name, select package manager. Should mention post-scaffolding steps: create .env with CMS credentials, run config push, create content in CMS, then start dev server.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "I have an existing Next.js app that's been running for a while and now we want to add Optimizely CMS as our content management system. I don't want to recreate the whole project. How can I add Optimizely without breaking what we already have?",
+      "expected_output": "Should recommend Scaffold mode: navigate to the existing project directory, run npx @optimizely/cms-create-app, and select 'Add to existing project'. Should explain what scaffold mode does: installs SDK packages, creates optimizely.config.mjs, creates catch-all route. Should emphasize it does NOT overwrite existing files. Should mention post-scaffolding steps: configure .env, push content types, create content in CMS.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "What starter templates are available for Optimizely CMS? I need to decide between them for a new marketing site project.",
+      "expected_output": "Should list all four templates with descriptions: nextjs-starter (minimal Next.js + SDK), nextjs-stride (full-featured demo with Tailwind), nextjs-alloy (full-featured demo with Tailwind and comprehensive examples), tanstack-starter (TanStack Start + SDK). Should provide guidance on choosing: nextjs-starter for learning, nextjs-stride or nextjs-alloy for production marketing sites, tanstack-starter for TanStack Start projects. Should explain how to run the scaffolding tool: npx @optimizely/cms-create-app.",
+      "files": []
+    }
+  ]
+}

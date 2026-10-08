@@ -1,0 +1,121 @@
+{
+  "skill_name": "optimizely-cms12-to-13-assessment",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Can you analyze my CMS 12 project and tell me what it would take to migrate to CMS 13? I use Dynamic Properties extensively and have several custom PlugIn attributes for scheduled jobs.",
+      "expected_output": "Should perform a pre-migration assessment without making changes. MUST identify Dynamic Properties as completely removed in CMS 13 with no direct replacement, requiring redesign using regular content properties or settings content types. MUST identify the PlugIn system as removed, with ScheduledPlugInAttribute now requiring ScheduledJobBase inheritance and ScheduledJobAttribute. MUST categorize this migration as Code: Significant due to removed feature usage. SHOULD list detection patterns for finding all affected code. SHOULD recommend alternatives for each removed feature. SHOULD NOT start making migration changes — assessment only.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Assessment only, no changes",
+          "check": "Reports findings without modifying code"
+        },
+        {
+          "name": "Identifies significant effort",
+          "check": "Categorizes Code impact as Significant due to removed features"
+        },
+        {
+          "name": "Covers both removed features",
+          "check": "Addresses Dynamic Properties removal AND PlugIn system removal"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I have a simple CMS 12 blog with standard page types and no custom plugins or dynamic properties. How hard would it be to migrate to CMS 13?",
+      "expected_output": "Should perform a pre-migration assessment and categorize as Code: Minimal. MUST explain that without removed features or complex customizations, the migration involves: updating .NET runtime to 10.0, updating NuGet packages, and minor namespace/API changes. SHOULD mention the service registration namespace change as a required code change. SHOULD mention checking for PageReference usage. SHOULD NOT overwhelm with the full 60+ breaking changes list — focus on what actually applies to a simple project. SHOULD recommend the optimizely-cms12-to-13 skill as the next step.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies minimal effort",
+          "check": "Categorizes Code impact as Minimal"
+        },
+        {
+          "name": "Focuses on applicable changes",
+          "check": "Does not list removed feature warnings for features not in use"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I have a CMS 12 project using Optimizely Graph to serve content to a Next.js frontend. What would it take to migrate to CMS 13?",
+      "expected_output": "Should perform a pre-migration assessment. MUST identify Frontend: Present due to Optimizely Graph packages. MUST recommend the side-by-side approach (migrate on branch, deploy to staging, validate frontend schema, cut over). MUST mention schema-breaking changes (content type name validation, property name corrections, ContentArea restructuring). MUST list the specific packages that triggered the classification. SHOULD mention that the migration skill includes Graph/Headless Frontend Validation as part of the migration sequence. SHOULD NOT start making changes.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies Frontend: Present",
+          "check": "Assessment classifies Frontend as Present due to Graph packages"
+        },
+        {
+          "name": "Recommends side-by-side approach",
+          "check": "Recommends branch-based migration with staging validation before cutover"
+        },
+        {
+          "name": "Mentions schema-breaking changes",
+          "check": "Explains that GraphQL schema changes will break live frontends"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "My CMS 12 project uses EPiServer.ContentDeliveryApi to serve a React frontend. Can I do an in-place upgrade to CMS 13?",
+      "expected_output": "Should identify Content Delivery API as incompatible with CMS 13. MUST classify Frontend: Present. MUST recommend the side-by-side approach. MUST mention that Content Delivery API has no CMS 13 version and must be replaced with Optimizely Graph. SHOULD recommend installing Optimizely.Graph.Cms packages as replacement. SHOULD NOT suggest an in-place upgrade is safe for headless frontends.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies Content Delivery API incompatibility",
+          "check": "States ContentDeliveryApi has no CMS 13 version"
+        },
+        {
+          "name": "Classifies Frontend: Present",
+          "check": "Assessment shows Frontend: Present"
+        },
+        {
+          "name": "Recommends side-by-side approach",
+          "check": "Recommends staged migration with frontend validation"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "My CMS 12 project uses both EPiServer.Find and EPiServer.ContentDeliveryApi. How should I approach CMS 13 migration?",
+      "expected_output": "Should identify both Find and Content Delivery API packages. MUST classify Frontend: Present. MUST provide explicit sequencing: (1) remove Find during code migration, (2) complete CMS 13 upgrade, (3) validate frontend schema, (4) add Graph via the find-to-graph skill post-migration. MUST mention the side-by-side approach for frontend validation. SHOULD reference the optimizely-find-to-graph skill. SHOULD NOT suggest migrating to Graph before completing the CMS 13 upgrade.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Detects both packages",
+          "check": "Identifies both EPiServer.Find and ContentDeliveryApi"
+        },
+        {
+          "name": "Provides correct sequencing",
+          "check": "Sequences Find removal before CMS 13 upgrade, Graph addition after"
+        },
+        {
+          "name": "Mentions find-to-graph skill",
+          "check": "References optimizely-find-to-graph skill for Graph migration"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "I have a simple CMS 12 project with server-rendered Razor views, no headless frontend. Do I need to worry about Graph schema changes?",
+      "expected_output": "Should classify Frontend: None. MUST confirm the standard in-place migration path applies. MUST NOT mention the side-by-side approach. MUST NOT show Graph/headless validation guidance. SHOULD reassure the developer that Graph schema changes are not relevant to server-rendered projects. SHOULD recommend the optimizely-cms12-to-13 skill as the next step.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Classifies Frontend: None",
+          "check": "Assessment shows Frontend: None"
+        },
+        {
+          "name": "Confirms in-place path",
+          "check": "Confirms standard migration applies without side-by-side"
+        },
+        {
+          "name": "Skips irrelevant guidance",
+          "check": "Does not mention Graph schema validation or side-by-side approach"
+        }
+      ]
+    }
+  ]
+}

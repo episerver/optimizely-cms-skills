@@ -1,0 +1,97 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 0.1.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate version format
+        id: version
+        run: |
+          bash scripts/ci/validate-version.sh "${{ inputs.version }}"
+          if echo "${{ inputs.version }}" | grep -qE '-'; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Enforce version consistency
+        run: |
+          VERSION="${{ inputs.version }}"
+          PKG_VERSION=$(node -e "console.log(JSON.parse(require('fs').readFileSync('package.json','utf-8')).version)")
+          PLUGIN_VERSION=$(node -e "console.log(JSON.parse(require('fs').readFileSync('.claude-plugin/plugin.json','utf-8')).version)")
+          ERRORS=""
+          if [ "$PKG_VERSION" != "$VERSION" ]; then
+            ERRORS="${ERRORS}package.json has version $PKG_VERSION, expected $VERSION\n"
+          fi
+          if [ "$PLUGIN_VERSION" != "$VERSION" ]; then
+            ERRORS="${ERRORS}plugin.json has version $PLUGIN_VERSION, expected $VERSION\n"
+          fi
+          if [ -n "$ERRORS" ]; then
+            echo "::error::Version mismatch. Update the version in a PR first:"
+            echo -e "$ERRORS"
+            exit 1
+          fi
+          echo "Version $VERSION confirmed in package.json and plugin.json"
+
+      - name: Check for existing tag
+        run: |
+          if git rev-parse "v${{ inputs.version }}" >/dev/null 2>&1; then
+            echo "::error::Tag v${{ inputs.version }} already exists"
+            exit 1
+          fi
+
+      - name: Create version tag
+        run: git tag "v${{ inputs.version }}"
+
+      - name: Move latest tag
+        if: steps.version.outputs.prerelease == 'false'
+        run: git tag -f latest
+
+      - name: Push tags
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+          if [ "${{ steps.version.outputs.prerelease }}" = "false" ]; then
+            git push origin --delete latest 2>/dev/null || true
+          fi
+          git push origin "v${{ inputs.version }}"
+          if [ "${{ steps.version.outputs.prerelease }}" = "false" ]; then
+            git push origin latest
+          fi
+
+      - name: Create draft GitHub Release
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const version = '${{ inputs.version }}';
+            const isPrerelease = version.includes('-');
+
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: `v${version}`,
+              name: `v${version}`,
+              draft: true,
+              prerelease: isPrerelease,
+              generate_release_notes: true,
+            });
+
+            core.notice(`Draft release v${version} created. Edit and publish when ready.`);

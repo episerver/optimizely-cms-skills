@@ -1,0 +1,189 @@
+{
+  "skill_name": "optimizely-find-to-graph",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I'm migrating my CMS 12 project to CMS 13 and I have a bunch of EPiServer.Find queries throughout the codebase. Can you help me migrate them to the Graph SDK?",
+      "expected_output": "Should follow the 10-step migration workflow: Step 1 detect Find usage (scan for EPiServer.Find references, IClient, .Search<T>()), Step 2 add Graph SDK packages (Optimizely.Graph.Cms and Optimizely.Graph.Cms.Query), Step 3 register Graph services (AddContentGraph and AddGraphContentClient plus appsettings.json config), Step 4 migrate search queries (IClient.Search<T>() to IGraphContentClient.QueryContent<T>(), .For() to .SearchFor()), Step 5 migrate filter expressions (.Filter() to .Where() with LINQ lambdas), Step 6 migrate faceting (.TermsFacetFor() to .Facet()), Step 7 migrate pagination and sorting (.Take() to .Limit(), .OrderBy() with OrderDirection), Step 8 migrate result handling (.GetContentResult() to await .GetAsContentAsync(), sync to async), Step 9 remove Find packages, Step 10 verify migration with dotnet build. MUST mention that Graph SDK is async-only. MUST include the CRITICAL note about missing AddContentGraph() causing silent empty results. MUST NOT skip the verification step.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Follows 10-step workflow",
+          "check": "Output includes all 10 steps covering detection through verification"
+        },
+        {
+          "name": "Includes DI registration",
+          "check": "Mentions AddContentGraph() and AddGraphContentClient() as required registrations"
+        },
+        {
+          "name": "Covers async migration",
+          "check": "Explains that Graph SDK is async-only and methods require await"
+        },
+        {
+          "name": "Includes build verification",
+          "check": "Ends with dotnet build check and runtime smoke test"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "How do I replace MatchContained from Find in Graph SDK? I use it to filter on properties of items in a collection.",
+      "expected_output": "MUST explain that MatchContained has no direct method equivalent in Graph SDK. MUST explain the workaround: use .Where() with LINQ lambda expressions that navigate through nested properties. MUST provide a before/after code example showing Find's .MatchContained() and Graph SDK's .Where() with nested property access. SHOULD reference the find-to-graph-mapping.md reference for additional filter migration details. SHOULD NOT dump the entire 10-step migration workflow — stay focused on this specific method.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies correct mapping",
+          "check": "Explains MatchContained maps to Where with nested property navigation"
+        },
+        {
+          "name": "Provides code example",
+          "check": "Shows before/after code for MatchContained to Where migration"
+        },
+        {
+          "name": "Stays focused",
+          "check": "Answers the specific question without dumping the entire migration guide"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I replaced Find with Graph SDK but my queries aren't returning any results. The code compiles fine but searches always come back empty.",
+      "expected_output": "MUST check for missing AddContentGraph() and AddGraphContentClient() service registration as the most likely cause — these are required and missing either one causes silent empty results. MUST check for missing appsettings.json configuration under the Optimizely:ContentGraph section (GatewayAddress, AppKey, Secret, SingleKey). SHOULD check that the developer is awaiting async calls (forgetting await returns a Task, not results). SHOULD provide the correct service registration code. SHOULD NOT suggest reinstalling EPiServer.Find as a fix.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies registration as likely cause",
+          "check": "Mentions missing AddContentGraph() or AddGraphContentClient() as the primary suspect"
+        },
+        {
+          "name": "Checks configuration",
+          "check": "Mentions checking appsettings.json for Optimizely:ContentGraph section"
+        },
+        {
+          "name": "Provides registration code",
+          "check": "Shows the correct services.AddContentGraph() and services.AddGraphContentClient() calls"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "My Find queries use FilterHits to filter results without affecting facet counts. How do I do this in Graph SDK?",
+      "expected_output": "MUST explain that Graph SDK has no direct FilterHits equivalent. MUST explain that in Graph SDK, .Where() always affects both results AND facet counts — there is no way to filter results independently of facets in a single query. MUST suggest using separate queries as the workaround: one query with .Where() for filtered results, and another query without the filter to get unfiltered facet counts. SHOULD NOT claim that a direct equivalent exists or suggest using a method that mimics FilterHits behavior.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies capability gap",
+          "check": "Clearly states FilterHits has no direct Graph SDK equivalent"
+        },
+        {
+          "name": "Explains behavior difference",
+          "check": "Explains that Graph Where affects both results and facets"
+        },
+        {
+          "name": "Provides workaround",
+          "check": "Suggests using separate queries for filtered results and unfiltered facets"
+        },
+        {
+          "name": "Honest about limitation",
+          "check": "Does not claim a direct equivalent exists"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "After migrating from Find to Graph SDK, I'm getting CS0266 errors like 'Cannot implicitly convert type ISearchFieldContentQuery to ISearchableContentQuery'. My code assigns the query to a variable and adds methods conditionally.",
+      "expected_output": "MUST identify this as the query chain type difference between Find and Graph SDK. MUST explain that in Find, every chained method returns the same type (ITypeSearch<T>), but in Graph SDK each method returns a different interface type (ISearchableContentQuery, ISearchFieldContentQuery, IContentQuery). MUST provide the fix: declare the variable as IContentQuery<T> and chain .SearchFor() in the initializer. SHOULD show before/after code demonstrating the pattern. SHOULD NOT suggest downgrading packages or using dynamic types.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies query chain type issue",
+          "check": "Explains that Graph SDK returns different interface types at each chain stage"
+        },
+        {
+          "name": "Provides correct fix",
+          "check": "Shows using IContentQuery<T> as the declared variable type"
+        },
+        {
+          "name": "Shows before/after code",
+          "check": "Demonstrates both the broken pattern and the fixed pattern"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "I'm trying to install Optimizely.Graph.Cms.Query but I get error NU1107 saying the package version is incompatible. My CMS is version 13.0.0 but I installed Graph.Cms.Query version 13.2.0.",
+      "expected_output": "MUST explain that Optimizely.Graph.Cms.Query version must exactly match the CMS version. MUST explain that version 13.2.0 with CMS 13.0.0 causes NU1107 dependency resolution failures. MUST recommend checking the installed CMS version first (grep EPiServer.CMS in .csproj) and then installing the matching Graph version. SHOULD NOT suggest downgrading CMS or using a different package.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies version mismatch",
+          "check": "Explains that Graph.Cms.Query version must match CMS version exactly"
+        },
+        {
+          "name": "Provides resolution",
+          "check": "Recommends checking CMS version and installing matching Graph version"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "My Find code uses SearchClient.Instance throughout several helper classes and scheduled jobs that don't use dependency injection. How do I migrate these to Graph SDK?",
+      "expected_output": "MUST explain that SearchClient.Instance static singleton does not exist in Graph SDK. MUST explain that IGraphContentClient requires constructor injection via DI. MUST provide guidance on introducing DI: add constructor parameters, add private readonly fields, replace all SearchClient.Instance calls with the injected field. SHOULD mention that scheduled jobs in CMS 13 support constructor injection. SHOULD mention that non-DI contexts require architectural changes to accept the client as a parameter. SHOULD NOT suggest creating a static wrapper or service locator as a replacement.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies static singleton removal",
+          "check": "Explains SearchClient.Instance does not exist in Graph SDK"
+        },
+        {
+          "name": "Provides DI migration path",
+          "check": "Shows how to introduce constructor injection for IGraphContentClient"
+        },
+        {
+          "name": "No anti-patterns",
+          "check": "Does not suggest static wrappers or service locator as replacements"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "I have a generic search service with 'where T : IContentData' constraint. After migrating to Graph SDK, I get CS0311 saying T cannot be used as type parameter. What's wrong?",
+      "expected_output": "MUST explain that Graph SDK's IContentQuery<T> requires T : class constraint. MUST explain that IContentData is an interface, so the class constraint must be added explicitly. MUST provide the fix: change 'where T : IContentData' to 'where T : class, IContentData'. MUST warn NOT to add class before concrete types like PageData (causes CS0450). SHOULD show before/after code for the generic constraint change.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies class constraint requirement",
+          "check": "Explains Graph SDK requires T : class and IContentData alone is insufficient"
+        },
+        {
+          "name": "Provides correct fix",
+          "check": "Shows adding class to constraint: where T : class, IContentData"
+        },
+        {
+          "name": "Warns about CS0450",
+          "check": "Warns not to add class before concrete types like PageData"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "My Find code uses .Select(x => new { x.Title, x.StartPublish }) to project search results. How do I do projections in Graph SDK?",
+      "expected_output": "MUST explain that .Select() with anonymous types is replaced by .Fields<TProjection>(). MUST explain that TProjection must be a POCO class, not an anonymous type. MUST explain that TProjection must NOT implement IContentData. MUST warn that .Fields() cannot be combined with .GetAsContentAsync() — use .GetAsync() instead. SHOULD provide a before/after code example showing the Find .Select() and Graph SDK .Fields<TProjection>() patterns.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies Fields as replacement",
+          "check": "Explains .Select() maps to .Fields<TProjection>()"
+        },
+        {
+          "name": "POCO requirement",
+          "check": "States TProjection must be a POCO, not IContentData"
+        },
+        {
+          "name": "GetAsync requirement",
+          "check": "Warns to use GetAsync not GetAsContentAsync with projections"
+        }
+      ]
+    }
+  ]
+}

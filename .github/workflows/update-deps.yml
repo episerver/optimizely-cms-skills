@@ -1,0 +1,52 @@
+name: Update Skill Dependencies
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to update
+        required: true
+        type: number
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-deps:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get PR branch
+        id: pr
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_DATA=$(gh api repos/${{ github.repository }}/pulls/${{ inputs.pr_number }} --jq '{head_ref: .head.ref, head_sha: .head.sha}')
+          echo "branch=$(echo "$PR_DATA" | jq -r '.head_ref')" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.pr.outputs.branch }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Register new skills
+        run: node scripts/ci/register-skills.js
+
+      - name: Update skill dependencies
+        run: node scripts/update-skill-deps.js --scan-deps
+
+      - name: Commit and push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git add .claude-plugin/plugin.json skill-deps.json
+          git diff --staged --quiet && echo "Already up to date" && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: update skill registry and dependencies"
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git"
+          git push

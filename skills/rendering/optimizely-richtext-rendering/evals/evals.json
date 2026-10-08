@@ -1,0 +1,29 @@
+{
+  "skill_name": "optimizely-richtext-rendering",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "How do I render rich text from my content type? I have an Article with a body property that's richText type. I just want to display it on the page. Using Next.js 14 with the Optimizely SDK.",
+      "expected_output": "Should show importing RichText from '@optimizely/cms-sdk/react/richText'. Should demonstrate basic usage: <RichText content={content.body?.json} /> passing the .json property of the rich text field. Should wrap in a container with preview attributes using pa('body'). Should explain that .json is the structured representation used by the RichText component, not .html. Should show the complete component pattern with ContentProps typing, getPreviewUtils, and the RichText component inside a wrapper div.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "I want custom styled headings in my rich text. Our design system has specific typography classes for h1 through h3, and I want all headings in rich text content to use those classes instead of the default plain headings. Can the RichText component handle this?",
+      "expected_output": "Should demonstrate the elements prop on the RichText component with custom heading renderers. Should show overriding 'heading-one', 'heading-two', and 'heading-three' element types. Each custom renderer should receive props and render the appropriate heading element with custom className. Should use props.children for the heading content. Example: elements={{ 'heading-one': (props) => <h1 className=\"custom-class\">{props.children}</h1> }}. Should explain that all block-level elements can be overridden via the elements prop and list common available types.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "How do I show code blocks properly in rich text? We have a documentation site and the code snippets in our rich text look broken - HTML entities like &lt; are being decoded into actual angle brackets which messes up the display. Also the code blocks have no styling at all.",
+      "expected_output": "Should explain the decodeHtmlEntities prop and recommend setting it to false for documentation content. Should show custom pre and code element overrides in the elements prop with appropriate styling (background color, monospace font, padding, overflow handling). Should demonstrate: <RichText content={content.body?.json} decodeHtmlEntities={false} elements={{ pre: (props) => <pre className=\"code-block\">{props.children}</pre>, code: (props) => <code className=\"inline-code\">{props.children}</code> }} />. Should explain that decodeHtmlEntities defaults to true which converts entities like &lt; to <, and setting it to false preserves them.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "Some elements in my rich text aren't rendering at all. I'm using the RichText component and most content shows up fine but certain elements just disappear or show as plain text without any formatting. What's going on?",
+      "expected_output": "Should explain the fallback behavior: unknown or unrecognized element types render as <span> by default, which is a safe fallback but may appear as unstyled plain text. Should recommend checking the rich text JSON data to identify the element type names that are not rendering correctly. Should show how to add custom element handlers for those specific types using the elements prop. Should mention that content from the Integration API may contain unexpected element types since it bypasses editor validation. Should list the available element types (heading-one through heading-six, paragraph, quote, bulleted-list, numbered-list, link, table elements, code, pre, etc.) so the user can identify what they need to handle.",
+      "files": []
+    }
+  ]
+}

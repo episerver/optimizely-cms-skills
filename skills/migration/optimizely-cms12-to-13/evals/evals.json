@@ -1,0 +1,185 @@
+{
+  "skill_name": "optimizely-cms12-to-13",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I have an Optimizely CMS 12 project running on .NET 8. Help me migrate to CMS 13.",
+      "expected_output": "Should follow the 11-step migration workflow: Step 1 fix obsolete API warnings (build CMS 12 project and resolve all CS0612/CS0618 warnings while replacements are still available), Step 2 upgrade .NET runtime to 10.0, Step 3 update NuGet packages, Step 4 handle third-party packages (remove incompatible, upgrade compatible), Step 5 fix breaking API changes (PageReference to ContentReference, ServiceLocator removal, IConfigurableModule removal, etc.), Step 6 handle removed features, Step 7 update service registration namespace, Step 8 update configuration (UI URL, HTML parsing, routing), Step 9 JS/TS SDK updates if applicable, Step 10 Graph/Headless Frontend Validation if Frontend Impact is Present (schema diff, frontend query audit, staged verification), Step 11 verify migration with dotnet build and runtime smoke test. MUST NOT skip the verification step. MUST mention the service registration namespace change from Microsoft.Extensions.DependencyInjection to EPiServer.DependencyInjection.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Follows 11-step workflow",
+          "check": "Output includes all 11 steps in sequential order"
+        },
+        {
+          "name": "Includes .NET 10 upgrade",
+          "check": "Mentions updating TargetFramework to net10.0 and global.json"
+        },
+        {
+          "name": "Includes verification step",
+          "check": "Ends with dotnet build check and runtime smoke test"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "After upgrading to CMS 13, I get a compilation error saying PageReference type doesn't exist. How do I fix this?",
+      "expected_output": "Should identify this as the PageReference to ContentReference breaking change in CMS 13. MUST provide before/after code showing PageReference replaced with ContentReference. MUST mention that PageData.ContentLink, ParentLink, and ArchiveLink now return ContentReference instead of PageReference. MUST mention that ContentReference.StartPage, RootPage, and WasteBasket replaced the PageReference equivalents. Should suggest using find-and-replace across the codebase. SHOULD reference the breaking-changes-dotnet.md reference file for the complete list.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies correct breaking change",
+          "check": "Mentions PageReference to ContentReference migration"
+        },
+        {
+          "name": "Provides before/after code",
+          "check": "Shows CMS 12 code with PageReference and CMS 13 code with ContentReference"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I upgraded my CMS packages to version 13 but Visitor Groups aren't working anymore. They were working fine on CMS 12.",
+      "expected_output": "Should identify that Visitor Groups are no longer enabled by default in CMS 13. MUST explain that the EPiServer.Cms composition package no longer includes Visitor Groups as a dependency. MUST provide the two registration calls needed: services.AddVisitorGroupsMvc() for MVC services and services.AddVisitorGroupsUI() for UI services. SHOULD mention adding the EPiServer.Personalization.VisitorGroups NuGet package explicitly if not already present. SHOULD NOT suggest reinstalling packages or clearing caches as the primary fix.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies opt-in requirement",
+          "check": "Explains Visitor Groups are no longer enabled by default"
+        },
+        {
+          "name": "Provides registration calls",
+          "check": "Shows AddVisitorGroupsMvc() and AddVisitorGroupsUI() calls"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I upgraded to CMS 13 and now I get a TypeLoadException at runtime from Geta.NotFoundHandler.Optimizely. The build succeeds but the app crashes on startup.",
+      "expected_output": "Should identify that Geta.NotFoundHandler.Optimizely 6.0.x is not compatible with CMS 13 due to using the removed SortIndex attribute property. MUST recommend removing the package from .csproj. MUST recommend removing service registration (services.AddNotFoundHandler()) and middleware (app.UseNotFoundHandler()). SHOULD mention that the user needs to implement custom 404 handling if needed. SHOULD reference third-party-compatibility.md. SHOULD mention checking for other incompatible Geta packages. SHOULD NOT suggest downgrading CMS version.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies package incompatibility",
+          "check": "Explains Geta.NotFoundHandler is not compatible with CMS 13"
+        },
+        {
+          "name": "Provides removal steps",
+          "check": "Shows removing package reference and service registration"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "My CMS 12 project uses EPiServer.Find.Cms for search. Can I still use it after migrating to CMS 13?",
+      "expected_output": "Should clearly state that EPiServer.Find.Cms has no CMS 13-compatible version and must be completely removed. MUST recommend removing the package, service registrations (services.AddFind()), and all dependent code. SHOULD recommend migrating to Optimizely Graph as the replacement. SHOULD mention the optimizely-find-to-graph migration skill. SHOULD warn about transitive Newtonsoft.Json dependency — may need explicit package reference if other code depends on it. SHOULD NOT suggest waiting for a CMS 13 compatible Find version.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "States Find is not compatible",
+          "check": "Clearly says EPiServer.Find.Cms has no CMS 13 version"
+        },
+        {
+          "name": "Recommends Graph migration",
+          "check": "Mentions Optimizely Graph as replacement and/or optimizely-find-to-graph skill"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "After upgrading to CMS 13, I get compilation errors saying ServiceLocator.Current doesn't exist and IConfigurableModule is not found. These are used throughout my project.",
+      "expected_output": "Should identify both as removed APIs in CMS 13. MUST explain that ServiceLocator.Current, ServiceLocationHelper, and all EPiServer.ServiceLocation helper classes are removed — replace with constructor injection using Microsoft.Extensions.DependencyInjection. MUST explain that IConfigurableModule is removed — move all service registration from ConfigureContainer() to Startup.ConfigureServices() or Program.cs. SHOULD provide before/after code for both patterns. SHOULD mention searching for ServiceConfigurationContext as another indicator. SHOULD NOT suggest adding compatibility shims.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Covers ServiceLocator removal",
+          "check": "Explains ServiceLocator.Current is removed and shows constructor injection replacement"
+        },
+        {
+          "name": "Covers IConfigurableModule removal",
+          "check": "Explains IConfigurableModule is removed and shows Startup.cs migration"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "I'm getting a compilation error: 'LanguageBranch does not contain a definition for ValidateLanguageEdititingAccessRights'. This method definitely existed in CMS 12.",
+      "expected_output": "Should identify this as a spelling correction in the CMS 13 public API. MUST explain that the method was renamed from ValidateLanguageEdititingAccessRights (with typo) to ValidateLanguageEditingAccessRights (corrected). SHOULD mention that CMS 13 fixed several misspelled API names. SHOULD list other common spelling corrections: GetDescendents to GetDescendants, includeDecendents to includeDescendants, StatisticsPersistanceInterval to StatisticsPersistenceInterval. SHOULD reference breaking-changes-dotnet.md section 14.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies spelling correction",
+          "check": "Explains the method name was corrected from the misspelled version"
+        },
+        {
+          "name": "Lists other spelling fixes",
+          "check": "Mentions at least one other spelling correction in CMS 13"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "My CMS 12 project uses Injected<IContentRepository> and Injected<IUrlResolver> properties throughout controllers and services. After upgrading to CMS 13, I get compilation errors that Injected<T> doesn't exist.",
+      "expected_output": "Should identify that Injected<T> is removed in CMS 13. MUST explain that all Injected<T> properties must be replaced with constructor injection. MUST provide before/after code showing the pattern replacement. SHOULD mention searching for 'Injected<' and '.Service.' to find all occurrences. SHOULD NOT suggest any compatibility shim or workaround — constructor injection is the only path.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies Injected<T> removal",
+          "check": "Explains Injected<T> is removed and requires constructor injection replacement"
+        },
+        {
+          "name": "Provides before/after code",
+          "check": "Shows CMS 12 code with Injected<T> and CMS 13 code with constructor injection"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "We deploy our CMS 12 project using Docker. After upgrading packages to CMS 13, the Docker build fails. What do I need to update?",
+      "expected_output": "Should identify that Docker base images must be updated from .NET 8.0 to .NET 10.0. MUST mention updating FROM statements: dotnet/sdk:8.0 to dotnet/sdk:10.0 and dotnet/aspnet:8.0 to dotnet/aspnet:10.0. SHOULD also mention updating TargetFramework to net10.0 and global.json SDK version to 10.0.100. SHOULD mention checking for any runtime-specific images as well.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies Docker image updates",
+          "check": "Mentions updating Docker base images from 8.0 to 10.0"
+        },
+        {
+          "name": "Covers both SDK and runtime images",
+          "check": "Mentions both dotnet/sdk and dotnet/aspnet image updates"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "After migrating to CMS 13, my ASP.NET Identity login stopped working. The AddCmsAspNetIdentity method is not found even though I have the EPiServer.CMS package.",
+      "expected_output": "Should identify that EPiServer.CMS.UI.AspNetIdentity is now a separate package that was previously included transitively via the EPiServer.Cms metapackage in CMS 12. MUST recommend adding an explicit package reference to EPiServer.CMS.UI.AspNetIdentity. SHOULD mention that the using statement EPiServer.DependencyInjection is required for the extension method. SHOULD NOT suggest downgrading packages.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Identifies extracted package",
+          "check": "Explains EPiServer.CMS.UI.AspNetIdentity is now a separate package"
+        },
+        {
+          "name": "Provides fix",
+          "check": "Recommends adding explicit package reference"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "My CMS 12 project uses EPiServer.ContentDeliveryApi.Cms to serve content to a React frontend. Can I still use it with CMS 13?",
+      "expected_output": "Should clearly state that EPiServer.ContentDeliveryApi is not compatible with CMS 13 and must be removed. MUST recommend migrating to Optimizely Graph as the replacement for content delivery. SHOULD mention installing Optimizely.Graph.Cms and Optimizely.Graph.Cms.Query packages. SHOULD mention registering services with AddContentGraph() and AddGraphContentClient(). SHOULD mention preserving existing response contracts for frontend consumers by mapping Graph query results to existing response shapes. SHOULD recommend staged migration with feature flags if external clients depend on current API shapes. SHOULD reference the optimizely-find-to-graph skill for query pattern details.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "States Content Delivery API incompatible",
+          "check": "Explains ContentDeliveryApi has no CMS 13 version"
+        },
+        {
+          "name": "Recommends Graph migration",
+          "check": "Mentions Optimizely Graph as replacement with service registration details"
+        }
+      ]
+    }
+  ]
+}

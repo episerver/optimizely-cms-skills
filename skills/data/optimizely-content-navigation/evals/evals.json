@@ -1,0 +1,23 @@
+{
+  "skill_name": "optimizely-content-navigation",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need to build a breadcrumb trail for my Next.js site that shows the path from the home page to the current page. The pages are managed in Optimizely CMS and I want to use the page hierarchy. For example, on /products/electronics/laptops I want to see: Home > Products > Electronics > Laptops. How do I do this with the SDK?",
+      "expected_output": "Should use client.getPath('/products/electronics/laptops') to get ancestor pages from root to current page. Should explain that getPath returns an array of ancestor pages. Should show slicing from index 1 to skip the start page since Home is rendered separately. Should map over results using _metadata.displayName for labels and _metadata.url.hierarchical for links. Should show the last item as non-clickable text (current page) using aria-current='page'. Should use semantic HTML with nav element and aria-label='Breadcrumb'.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "I want to create a main navigation menu that shows all top-level pages from our CMS. The menu should appear in the site header. We're using Optimizely CMS and Next.js 14 App Router. The pages in the CMS are organized hierarchically under a start page.",
+      "expected_output": "Should use client.getItems('/') to fetch child pages of the start page (root path). Should explain that getItems returns an array of child pages directly under the given parent. Should map over results using _metadata.displayName for display text, _metadata.url.hierarchical for link href, and _metadata.key for React keys. Should wrap in semantic nav element with aria-label='Main navigation'. Should handle the null case when getItems returns null.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Our site supports Swedish and English. I need the navigation menu to show page names in the correct language. The user switches languages with a language picker. How do I get locale-specific navigation items from Optimizely CMS?",
+      "expected_output": "Should show using the locales option on getItems: client.getItems('/', { locales: ['sv'] }) for Swedish or { locales: ['en'] } for English. Should explain that both getPath and getItems support the locales filter array. Should show how to pass the current locale (from URL, cookie, or router params) to the navigation fetch. Should mention that the same approach works for getPath when building locale-aware breadcrumbs. Should reference the optimizely-multisite-locale skill for more comprehensive multi-language patterns.",
+      "files": []
+    }
+  ]
+}

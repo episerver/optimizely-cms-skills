@@ -1,0 +1,26 @@
+{
+  "name": "optimizely-cms",
+  "owner": {
+    "name": "Optimizely",
+    "url": "https://github.com/episerver"
+  },
+  "plugins": [
+    {
+      "name": "optimizely-cms-skills",
+      "description": "Optimizely CMS development tools and agent skills for building with Optimizely CMS",
+      "author": {
+        "name": "Optimizely",
+        "url": "https://github.com/episerver"
+      },
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/episerver/optimizely-cms-skills.git",
+        "path": "./",
+        "ref": "latest"
+      },
+      "category": "development",
+      "homepage": "https://github.com/episerver/optimizely-cms-skills",
+      "readme": "https://github.com/episerver/optimizely-cms-skills/blob/main/README.md"
+    }
+  ]
+}

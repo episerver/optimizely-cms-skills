@@ -1,0 +1,285 @@
+{
+  "skill_name": "optimizely-remko-cms-nextjs-to-content-js",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need to migrate my Next.js app from @remkoj/optimizely-cms-nextjs to the official @optimizely/cms-sdk. The app uses createPage in the catch-all route, createEditPageComponent for preview, and createPublishApi for the .well-known/publish webhook handler. Walk me through the full migration.",
+      "expected_output": "The skill should guide the user through the complete migration: (1) assess current usage (detect imports, scan for createPage/createEditPageComponent/createPublishApi), (2) swap packages (remove @remkoj/optimizely-cms-nextjs, add @optimizely/cms-sdk), (3) migrate the catch-all page (replace createPage with app-owned page that fetches via getClient().getContentByPath(path), renders with OptimizelyComponent, and wraps in withAppContext), (4) migrate the preview route (replace createEditPageComponent with app-owned preview page using getPreviewContent(searchParams), NextPreviewComponent, and OptimizelyComponent), (5) migrate publish/revalidate (replace createPublishApi with app-owned .well-known/publish route handler that calls revalidatePath/revalidateTag), (6) verify (tsc, yarn build, runtime smoke test, preview smoke test, publish smoke test, dual-React check). The skill must reference the three shared files (package-and-import-mapping.md, auth-and-env-mapping.md, setup-and-di.md) and link to the prerequisite skills (optimizely-remko-graph-client-to-content-js first, optimizely-remko-cms-react-to-content-js second).",
+      "files": [],
+      "assertions": [
+        {
+          "name": "ordered_migration_steps",
+          "check": "Response includes the steps in order: (1) assess, (2) swap packages, (3) migrate catch-all page, (4) migrate preview route, (5) migrate publish/revalidate, (6) verify."
+        },
+        {
+          "name": "catch_all_page_migration",
+          "check": "Response explains that createPage has no equivalent, shows fetching via getClient().getContentByPath(path) (returns an ARRAY, access [0]), rendering with OptimizelyComponent, and wrapping in withAppContext."
+        },
+        {
+          "name": "preview_route_migration",
+          "check": "Response explains that createEditPageComponent has no equivalent, shows using GraphClient.getPreviewContent(searchParams), NextPreviewComponent (from ./react/nextjs), OptimizelyComponent, and wrapping in withAppContext."
+        },
+        {
+          "name": "publish_revalidate_migration",
+          "check": "Response explains that createPublishApi has NO direct equivalent, states revalidate/publish is app-owned, and shows implementing .well-known/publish route with Next.js revalidatePath/revalidateTag (does NOT invent an @optimizely helper)."
+        },
+        {
+          "name": "references_shared_files",
+          "check": "Response references or links to the three shared files: package-and-import-mapping.md, auth-and-env-mapping.md, setup-and-di.md."
+        },
+        {
+          "name": "prerequisite_skills",
+          "check": "Response mentions or links to the prerequisite skills: optimizely-remko-graph-client-to-content-js (first) and optimizely-remko-cms-react-to-content-js (second)."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Can you assess the migration scope for @remkoj/optimizely-cms-nextjs in my project before I start? I want to know how much work this will be.",
+      "expected_output": "The skill should run the assessment step only: (1) grep for @remkoj/optimizely-cms-nextjs imports, (2) scan for key symbols (createPage, createEditPageComponent, createPublishApi, .well-known routes), (3) check catch-all page usage, (4) check preview route usage, (5) check publish handler usage, (6) categorize effort (minimal/moderate/significant). The skill MUST then STOP and report the findings without proceeding to migration steps. The response should include the sentence 'If the user only asked for assessment, stop here and report.' or similar language confirming it stops after assessment.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "runs_assessment",
+          "check": "Response includes the assessment steps: grep for imports, scan for symbols, check catch-all/preview/publish usage, categorize effort."
+        },
+        {
+          "name": "stops_after_assessment",
+          "check": "Response confirms it stops after assessment and does not proceed to migration steps (does NOT show code changes, package swaps, or migration instructions)."
+        },
+        {
+          "name": "does_not_change_code",
+          "check": "Response does NOT show migration code examples, package removal commands, or file edits (assessment is read-only)."
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I migrated my Next.js app to @optimizely/cms-sdk and now the preview route is blank. The network tab shows the page loads but there's no content. What's wrong?",
+      "expected_output": "The skill should diagnose the CMS-55679 gotcha: a blank render (empty content, not an auth error) is usually caused by invalid/rotated Graph credentials configured ON THE CMS INSTANCE ITSELF — the keys the CMS uses to publish its schema to Graph — NOT the frontend's Single Key or preview token. The response should explain that when those instance credentials are invalid, the CMS EnsureSchemaInitializationModule aborts at startup → the _Content type is never published to Graph → EVERY Graph render returns empty (published and preview alike). The response should tell the user to verify and re-sync the CMS instance's Graph credentials BEFORE debugging the SDK, the query, or the preview route. The response must NOT tell the user to look in the frontend .env for App Key + Secret (the target has no HMAC/secret path) and must NOT suggest code fixes (like changing getPreviewContent or NextPreviewComponent) as the first troubleshooting step.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "diagnoses_cms_55679",
+          "check": "Response identifies the CMS-55679 gotcha: invalid/rotated Graph credentials ON THE CMS INSTANCE (not the frontend) cause a blank render."
+        },
+        {
+          "name": "explains_root_cause",
+          "check": "Response explains that invalid instance credentials make the CMS EnsureSchemaInitializationModule abort → _Content type never published → every Graph render (published and preview) returns empty."
+        },
+        {
+          "name": "instructs_verify_instance_credentials",
+          "check": "Response tells the user to verify and re-sync the CMS instance's own Graph credentials BEFORE debugging code, and does NOT point them at frontend .env App Key + Secret."
+        },
+        {
+          "name": "does_not_suggest_code_fix_first",
+          "check": "Response does NOT suggest changing getPreviewContent, NextPreviewComponent, or other code as the first troubleshooting step (instance credentials are the root cause)."
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "I need to migrate the publish webhook handler from @remkoj/optimizely-cms-nextjs to the official SDK. How do I replace createPublishApi?",
+      "expected_output": "The skill should state that createPublishApi has NO direct equivalent in @optimizely/cms-sdk — revalidation/publish wiring is app-owned. The response should explain that the user must implement the .well-known/{channel,drafts,publish} route handlers themselves and call Next.js revalidatePath/revalidateTag to invalidate the cache when the CMS publishes content. The response should show an example .well-known/publish route handler that parses the webhook payload and calls revalidatePath/revalidateTag. The response must NOT invent an @optimizely publish helper or suggest importing a non-existent function.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "states_no_direct_equivalent",
+          "check": "Response states that createPublishApi has NO direct equivalent in @optimizely/cms-sdk."
+        },
+        {
+          "name": "explains_app_owned",
+          "check": "Response explains that revalidation/publish wiring is app-owned and the user must implement .well-known routes themselves."
+        },
+        {
+          "name": "shows_revalidate_example",
+          "check": "Response shows an example .well-known/publish route handler that calls Next.js revalidatePath/revalidateTag."
+        },
+        {
+          "name": "does_not_invent_helper",
+          "check": "Response does NOT invent an @optimizely publish helper or suggest importing a non-existent function (like createPublishApi from @optimizely/cms-sdk)."
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "I migrated my catch-all page from createPage to the official SDK pattern, but now I'm getting 'content is undefined' when I pass it to OptimizelyComponent. What am I missing?",
+      "expected_output": "The skill should diagnose that getContentByPath returns an ARRAY, not a single content object. The response should explain that the user must access [0] to get the first match (e.g., const content = await client.getContentByPath(path); return <OptimizelyComponent content={content[0]} />). The response should show the correct pattern and confirm that forgetting to access [0] results in passing an array to OptimizelyComponent, which renders nothing because it expects a single content object.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "diagnoses_array_return",
+          "check": "Response identifies that getContentByPath returns an ARRAY, not a single content object."
+        },
+        {
+          "name": "shows_correct_pattern",
+          "check": "Response shows accessing [0] to get the first match (e.g., content={content[0]})."
+        },
+        {
+          "name": "explains_symptom",
+          "check": "Response explains that forgetting [0] results in passing an array to OptimizelyComponent, which renders nothing."
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "I'm migrating from Remko to the official SDK and my project uses the Pages Router (pages/ directory, not app/). Will the examples in the migration guide work?",
+      "expected_output": "The skill should explain that the official SDK is designed for Next.js 14+ App Router (app/ directory). The response should state that if the user's project uses the Pages Router (pages/ directory), the migration is more complex — they'll need to either (1) convert to App Router first, or (2) adapt the examples to Pages Router conventions (e.g., getServerSideProps instead of async function Page({ params })). The response should NOT claim the examples work directly in the Pages Router without adaptation.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "explains_app_router_design",
+          "check": "Response explains that the official SDK is designed for Next.js 14+ App Router (app/ directory)."
+        },
+        {
+          "name": "states_pages_router_complexity",
+          "check": "Response states that if the project uses the Pages Router (pages/ directory), the migration is more complex and requires conversion to App Router or adaptation of examples."
+        },
+        {
+          "name": "does_not_claim_direct_compatibility",
+          "check": "Response does NOT claim the App Router examples work directly in the Pages Router without adaptation."
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "I'm trying to import NextPreviewComponent but I'm getting a module not found error. I tried importing from @optimizely/cms-sdk/react/client but it's not there.",
+      "expected_output": "The skill should explain that NextPreviewComponent is exported from @optimizely/cms-sdk/react/nextjs, NOT from ./react/client. The response should show the correct import: import { NextPreviewComponent } from '@optimizely/cms-sdk/react/nextjs'. The response should confirm that ./react/client exports the generic PreviewComponent, but NextPreviewComponent (the Next.js optimized version) is in ./react/nextjs.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "identifies_correct_subpath",
+          "check": "Response states that NextPreviewComponent is exported from @optimizely/cms-sdk/react/nextjs."
+        },
+        {
+          "name": "shows_correct_import",
+          "check": "Response shows the correct import: import { NextPreviewComponent } from '@optimizely/cms-sdk/react/nextjs'."
+        },
+        {
+          "name": "clarifies_client_vs_nextjs",
+          "check": "Response clarifies that ./react/client exports PreviewComponent (generic), but NextPreviewComponent is in ./react/nextjs (Next.js optimized)."
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "prompt": "For my preview route in @optimizely/cms-sdk, how do I initialize the GraphClient with my App Key and Secret so it can read drafts? I have OPTIMIZELY_GRAPH_APP_KEY and OPTIMIZELY_GRAPH_SECRET in my .env.",
+      "expected_output": "The skill should correct the premise: the target GraphClient has NO App Key + Secret HMAC path, and GraphOptions has no `secret` field (passing one is a type error). It should explain that the client authenticates with EITHER `epi-single <apiKey>` (the public single key) OR `Bearer <preview_token>`, and that the preview route uses the SAME single-key getClient() as the published route — there is no `new GraphClient(appKey, { secret })`. It should explain that draft reads are authorized by a per-request preview_token that the CMS mints into the preview URL, which getPreviewContent extracts from the parsed searchParams and sends as the Bearer token for that one request. App Key + Secret HMAC is a codegen/CLI concern only, not a runtime GraphClient concern. The response must NOT show `new GraphClient(process.env.OPTIMIZELY_GRAPH_APP_KEY, { secret: ... })`.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "corrects_no_secret",
+          "check": "Response states the target GraphClient has no App Key + Secret HMAC path and GraphOptions has no `secret` field (passing one is a type error)."
+        },
+        {
+          "name": "explains_two_auth_modes",
+          "check": "Response explains the client authenticates with EITHER `epi-single <apiKey>` (single key) OR `Bearer <preview_token>`."
+        },
+        {
+          "name": "preview_uses_getclient_and_token",
+          "check": "Response shows the preview route using the same single-key getClient() as the published route, with the per-request preview_token coming from the preview URL searchParams via getPreviewContent (not a standing secret)."
+        },
+        {
+          "name": "does_not_show_hmac_constructor",
+          "check": "Response does NOT show `new GraphClient(appKey, { secret })` or otherwise instruct initializing the client with App Key + Secret for preview."
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "prompt": "In Remko my catch-all page escalated to draft auth when draftMode was enabled (updateAuthentication(AuthMode.HMAC) + enablePreview()). How do I port that onto my catch-all page in @optimizely/cms-sdk so the catch-all can render drafts too?",
+      "expected_output": "The skill should explain that this escalation does NOT carry over: updateAuthentication, AuthMode, and enablePreview are Remko-only symbols with no target equivalent. It should explain that getContentByPath is PUBLISHED-ONLY in the target — it hard-codes an undefined preview token internally and can never read drafts. Therefore the catch-all page cannot and should not render drafts; drafts flow ONLY through the dedicated /preview route + getPreviewContent (which reads the Bearer preview_token from the preview URL). The response should tell the user to leave the catch-all as a published-only getContentByPath page and rely on the separate preview route for draft/on-page-edit rendering. The response must NOT attempt to reconstruct the draftMode escalation on the catch-all.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "escalation_is_remko_only",
+          "check": "Response states that updateAuthentication, AuthMode, and enablePreview are Remko-only with no target equivalent."
+        },
+        {
+          "name": "getcontentbypath_published_only",
+          "check": "Response states that getContentByPath is published-only (hard-codes an undefined preview token) and cannot read drafts."
+        },
+        {
+          "name": "drafts_only_via_preview_route",
+          "check": "Response explains drafts flow only through the dedicated /preview route + getPreviewContent, not the catch-all."
+        },
+        {
+          "name": "does_not_reconstruct_escalation",
+          "check": "Response does NOT attempt to reconstruct the draftMode/HMAC escalation on the catch-all page."
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "prompt": "When I migrate the catch-all page and the preview route off Remko's createPage/createEditPageComponent, do I need to set any Next.js route-segment config exports? Remko's helpers seemed to handle caching for me.",
+      "expected_output": "The skill should confirm that Remko's factory helpers set route-segment behavior implicitly, and now that the routes are app-owned the user must declare the config themselves. For the catch-all page it should show `export const dynamic = 'error'`, `export const dynamicParams = true`, and `export const revalidate = false`. For the preview route it should show `export const dynamic = 'force-dynamic'`, `export const fetchCache = 'force-no-store'`, `export const revalidate = 0`, and `export const runtime = 'nodejs'`. It should explain the preview route must never be cached (a cached preview would show stale draft content), while the catch-all serves published content and can be statically generated / ISR-revalidated.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "explains_config_now_app_owned",
+          "check": "Response explains that Remko's factory helpers set route-segment behavior implicitly and the app must now declare it explicitly."
+        },
+        {
+          "name": "catch_all_segment_config",
+          "check": "Response shows the catch-all route-segment config: dynamic='error', dynamicParams=true, revalidate=false."
+        },
+        {
+          "name": "preview_segment_config",
+          "check": "Response shows the preview route-segment config: dynamic='force-dynamic', fetchCache='force-no-store', revalidate=0, runtime='nodejs'."
+        },
+        {
+          "name": "explains_preview_never_cached",
+          "check": "Response explains the preview route must never be cached (stale draft risk), while the catch-all can be statically generated / ISR-revalidated."
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "prompt": "I've finished migrating @remkoj/optimizely-cms-nextjs. Now clean up package.json for me — just uninstall every @remkoj/* package we still have so nothing community is left.",
+      "expected_output": "MUST NOT blindly remove every @remkoj/* package. Three cross-cutting rules apply. (1) Optimizely One carve-out: @remkoj/optimizely-one-nextjs has NO target mapping and is a KNOWN, PERMITTED residual — it must be LEFT INSTALLED, and its presence must NOT be treated as an incomplete migration. The agent must explicitly exclude it from the removal set and explain why. (2) Conditional residual: @remkoj/optimizely-cms-api mostly migrates (management -> @optimizely/cms-cli; published reads -> @optimizely/cms-sdk getClient()), but content write/CRUD, changesets, and runtime OAuth are honest gaps with no official equivalent — so it must be LEFT INSTALLED (or those paths rewritten to raw Integration API REST) IF the project uses any of them, and stripped only after confirming it does not. (3) Removal order: the @remkoj/* packages are interdependent, so the agent must NOT global-delete/uninstall them all at once (that transiently breaks the build). It must follow the staged teardown order (client -> codegen/functions -> content-type registry -> display-template + React registries -> components -> pages/preview -> remove packages) and use the exact `yarn remove` command that omits optimizely-one-nextjs unconditionally and stages optimizely-cms-api conditionally. MUST reference the \"Scope carve-out\", \"Conditional residual\", and \"Removal order\" sections of ../_shared-references/package-and-import-mapping.md. SHOULD NOT emit `yarn remove @remkoj/*` or otherwise strip every @remkoj package indiscriminately.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "Preserves Optimizely One carve-out",
+          "check": "Does NOT remove @remkoj/optimizely-one-nextjs; states it is a permitted residual with no target mapping and not a sign of incomplete migration"
+        },
+        {
+          "name": "Handles cms-api as conditional residual",
+          "check": "Does NOT blindly remove @remkoj/optimizely-cms-api; treats it as a conditional residual — kept (or its paths rewritten to raw Integration API REST) if the project uses content write/CRUD, changesets, or runtime OAuth, and stripped only after confirming it does not"
+        },
+        {
+          "name": "Rejects global delete of @remkoj/*",
+          "check": "Does not uninstall all @remkoj/* at once; follows the staged teardown order instead"
+        },
+        {
+          "name": "References removal-order reference",
+          "check": "Points to the Scope carve-out, Conditional residual, and Removal order sections of package-and-import-mapping.md and uses the yarn remove command that omits optimizely-one-nextjs unconditionally and stages optimizely-cms-api conditionally"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "prompt": "My app has a central src/api.ts that does `import { createClient } from '@remkoj/optimizely-cms-nextjs'` and then `export const client = createClient()`. How do I migrate this file to @optimizely/cms-sdk?",
+      "expected_output": "The skill must recognize that `createClient` is a root export (and the `default` export) of @remkoj/optimizely-cms-nextjs — the primary client factory, a thin wrapper over @remkoj/optimizely-graph-client's createClient — NOT an unmapped symbol and NOT the same import as graph-client's createClient. It maps to the target's single-key client: call config() once (root layout) and use getClient() everywhere; there is no createClient() factory to keep. It should note getServerClient / getAuthorizedServerClient are deprecated aliases of createClient / createAuthorizedClient and migrate identically, and reference the Root exports table of cms-nextjs-api-mapping.md plus setup-and-di.md. It must NOT claim createClient has no mapping, must NOT invent an @optimizely createClient, and must NOT tell the user to import createClient from @optimizely/cms-sdk.",
+      "files": [],
+      "assertions": [
+        {
+          "name": "recognizes_root_createClient",
+          "check": "Identifies `createClient` as a documented root export (and default export) of @remkoj/optimizely-cms-nextjs — the primary client factory — rather than treating it as unmapped or unknown."
+        },
+        {
+          "name": "maps_to_getClient_config",
+          "check": "Maps createClient() to the target single-key client via config() (once, in the root layout) + getClient() at call sites; does NOT keep a createClient() factory and does NOT invent an @optimizely/cms-sdk createClient."
+        },
+        {
+          "name": "notes_deprecated_aliases",
+          "check": "Mentions that getServerClient / getAuthorizedServerClient are deprecated aliases of createClient / createAuthorizedClient and migrate the same way."
+        },
+        {
+          "name": "references_root_exports_mapping",
+          "check": "References the Root exports table of cms-nextjs-api-mapping.md (and setup-and-di.md for config()/getClient() wiring)."
+        }
+      ]
+    }
+  ]
+}

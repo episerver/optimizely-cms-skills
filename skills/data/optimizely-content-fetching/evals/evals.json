@@ -1,0 +1,29 @@
+{
+  "skill_name": "optimizely-content-fetching",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "How do I fetch a page by its URL path in my Next.js app? I have a Next.js 14 App Router project and I want to render CMS-managed pages using a catch-all route. The content types are already defined and registered. How do I set up the page fetching?",
+      "expected_output": "Should show the catch-all route pattern using app/[...slug]/page.tsx. Should use getClient() (not new GraphClient()) assuming config() is already called in layout.tsx. Should construct the path from slug segments with '/' prefix. Should call client.getContentByPath(path) and explain it returns an array. Should render using OptimizelyComponent with results[0]. Should handle the case where results are empty by calling notFound(). Should also mention setting up app/page.tsx for the root path '/'.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "I need to fetch a specific content item by its GUID. I have a content item with key 'abc-123-def-456' and I need to load it in a server component. How do I use the SDK to fetch it?",
+      "expected_output": "Should use client.getContent() with a GraphReference object containing the key. Should show both the object form { key: 'abc-123-def-456' } and the graph:// string form 'graph://content/abc-123-def-456'. Should mention the optional previewToken parameter for draft content. Should explain that version takes priority over locale when both are provided in the reference. Should use getClient() and mention that config() must be called first.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "My content fetch returns an empty array. I'm calling getContentByPath('/about') and it returns [] even though I can see the page in the CMS. The SDK is installed, environment variables are set, and I can see the page at /about in the CMS content tree. What's wrong?",
+      "expected_output": "Should first check whether initContentTypeRegistry is called with all content types registered - this is the most common cause of empty results. Should check the path format starts with '/'. Should verify OPTIMIZELY_GRAPH_SINGLE_KEY environment variable is set and valid. Should check if the content is published (draft content needs getPreviewContent). Should check if host filtering is interfering. Should explain the registration must happen before fetching, typically in layout.tsx.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "What's the difference between new GraphClient() and getClient()? When should I use each one? I've seen both in examples and I'm not sure which approach is correct for my Next.js project.",
+      "expected_output": "Should explain the config() + getClient() pattern: call config() once in layout.tsx with graphKey and graphUrl, then use getClient() anywhere without repeating configuration. Should explain new GraphClient() creates a standalone instance with its own configuration. Should recommend config() + getClient() for most applications because it provides a single configuration point and consistent options. Should explain new GraphClient() is appropriate for preview routes, one-off scripts, or when different configuration per request is needed.",
+      "files": []
+    }
+  ]
+}

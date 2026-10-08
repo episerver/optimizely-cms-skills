@@ -1,0 +1,29 @@
+{
+  "skill_name": "optimizely-troubleshoot-graph",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I'm getting a GraphFragmentThresholdError when loading my homepage. The error says there are too many fragments. I have a MainContent content area on my page that allows any type of component. How do I fix this?",
+      "expected_output": "Should explain that the error occurs because the content area property lacks allowedTypes or restrictedTypes, causing the SDK to generate fragments for every registered content type. Should show how to fix by adding allowedTypes to the content area property in the content type definition. Should provide a code example showing items: { type: 'content', allowedTypes: [HeroContentType, CardContentType] }. Should mention that the CLI validates this at push time and warns about missing constraints. Should recommend running config push after making the change.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "getContentByPath returns an empty array for my About page. I know the content exists in the CMS because I can see it in the admin panel. The path I'm using is '/about'. What's going wrong?",
+      "expected_output": "Should identify multiple potential causes. First, check path format: getContentByPath expects trailing slash, so '/about/' is correct, not '/about'. Second, check if content is published (not draft). Third, verify the content type is registered in initContentTypeRegistry. Fourth, check host filtering if multi-site is configured. Should provide the correct path format with leading and trailing slashes. Should mention checking the locale segment if applicable.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Getting GraphMissingContentTypeError for my Article type. I created the Article content type in src/components/Article.tsx and pushed it to the CMS, but when I try to fetch an article page I get this error.",
+      "expected_output": "Should explain that the content type definition exists but is not registered in initContentTypeRegistry. Should show how to find the registry: search for initContentTypeRegistry in the codebase (typically in layout.tsx). Should provide a code example adding ArticleContentType to the registry array. Should emphasize importing the content type from the correct file. Should mention that ALL content types used in content delivery must be registered, not just the ones being directly fetched.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "My Graph API key stopped working. I was able to fetch content yesterday but today I'm getting GraphHttpResponseError with a 401 status. Nothing changed in my code.",
+      "expected_output": "Should suggest verifying OPTIMIZELY_GRAPH_SINGLE_KEY is still set correctly in the .env file. Should recommend checking CMS Settings > API Keys to see if the key was rotated, expired, or revoked. Should mention testing connectivity with the login command or curl. Should check if the environment changed (e.g., switched from production to test environment requiring different key and OPTIMIZELY_GRAPH_GATEWAY). Should suggest creating a new API key if the current one is invalid.",
+      "files": []
+    }
+  ]
+}
