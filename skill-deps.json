@@ -1,7 +1,7 @@
 {
   "$schema": "./scripts/skill-deps.schema.json",
   "version": 1,
-  "generated": "2026-09-28T16:41:05.657Z",
+  "generated": "2026-10-09T15:00:50.448Z",
   "skills": {
     "optimizely-setup": {
       "path": "./skills/setup/optimizely-setup",
@@ -149,35 +149,6 @@
         "optimizely-cli-workflows",
         "optimizely-model",
         "optimizely-observability"
-      ]
-    },
-    "optimizely-cms11-to-12": {
-      "path": "./skills/migration/optimizely-cms11-to-12",
-      "dependencies": [
-        "optimizely-model",
-        "optimizely-setup"
-      ]
-    },
-    "optimizely-cms12-to-13-assessment": {
-      "path": "./skills/migration/optimizely-cms12-to-13-assessment",
-      "dependencies": [
-        "optimizely-cms12-to-13",
-        "optimizely-find-to-graph"
-      ]
-    },
-    "optimizely-cms12-to-13": {
-      "path": "./skills/migration/optimizely-cms12-to-13",
-      "dependencies": [
-        "optimizely-cms12-to-13-assessment",
-        "optimizely-find-to-graph",
-        "optimizely-model",
-        "optimizely-setup"
-      ]
-    },
-    "optimizely-find-to-graph": {
-      "path": "./skills/migration/optimizely-find-to-graph",
-      "dependencies": [
-        "optimizely-setup"
       ]
     },
     "optimizely-remko-migration-discovery": {

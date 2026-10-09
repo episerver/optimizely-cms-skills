@@ -100,6 +100,17 @@ cp -r optimizely-cms-skills/skills/* ~/.claude/skills/
 | [optimizely-remko-graph-cli-to-content-js](./skills/migration/optimizely-remko-graph-cli-to-content-js/) | Migrate the Remko Graph CLI (`@remkoj/optimizely-graph-cli`, `opti-graph`) to `@optimizely/cms-cli` — almost entirely honest gaps |
 | [optimizely-remko-cms-api-to-content-js](./skills/migration/optimizely-remko-cms-api-to-content-js/) | Migrate the Remko CMS API client (`@remkoj/optimizely-cms-api`) to the SDK + CLI — straddle skill, do last |
 
+### Experimental
+
+> ⚠️ The skills below are **experimental** — provided as-is for reference and **not registered in the plugin**. They may be incomplete, out of date, or inaccurate against the current CMS. Use at your own discretion. See [`skills/migration/experimental/README.md`](./skills/migration/experimental/README.md) for details on scope and how to use them manually.
+
+| Skill | Description |
+|-------|-------------|
+| [optimizely-cms11-to-12](./skills/migration/experimental/optimizely-cms11-to-12/) | Migrate Optimizely CMS 11 (ASP.NET Framework) to CMS 12 (ASP.NET Core) |
+| [optimizely-cms12-to-13-assessment](./skills/migration/experimental/optimizely-cms12-to-13-assessment/) | Pre-migration assessment for CMS 12 → 13 (effort, scope, risk) |
+| [optimizely-cms12-to-13](./skills/migration/experimental/optimizely-cms12-to-13/) | Migrate Optimizely CMS 12 to CMS 13 (.NET 10, breaking API changes) |
+| [optimizely-find-to-graph](./skills/migration/experimental/optimizely-find-to-graph/) | Migrate from Optimizely Find to Content Graph |
+
 ## Usage Example
 
 ```
