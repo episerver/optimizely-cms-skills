@@ -644,6 +644,21 @@ and the runtime smoke test passes.
     Do not use `.Items` on `IGetAsContentResult` or LINQ on
     `IContentResult`.
 
+19. **Content silently missing from Graph after CMS 12→13 migration**
+    (CMS 13.3.0+) — Graph indexing enforces `SearchIndexer` Read
+    permission on each content item's ACL. The CMS 13 upgrade script
+    only grants `SearchIndexer` on Root (content ID 1). Content that
+    inherits ACL from Root is fine, but content with custom ACL (broken
+    inheritance) — such as site start pages with specific role
+    permissions — is silently excluded along with its entire subtree.
+    The Graph sync reports success with dramatically fewer items and no
+    explanation. Content assets (media/blocks) inherit ACL from their
+    owner page, so they are affected transitively. See the
+    `optimizely-cms12-to-13` skill (Step 10 item 4) for diagnostic
+    queries and SQL fix options. **Do not execute fix scripts
+    automatically** — present them to the developer for review and
+    manual execution.
+
 ## Related Skills
 
 - **cms12-to-13-migration** — Complete CMS 12 to 13 migration guide (start

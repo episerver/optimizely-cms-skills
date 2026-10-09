@@ -83,6 +83,7 @@ Agent: [Uses optimizely-cms12-to-13 skill]
 - **The /lang folder localization provider is no longer auto-registered.** Add `AddXmlLocalizationProvider()` explicitly.
 - **Copy() no longer publishes content.** It creates a draft; call `Save(content, SaveAction.Publish)` afterward if needed.
 - **Content type names are auto-migrated** if they violate new naming rules. Check string-based lookups still match.
+- **SearchIndexer ACL required for Graph indexing** (CMS 13.3.0+). The upgrade only grants `SearchIndexer` on Root. Content with custom ACL (broken inheritance) is silently excluded from Graph. Run the diagnostic SQL and apply the fix before Graph sync — see Step 10 item 4 in the SKILL.
 
 ## Related Skills
 

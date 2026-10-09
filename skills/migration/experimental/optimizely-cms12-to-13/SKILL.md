@@ -587,6 +587,92 @@ frontend against the CMS 13 schema before cutting over to production.
    and re-run verification. There is no time pressure — CMS 12 remains
    running and serving production until you explicitly cut over.
 
+4. **SearchIndexer ACL for Graph indexing** (CMS 13.3.0+) — CMS 13.3.0
+   enforces `SearchIndexer` Read permission during Graph indexing. Content
+   without this permission is silently excluded from Graph. The CMS 13
+   database upgrade script (`13.0.13.sql`) only grants `SearchIndexer` on
+   the Root content (ID 1). Content that inherits ACL from Root picks up
+   `SearchIndexer` automatically, but content with custom ACL (broken
+   inheritance) does not — and the entire subtree under it is excluded.
+
+   This can cause massive content loss from Graph after migration. For
+   example, a site start page with custom permissions causes every page
+   under it to disappear from Graph, while blocks and settings (which
+   inherit from Root) remain indexed.
+
+   **Do NOT execute these SQL scripts automatically.** Present them to
+   the developer for review and manual execution against the CMS database.
+
+   **Diagnostic** — run this query to see how many content items are
+   affected:
+   ```sql
+   -- Count content with custom ACL missing SearchIndexer
+   SELECT
+       COUNT(DISTINCT ca.fkContentID) AS TotalContentWithCustomACL,
+       COUNT(DISTINCT ca.fkContentID)
+         - COUNT(DISTINCT si.fkContentID) AS MissingSearchIndexer
+   FROM tblContentAccess ca
+   INNER JOIN tblContent c ON c.pkID = ca.fkContentID
+   LEFT JOIN tblContentAccess si
+       ON si.fkContentID = ca.fkContentID
+       AND si.Name = 'SearchIndexer'
+   WHERE c.Deleted = 0;
+   ```
+
+   **Option A — Conservative**: Add `SearchIndexer` only where `Everyone`
+   already has Read access. Avoids indexing intentionally restricted
+   content:
+   ```sql
+   BEGIN TRANSACTION;
+
+   INSERT INTO tblContentAccess (fkContentID, Name, IsRole, AccessMask)
+   SELECT ca.fkContentID, 'SearchIndexer', 1, 1
+   FROM tblContentAccess ca
+   WHERE ca.Name = 'Everyone'
+     AND ca.IsRole = 1
+     AND (ca.AccessMask & 1) = 1
+     AND NOT EXISTS (
+       SELECT 1 FROM tblContentAccess si
+       WHERE si.fkContentID = ca.fkContentID
+         AND si.Name = 'SearchIndexer'
+     );
+
+   SELECT @@ROWCOUNT AS RowsInserted;
+   -- Review results, then: COMMIT TRANSACTION;
+   -- Or to undo: ROLLBACK TRANSACTION;
+   ```
+
+   **Option B — Broad**: Add `SearchIndexer` to all content with custom
+   ACL. Restores pre-13.3.0 indexing behavior. Safe because Graph's
+   `_rbac` field still controls query-time access — adding `SearchIndexer`
+   does not expose content to unauthorized users:
+   ```sql
+   BEGIN TRANSACTION;
+
+   INSERT INTO tblContentAccess (fkContentID, Name, IsRole, AccessMask)
+   SELECT DISTINCT ca.fkContentID, 'SearchIndexer', 1, 1
+   FROM tblContentAccess ca
+   INNER JOIN tblContent c ON c.pkID = ca.fkContentID
+   WHERE c.Deleted = 0
+     AND NOT EXISTS (
+       SELECT 1 FROM tblContentAccess si
+       WHERE si.fkContentID = ca.fkContentID
+         AND si.Name = 'SearchIndexer'
+     );
+
+   SELECT @@ROWCOUNT AS RowsInserted;
+   -- Review results, then: COMMIT TRANSACTION;
+   -- Or to undo: ROLLBACK TRANSACTION;
+   ```
+
+   **Content assets** (media/blocks owned by a page) inherit security
+   from their owner page via `ContentAssetFolder` delegation. Fixing the
+   owner page's ACL automatically fixes its content assets — no separate
+   rows needed.
+
+   After running the SQL script, perform a Graph account reset and full
+   reindex, or run Smooth Rebuild to pick up the changes.
+
 CRITICAL: Do not cut over to CMS 13 production until staged verification
 passes and all frontend queries return expected data.
 
@@ -768,6 +854,18 @@ and the runtime smoke test passes.
     schema get empty results or errors. Use the side-by-side approach:
     migrate on a branch, validate frontend against staging CMS 13, then
     cut over. See Step 10.
+
+30. **Graph full sync silently excludes most content after migration**
+    (CMS 13.3.0+) — The Graph indexer enforces `SearchIndexer` Read
+    permission, but the upgrade script only grants it on Root (content
+    ID 1). Any content with custom ACL (broken inheritance from Root) —
+    typically site start pages and landing pages — is silently excluded
+    along with its entire subtree. The sync job reports success with a
+    dramatically lower item count and no explanation. Front-end search
+    returns zero results. Run the diagnostic query in Step 10 item 4 to
+    check, then apply one of the SQL fix options. **Do not execute
+    these scripts automatically** — present them to the developer for
+    review.
 
 ## Related Skills
 
