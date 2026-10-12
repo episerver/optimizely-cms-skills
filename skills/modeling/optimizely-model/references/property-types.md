@@ -14,7 +14,6 @@ The following property types are supported when defining content type properties
 - **`'dateTime'`** - Date and time picker (supports `minimum` and `maximum` constraints)
 - **`'url'`** - Simple URL string field
 - **`'link'`** - Link with metadata (includes text, title, target properties)
-- **`'binary'`** - Binary data field (requires `format: 'blob'`, CMS 13 only - see [Binary Type](#binary-type))
 - **`'json'`** - JSON data field (for structured data)
 - **`'content'`** - Reference to other content items
 - **`'contentReference'`** - Content reference with constraints (use with `allowedTypes` to restrict which content types can be referenced)
@@ -90,19 +89,19 @@ publishDate: {
 }
 ```
 
-### Binary Type
+### Binary Data
 
-Binary properties store raw file data and **must** declare `format: 'blob'`:
+Binary properties store raw file data. They are a `'string'` with `format: 'blob'`, not a `'binary'` type:
 
 ```typescript
 // ✅ CORRECT
 attachment: {
-  type: 'binary',
+  type: 'string',
   format: 'blob',
   displayName: 'Attachment'
 }
 
-// ❌ WRONG - missing format, push fails with:
+// ❌ WRONG - push fails with:
 // "The Type field does not support the value 'binary'."
 attachment: {
   type: 'binary',
@@ -110,11 +109,11 @@ attachment: {
 }
 ```
 
-**⚠️ CMS 13 only**: the SaaS CMS content-type API does not accept binary properties at all. On a SaaS instance (`OPTIMIZELY_CMS_URL` pointing at `*.cms.optimizely.com`) the push is rejected even with `format: 'blob'`.
+**⚠️ CMS 13 only**: the SaaS CMS content-type API does not accept blob properties. On a SaaS instance (`OPTIMIZELY_CMS_URL` pointing at `*.cms.optimizely.com`) the push is rejected.
 
 When a user asks for a binary property:
 
-1. Generate it with both `type: 'binary'` and `format: 'blob'`
+1. Generate it with `type: 'string'` and `format: 'blob'`
 2. Tell them it only pushes successfully against a CMS 13 instance, and suggest `type: 'contentReference'` with `allowedTypes: ['_media']` as the SaaS alternative for file uploads
 
 ### Array Type
@@ -694,7 +693,7 @@ The `format` field provides additional semantic information about how a property
 | `'guid'` | `'string'` | "GUID", "UUID", "unique identifier" | - |
 | `'selectOne'` | `'string'` | "dropdown", "select one", "pick one of" | `enum: [...]` |
 | `'selectMany'` | `'array'` | "select list", "multi-select", "select many", "checkboxes" | `items: { enum: [...] }` |
-| `'blob'` | `'binary'` | "binary", "blob", "binary data" | Always required; CMS 13 only |
+| `'blob'` | `'string'` | "binary", "blob", "binary data" | CMS 13 only |
 
 **Types that take no `format`**: `richText`, `boolean`, `integer`, `float`, `dateTime`, `link`, `json`, `content`, `contentReference`, `component`, and plain long-form `string` ("long string", "multi-line text", "description") or generic `url`.
 
@@ -739,6 +738,7 @@ String properties (`type: 'string'`) support formats that control the UI widget 
 | `'shortString'` | Short single-line text | Single-line textbox | Titles, names, labels |
 | `'guid'` | Globally unique identifier | Text input with GUID validation | Tracking IDs, external references |
 | `'selectOne'` | Single choice from predefined options | Dropdown list | Color picker, category selection |
+| `'blob'` | Raw binary data (CMS 13 only) | See [Binary Data](#binary-data) | Attachments |
 | No format | Default string behavior | Multi-line textarea | General text content |
 
 ```typescript
@@ -821,7 +821,7 @@ tags: {
 | "GUID", "unique identifier" | `'string'` | `'guid'` | None |
 | "dropdown", "select one" | `'string'` | `'selectOne'` | `enum: [...]` required |
 | "select list", "multi-select" | `'array'` | `'selectMany'` | `items: { enum: [...] }` required |
-| "binary", "blob", "binary data" | `'binary'` | `'blob'` | Always required; CMS 13 only |
+| "binary", "blob", "binary data" | `'string'` | `'blob'` | CMS 13 only |
 
 **Example mappings:**
 
