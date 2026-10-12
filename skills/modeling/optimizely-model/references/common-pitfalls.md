@@ -239,11 +239,11 @@ bodyText: {
 }
 ```
 
-## 8. Binary Properties Without `format: 'blob'`
+## 8. Binary Properties Declared as `type: 'binary'`
 
-**Problem:** Declaring a binary property with only a `type`.
+**Problem:** Declaring a binary property with `type: 'binary'`.
 
-**Why it fails:** The content-type API rejects the property with `The Type field does not support the value 'binary'.` A binary property is only valid when paired with `format: 'blob'`.
+**Why it fails:** The content-type API rejects the property with `The Type field does not support the value 'binary'.`, with or without a `format`. Binary data is a `'string'` with `format: 'blob'`.
 
 **Example of what NOT to do:**
 ```typescript
@@ -254,17 +254,17 @@ p_binary: {
 }
 ```
 
-**Solution:** Add the format:
+**Solution:** Use a blob string:
 ```typescript
 // ✅ CORRECT
 p_binary: {
-  type: 'binary',
+  type: 'string',
   format: 'blob',
   displayName: 'Binary'
 }
 ```
 
-**⚠️ Platform limitation:** even with `format: 'blob'`, binary properties only work on CMS 13. SaaS CMS does not support them — always tell the user this when generating one, and offer `type: 'contentReference'` with `allowedTypes: ['_media']` as the SaaS alternative.
+**⚠️ Platform limitation:** blob properties only work on CMS 13. SaaS CMS does not support them — always tell the user this when generating one, and offer `type: 'contentReference'` with `allowedTypes: ['_media']` as the SaaS alternative.
 
 ## 9. Dropping the `format` Field
 
@@ -425,7 +425,7 @@ Before finalizing your content type definition:
 - [ ] File naming follows conventions (e.g., `BlogPage.tsx` for BlogPage type)
 - [ ] Type references use objects (e.g., `ArticleContentType`), not strings (e.g., `'ArticleContentType'`)
 - [ ] `editorSettings` used only on `richText` properties (not on string/other types)
-- [ ] `binary` properties include `format: 'blob'` and the user has been told they are CMS 13 only
+- [ ] Binary properties use `type: 'string'` with `format: 'blob'` (never `type: 'binary'`) and the user has been told they are CMS 13 only
 - [ ] Every property whose description named a format (document/image URL, short string, GUID, dropdown, select list, binary) carries its `format` field
 - [ ] Every attribute the user listed is present - `description`, `isLocalized` and `sortOrder` in particular
 - [ ] No field was added that the user did not ask for (especially `isRequired`)

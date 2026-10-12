@@ -72,12 +72,12 @@ Choose the appropriate `baseType`: `'_page'`, `'_component'`, `'_experience'`, `
 
 ### Property Types
 
-The available types are `'string'`, `'richText'`, `'boolean'`, `'integer'`, `'float'`, `'dateTime'`, `'url'`, `'link'`, `'binary'`, `'json'`, `'content'`, `'contentReference'`, `'array'` and `'component'`.
+The available types are `'string'`, `'richText'`, `'boolean'`, `'integer'`, `'float'`, `'dateTime'`, `'url'`, `'link'`, `'json'`, `'content'`, `'contentReference'`, `'array'` and `'component'`.
 
 Two are worth knowing up front because they carry extra requirements:
 
 - `'integer'`, `'float'` and `'dateTime'` accept `minimum`/`maximum` bounds (ISO 8601 strings for dates).
-- `'binary'` additionally requires `format: 'blob'`; without it the push fails with `The Type field does not support the value 'binary'`. It also only exists on CMS 13 — SaaS CMS rejects binary properties however they are written, so say so when you generate one.
+- Binary data is `type: 'string'` with `format: 'blob'`. Never emit `type: 'binary'`: the push fails with `The Type field does not support the value 'binary'`. Blob properties only exist on CMS 13 — SaaS CMS rejects them, so say so when you generate one.
 
 `references/property-types.md` documents every type, its constraints and its formats with examples.
 
@@ -99,7 +99,7 @@ So treat the request as a checklist. Walk it one attribute at a time, map each t
 | "long string", "multi-line text", "description" | `type: 'string'` — the one string case that takes no format |
 | "GUID", "UUID", "unique identifier" | `type: 'string'`, `format: 'guid'` |
 | "rich text", "formatted text", "WYSIWYG" | `type: 'richText'` |
-| "binary", "blob", "raw file data" | `type: 'binary'`, `format: 'blob'` (CMS 13 only) |
+| "binary", "blob", "raw file data" | `type: 'string'`, `format: 'blob'` (CMS 13 only) |
 | "image", "picture", "photo" | `type: 'contentReference'`, `allowedTypes: ['_image']` |
 | "list of tags", "array of strings" | `type: 'array'`, `items: { type: 'string' }` |
 
