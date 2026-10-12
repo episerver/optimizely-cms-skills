@@ -216,12 +216,12 @@
     {
       "id": 16,
       "prompt": "Create a page type SkillTestingPage with a binary property p_binary",
-      "expected_output": "Should create SkillTestingPage.tsx with contentType() definition containing p_binary property. MUST have both type: 'binary' AND format: 'blob' - omitting format causes config push to fail with \"The Type field does not support the value 'binary'.\". Should also warn the user that binary properties are only supported on CMS 13 and are rejected by SaaS CMS, and may suggest contentReference with allowedTypes: ['_media'] as the SaaS alternative.",
+      "expected_output": "Should create SkillTestingPage.tsx with contentType() definition containing p_binary property. MUST have type: 'string' AND format: 'blob' - type: 'binary' causes config push to fail with \"The Type field does not support the value 'binary'.\". Should also warn the user that binary properties are only supported on CMS 13 and are rejected by SaaS CMS, and may suggest contentReference with allowedTypes: ['_media'] as the SaaS alternative.",
       "files": [],
       "assertions": [
         {
-          "name": "Binary property declares format blob",
-          "check": "p_binary includes both type: 'binary' and format: 'blob'"
+          "name": "Binary property is a blob string",
+          "check": "p_binary has type: 'string' and format: 'blob', not type: 'binary'"
         },
         {
           "name": "Warns about CMS 13 only support",
